@@ -3,122 +3,93 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>xGhost : qui a arrêté de te suivre sur X ?</title>
-  <meta name="description" content="xGhost est une extension Chrome qui détecte les comptes X qui ont arrêté de te suivre, avec la date du départ. Gratuite, sans serveur : tes données restent dans ton navigateur.">
-  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <title>xGhost, découvre qui t'a unfollow sur X</title>
+  <meta name="description" content="Extension Chrome gratuite, sans inscription, sans tracking.">
+  <link rel="icon" type="image/svg+xml" href="assets/images/icone/xghost-32.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/icone/xghost-32.png">
+  <link rel="apple-touch-icon" href="assets/images/icone/xghost-180.png">
   <link rel="canonical" href="https://app-buildr.github.io/xghost/">
 
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="xGhost">
-  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="Découvre qui t'a unfollow sur X">
+  <meta property="og:description" content="Extension Chrome gratuite, sans inscription, sans tracking.">
   <meta property="og:url" content="https://app-buildr.github.io/xghost/">
-  <meta property="og:title" content="xGhost : qui a arrêté de te suivre sur X ?">
-  <meta property="og:description" content="Extension Chrome gratuite qui détecte les désabonnements sur X, avec leur date. Tes données restent dans ton navigateur.">
-  <meta property="og:image" content="https://app-buildr.github.io/xghost/assets/og.png">
+  <meta property="og:image" content="https://app-buildr.github.io/xghost/assets/images/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="xGhost : qui a arrêté de te suivre sur X ? Extension Chrome gratuite.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="xGhost : qui a arrêté de te suivre sur X ?">
-  <meta name="twitter:description" content="Extension Chrome gratuite qui détecte les désabonnements sur X, avec leur date.">
-  <meta name="twitter:image" content="https://app-buildr.github.io/xghost/assets/og.png">
 
+  <link rel="preload" href="assets/fonts/manrope-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <header class="nav">
-    <div class="container nav__inner">
-      <a class="brand" href="#top" aria-label="xGhost, haut de page">
-        <img class="brand__logo" src="assets/favicon.png" width="36" height="36" alt="">
-        <span class="brand__name">xGhost</span>
+  <header class="header">
+    <div class="header__inner">
+      <a class="logo" href="#top">
+        <img src="assets/images/icone/xghost-32.svg" width="32" height="32" alt="">
+        <span>xGhost</span>
       </a>
-      <nav class="nav__links" id="nav-links" aria-label="Navigation principale">
-        <a href="#fonctionnement">Fonctionnement</a>
-        <a href="#installation">Installation</a>
-        <a href="#mise-a-jour">Mise à jour</a>
-        <a href="#confidentialite">Confidentialité</a>
-        <a href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">GitHub</a>
-        <a class="btn btn--primary btn--sm" href="#installation">Installer</a>
-      </nav>
-      <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Ouvrir le menu">
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <nav class="subnav" aria-label="Sections de la page">
-      <div class="container subnav__inner">
+      <nav class="menu" aria-label="Sections de la page">
         <a href="#fonctionnement">Fonctionnement</a>
         <a href="#apercu">Aperçu</a>
         <a href="#installation">Installation</a>
         <a href="#mise-a-jour">Mise à jour</a>
         <a href="#confidentialite">Confidentialité</a>
-        <a href="#faq">Questions</a>
+        <a href="#questions">Questions</a>
+      </nav>
+      <div class="header__actions">
+        <a class="btn-share" href="https://x.com/intent/post?text=Qui%20t%27a%20unfollow%20sur%20X%20%3F%20%F0%9F%91%BB%20xGhost%20te%20le%20dit%20!%0AxGhost%20est%20une%20extension%20Chrome%20open%20source&amp;url=https%3A%2F%2Fapp-buildr.github.io%2Fxghost%2F" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Partager
+        </a>
+        <a class="btn btn--primary btn--small" href="#installation">Télécharger</a>
       </div>
-    </nav>
+    </div>
   </header>
 
-  <main id="top">
-
+  <main>
     <!-- Hero -->
-    <section class="hero">
+    <section class="hero" id="top">
       <div class="container hero__inner">
         <div class="hero__text">
-          <p class="tag">Extension pour Chrome, Brave, Edge et Arc</p>
-          <h1>Qui a arrêté de te suivre sur X&nbsp;?</h1>
-          <p class="hero__lead"><strong>xGhost</strong> garde une photo de tes abonnés et te prévient dès que quelqu'un se désabonne, avec la date du départ. Tu l'installes une fois, il veille ensuite en arrière-plan.</p>
+          <p class="tag">Extension Chrome · open source</p>
+          <h1>Découvre qui t'a <span class="hl">unfollow</span> sur X.</h1>
+          <p class="hero__lead">Extension Chrome gratuite, sans inscription, sans tracking.</p>
           <div class="hero__actions">
-            <a class="btn btn--primary btn--lg" href="#installation">Installer xGhost</a>
-            <a class="btn btn--outline btn--lg" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Télécharger (.zip)
+            <a class="btn btn--primary btn--large" href="#installation">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+              Télécharger la dernière version
             </a>
-          </div>
-          <p class="hero__note"><strong>Gratuit, sans inscription, sans serveur, sans tracking, open source.</strong> Tes données restent dans ton navigateur.</p>
-        </div>
-        <div class="hero__visual">
-          <div class="screen">
-            <img src="assets/dashboard.png" width="1440" height="1300" alt="Tableau de bord de xGhost : dernier scan complet, départs et arrivées sur 7 jours, graphique sur 30 jours et liste des derniers départs.">
+            <a class="btn btn--secondary btn--large" href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">Voir le code sur GitHub</a>
           </div>
         </div>
+        <img class="hero__card" src="assets/images/hero-carte.png" width="400" height="333" alt="Carte xGhost : 3 nouveaux départs depuis la dernière visite, Marie Lefebvre, Julien Bernard et Studio Dune.">
       </div>
     </section>
 
     <!-- Fonctionnement -->
-    <section class="section section--muted" id="fonctionnement">
+    <section class="section section--surface" id="fonctionnement">
       <div class="container">
-        <h2>Comment ça marche</h2>
-        <p class="section__lead">À l'installation, xGhost prend une photo de tes abonnés. Ensuite, il vérifie régulièrement ta liste et te prévient dès que quelqu'un part.</p>
-
-        <div class="features">
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg></span>
-            <h3>Qui est parti, et quand</h3>
-            <p>Chaque désabonnement apparaît avec sa date. Et quand c'est possible, combien de temps la personne t'a suivi.</p>
+        <p class="eyebrow">Fonctionnement</p>
+        <h2>xGhost compare régulièrement la liste de tes abonnés.</h2>
+        <div class="cards cards--how">
+          <article class="how">
+            <span class="how__num">1</span>
+            <h3>Scan initial</h3>
+            <p>À l'installation, xGhost récupère la liste de tes abonnés. C'est la référence de départ.</p>
           </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M19 8v6M16 11h6"/></svg></span>
-            <h3>Tes nouveaux abonnés aussi</h3>
-            <p>Les arrivées sont listées à part, avec tes chiffres de la semaine : départs, arrivées et solde.</p>
+          <article class="how">
+            <span class="how__num">2</span>
+            <h3>Vérifications régulières</h3>
+            <p>Toutes les 6, 12 ou 24 h selon ton choix, il vérifie les arrivées et les départs.</p>
           </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg></span>
-            <h3>Il veille tout seul</h3>
-            <p>Une vérification toutes les 6 heures par défaut, ou quand tu veux d'un clic. Tu n'as rien d'autre à faire.</p>
-          </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
-            <h3>Badge et notifications</h3>
-            <p>Le nombre de nouveaux départs s'affiche sur l'icône, et une notification te prévient quand quelqu'un s'en va.</p>
-          </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg></span>
-            <h3>Plusieurs comptes X</h3>
-            <p>Tu as plusieurs comptes ? Connecte-toi à l'un puis à l'autre sur x.com : xGhost les suit chacun de leur côté.</p>
-          </article>
-          <article class="card">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
-            <h3>Privé et open source</h3>
-            <p>Sans inscription, sans serveur, sans tracking. Tes données restent dans ton navigateur, et le code est public sur GitHub.</p>
+          <article class="how">
+            <span class="how__num">3</span>
+            <h3>Alerte à chaque départ</h3>
+            <p>Dès qu'un compte part, l'icône te le signale.</p>
+            <img src="assets/images/fonctionnement-icone-alerte.png" width="315" height="47" alt="Barre d'adresse de Chrome, l'icône xGhost porte un badge rouge.">
           </article>
         </div>
       </div>
@@ -127,184 +98,132 @@
     <!-- Aperçu -->
     <section class="section" id="apercu">
       <div class="container">
-        <h2>Aperçu</h2>
-        <p class="section__lead">Un clic sur l'icône pour voir les derniers départs, le tableau de bord pour tout le reste.</p>
-        <div class="gallery">
-          <figure class="gallery__item gallery__item--narrow">
-            <img src="assets/popup.png" width="760" height="1546" loading="lazy" alt="Popup de xGhost : 3 nouveaux départs depuis la dernière visite, liste des derniers unfollows et chiffres sur 7 jours.">
-            <figcaption>La popup : nouveaux départs depuis ta dernière visite.</figcaption>
+        <p class="eyebrow">Aperçu</p>
+        <h2>Tout ce qu'il faut, rien de plus.</h2>
+        <div class="cards cards--preview">
+          <figure class="preview">
+            <div class="preview__shot"><img class="preview__img--popup" src="assets/images/apercu/popup.png" width="380" height="620" alt="Popup xGhost avec les derniers unfollows"></div>
+            <figcaption><h3>La popup</h3><p>Les derniers départs, au clic sur l'icône.</p></figcaption>
           </figure>
-          <figure class="gallery__item">
-            <img src="assets/overlay.png" width="1400" height="916" loading="lazy" alt="Onglet de scan x.com recouvert d'un voile : « Je récupère tes abonnés… », 643 sur 1 573, 41 %, environ 2 minutes restantes.">
-            <figcaption>Pendant une vérification complète, un onglet x.com épinglé montre où en est xGhost, puis se ferme tout seul.</figcaption>
+          <figure class="preview">
+            <div class="preview__shot"><img src="assets/images/apercu/dashboard.png" width="788" height="541" alt="Liste des derniers départs dans le dashboard"></div>
+            <figcaption><h3>Le dashboard</h3><p>Tous tes départs et arrivées, au même endroit.</p></figcaption>
+          </figure>
+          <figure class="preview">
+            <div class="preview__shot"><img src="assets/images/apercu/synchronisation.png" width="496" height="406" alt="Carte de synchronisation des abonnés dans l'onglet x.com"></div>
+            <figcaption><h3>La synchronisation</h3><p>Dans un onglet x.com, qui se ferme tout seul.</p></figcaption>
           </figure>
         </div>
       </div>
     </section>
 
     <!-- Installation -->
-    <section class="section section--muted" id="installation">
-      <div class="container">
-        <h2>Installation en 6 étapes</h2>
-        <p class="section__lead">xGhost ne passe pas par le Chrome Web Store : on le charge en mode développeur, une option standard de Chrome. Compte deux minutes.</p>
-
+    <section class="section section--surface" id="installation">
+      <div class="container split">
+        <div class="split__intro">
+          <p class="eyebrow">Installation</p>
+          <h2>Installé en 2 minutes.</h2>
+          <p class="split__text">Fonctionne sur Chrome, Brave, Edge et les navigateurs basés sur Chromium, sur ordinateur.</p>
+          <a class="btn btn--primary btn--large" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+            Télécharger le .zip
+          </a>
+        </div>
         <ol class="steps">
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">1</span>
-              <div>
-                <h3>Télécharge xGhost</h3>
-                <p>Récupère l'archive puis décompresse-la. Range le dossier <code>xGhost</code> dans un endroit où il restera, par exemple <code>Documents</code> : le navigateur en a besoin en permanence.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <a class="btn btn--primary btn--lg" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Télécharger xGhost (.zip)
-              </a>
+            <span class="step__num">1</span>
+            <div class="step__body">
+              <h3>Clique sur « Télécharger le .zip »</h3>
+              <p>Le bouton juste ici, à gauche. Il pointe toujours vers la dernière version.</p>
             </div>
           </li>
-
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">2</span>
-              <div>
-                <h3>Ouvre la page des extensions</h3>
-                <p>Menu ⋮ en haut à droite, puis <strong>Extensions</strong> et <strong>Gérer les extensions</strong>.</p>
-                <p>Plus rapide : tape <code>chrome://extensions</code> dans la barre d'adresse (<code>brave://</code> ou <code>edge://</code> selon ton navigateur).</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/install-menu.png" width="416" height="443" loading="lazy" alt="Menu ⋮ de Chrome ouvert sur Extensions, une flèche verte désigne « Gérer les extensions ».">
+            <span class="step__num">2</span>
+            <div class="step__body">
+              <h3>Décompresse-le</h3>
+              <p>Tu obtiens un dossier xGhost. Range-le dans un dossier où il restera, par exemple Documents : Chrome le relit à chaque démarrage, il ne faut ni le déplacer ni le supprimer ensuite.</p>
             </div>
           </li>
-
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">3</span>
-              <div>
-                <h3>Active le mode développeur</h3>
-                <p>L'interrupteur se trouve en haut à droite de la page des extensions.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/install-dev-mode.png" width="257" height="155" loading="lazy" alt="Interrupteur « Mode développeur » activé en haut à droite de la page des extensions.">
+            <span class="step__num">3</span>
+            <div class="step__body">
+              <h3>Ouvre la page des extensions</h3>
+              <p>Menu ⋮ › Extensions › Gérer les extensions (ou tape chrome://extensions).</p>
+              <img src="assets/images/installation/etape-3-menu-extensions.png" width="420" height="447" alt="Menu ⋮ de Chrome ouvert sur Extensions, Gérer les extensions." loading="lazy">
             </div>
           </li>
-
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">4</span>
-              <div>
-                <h3>Clique sur « Charger l'extension non empaquetée »</h3>
-                <p>Le bouton apparaît en haut à gauche dès que le mode développeur est actif.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/install-load.png" width="416" height="236" loading="lazy" alt="Page des extensions, une flèche verte désigne le bouton « Charger l'extension non empaquetée ».">
+            <span class="step__num">4</span>
+            <div class="step__body">
+              <h3>Active le mode développeur</h3>
+              <p>L'interrupteur est en haut à droite de la page.</p>
+              <img src="assets/images/installation/etape-4-mode-developpeur.png" width="260" height="157" alt="Interrupteur Mode développeur activé." loading="lazy">
             </div>
           </li>
-
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">5</span>
-              <div>
-                <h3>Sélectionne le dossier xGhost</h3>
-                <p>Choisis le dossier décompressé à l'étape 1, celui qui contient le fichier <code>manifest.json</code>, puis valide.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/install-folder.png" width="353" height="224" loading="lazy" alt="Sélecteur de dossier ouvert sur Téléchargements, le dossier xGhost est sélectionné, bouton « Sélectionner ».">
+            <span class="step__num">5</span>
+            <div class="step__body">
+              <h3>Charge l'extension</h3>
+              <p>Clique sur « Charger l'extension non empaquetée », puis sélectionne le dossier xGhost.</p>
+              <img src="assets/images/installation/etape-5a-charger-extension.png" width="420" height="238" alt="Bouton Charger l'extension non empaquetée." loading="lazy">
+              <img src="assets/images/installation/etape-5b-choisir-dossier.png" width="300" height="190" alt="Sélection du dossier xGhost." loading="lazy">
             </div>
           </li>
-
-          <li class="step">
-            <div class="step__text">
-              <span class="step__num">6</span>
-              <div>
-                <h3>Connecte-toi à X et laisse faire</h3>
-                <p>L'écran de bienvenue s'ouvre tout seul. Si tu n'es pas connecté à x.com dans ce navigateur, connecte-toi : xGhost reconnaît ton compte et enregistre tes abonnés actuels. Un onglet x.com s'ouvre pendant ce temps, puis se ferme tout seul.</p>
-                <p>Pense à épingler l'icône : pièce de puzzle à droite de la barre d'adresse, puis l'épingle à côté de xGhost.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot step__shot--wide" src="assets/overlay.png" width="700" height="458" loading="lazy" alt="Onglet de scan x.com recouvert d'un voile : « Je récupère tes abonnés… », 643 sur 1 573, 41 %.">
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>C'est prêt !</h3>
+              <p>Épingle l'icône fantôme dans ta barre, puis clique dessus pour lancer la première synchronisation de tes abonnés.</p>
             </div>
           </li>
         </ol>
-
-        <div class="ready">
-          <span class="ready__check" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="26" height="26"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <div>
-            <h3>C'est prêt.</h3>
-            <p>xGhost vérifie ta liste toutes les 6 heures par défaut (réglable de 1 h à 24 h). Un clic sur « Vérifier maintenant » lance un contrôle à la demande.</p>
-          </div>
-        </div>
       </div>
     </section>
 
     <!-- Mise à jour -->
     <section class="section" id="mise-a-jour">
-      <div class="container">
-        <h2>Mettre à jour xGhost</h2>
-        <p class="section__lead">Chargé en mode développeur, xGhost n'est pas mis à jour par Chrome. Il vérifie donc lui-même, plusieurs fois par jour, si une nouvelle version est publiée : une <strong>flèche ↑</strong> apparaît alors sur son icône et un bandeau s'affiche en haut de la page d'options. Pas besoin de tout réinstaller : remplace le dossier, puis recharge l'extension. Tes comptes, ton historique et tes réglages sont conservés.</p>
-
+      <div class="container split">
+        <div class="split__intro">
+          <p class="eyebrow">Mise à jour</p>
+          <h2>Nouvelle version, mêmes données.</h2>
+          <p class="warning">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4L12 4Zm0 6v4.5m0 2.5v.01"/></svg>
+            <span>Remplace les fichiers dans le <strong>même dossier</strong>. Si tu changes de dossier, Chrome voit une nouvelle extension et ton historique local repart de zéro.</span>
+          </p>
+        </div>
         <ol class="steps">
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">1</span>
-              <div>
-                <h3>Télécharge la nouvelle version</h3>
-                <p>Récupère la dernière archive puis décompresse-la.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <a class="btn btn--primary btn--lg" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Télécharger xGhost (.zip)
+            <span class="step__num">1</span>
+            <div class="step__body">
+              <h3>Télécharge la nouvelle version</h3>
+              <p>Le lien pointe toujours vers la dernière release.</p>
+              <a class="btn btn--primary btn--small step__btn" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+                Télécharger la dernière version
               </a>
             </div>
           </li>
-
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">2</span>
-              <div>
-                <h3>Remplace l'ancien dossier xGhost</h3>
-                <p>Supprime l'ancien dossier <code>xGhost</code> et mets le nouveau à sa place, <strong>au même endroit et sous le même nom</strong>.</p>
-                <p>C'est important : le navigateur retrouve l'extension, et tes données, grâce à l'emplacement du dossier. Chargée depuis un autre dossier, elle serait traitée comme une nouvelle extension.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/update-folder.png" width="353" height="164" loading="lazy" alt="Dossier Documents contenant le dossier xGhost, sélectionné.">
+            <span class="step__num">2</span>
+            <div class="step__body">
+              <h3>Remplace les fichiers</h3>
+              <p>Décompresse-la dans le même dossier xGhost que la première fois, en écrasant les fichiers.</p>
+              <img src="assets/images/mise-a-jour/etape-2-dossier.png" width="300" height="139" alt="Dossier Documents contenant le dossier xGhost." loading="lazy">
             </div>
           </li>
-
           <li class="step">
-            <div class="step__text">
-              <span class="step__num">3</span>
-              <div>
-                <h3>Ouvre la page des extensions</h3>
-                <p>Menu ⋮, puis <strong>Extensions</strong> et <strong>Gérer les extensions</strong>, ou <code>chrome://extensions</code> dans la barre d'adresse.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/install-menu.png" width="416" height="443" loading="lazy" alt="Menu ⋮ de Chrome ouvert sur Extensions, une flèche verte désigne « Gérer les extensions ».">
+            <span class="step__num">3</span>
+            <div class="step__body">
+              <h3>Recharge l'extension</h3>
+              <p>Menu ⋮ › Extensions › Gérer les extensions, puis clique sur la flèche circulaire de la carte xGhost.</p>
+              <img src="assets/images/mise-a-jour/etape-3-recharger.png" width="380" height="159" alt="Carte de l'extension xGhost, bouton de rechargement." loading="lazy">
             </div>
           </li>
-
-          <li class="step">
-            <div class="step__text">
-              <span class="step__num">4</span>
-              <div>
-                <h3>Recharge l'extension</h3>
-                <p>Clique sur la flèche circulaire de la carte xGhost. Le numéro de version affiché à côté du nom doit changer, et la flèche ↑ disparaît de l'icône.</p>
-              </div>
-            </div>
-            <div class="step__visual">
-              <img class="step__shot" src="assets/update-reload.png" width="449" height="188" loading="lazy" alt="Carte de l'extension xGhost dans la page des extensions, une flèche verte désigne le bouton de rechargement.">
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>C'est à jour !</h3>
+              <p>Ton historique et tes réglages sont conservés, rien d'autre à faire.</p>
             </div>
           </li>
         </ol>
@@ -313,53 +232,69 @@
 
     <!-- Confidentialité -->
     <section class="section section--dark" id="confidentialite">
-      <div class="container split">
-        <div>
-          <h2>Tes données restent chez toi.</h2>
-          <p class="section__lead">xGhost ne collecte rien sur toi. Il fonctionne entièrement dans ton navigateur.</p>
+      <div class="container">
+        <p class="eyebrow">Confidentialité</p>
+        <h2>Tes données restent chez toi.</h2>
+        <div class="cards cards--privacy">
+          <article class="privacy"><h3>Aucun serveur</h3><p>Rien n'est envoyé ailleurs que vers x.com, avec ta propre session.</p></article>
+          <article class="privacy"><h3>Aucun tracking</h3><p>Pas d'analytics, pas de cookies tiers, pas de télémétrie.</p></article>
+          <article class="privacy"><h3>Sans inscription</h3><p>Pas de compte xGhost à créer. Tu installes, c'est tout.</p></article>
+          <article class="privacy"><h3>Sauvegarde</h3><p>Tes données restent sur ton ordinateur. Exporte-les dans un fichier pour les retrouver après une réinstallation.</p></article>
         </div>
-        <ul class="checks">
-          <li><strong>Sans inscription.</strong> Pas de compte xGhost à créer, rien à payer.</li>
-          <li><strong>Sans serveur.</strong> Tes abonnés et ton historique restent dans ton navigateur, synchronisés seulement par ton compte Chrome.</li>
-          <li><strong>Sans tracking.</strong> Aucune statistique, aucune publicité, aucun traceur.</li>
-          <li><strong>Ton mot de passe X n'est jamais demandé.</strong> Il suffit d'être connecté à x.com dans ton navigateur.</li>
-          <li><strong>Open source.</strong> Tout le code est public sur GitHub : chacun peut le relire.</li>
-        </ul>
       </div>
     </section>
 
-    <!-- FAQ -->
-    <section class="section" id="faq">
+    <!-- Questions -->
+    <section class="section" id="questions">
       <div class="container container--narrow">
+        <p class="eyebrow">Questions</p>
         <h2>Questions fréquentes</h2>
-        <details>
-          <summary>Pourquoi un onglet x.com s'ouvre-t-il parfois&nbsp;?</summary>
-          <p>X ne montre ta liste d'abonnés que sur son site. Quand il faut la relire en entier, xGhost l'ouvre dans un petit onglet épinglé, puis le referme tout seul. Tu peux continuer à utiliser tes autres onglets.</p>
-        </details>
-        <details>
-          <summary>Que se passe-t-il si X limite les requêtes&nbsp;?</summary>
-          <p>xGhost fait une petite pause, puis reprend tout seul. Tu n'as rien à faire.</p>
-        </details>
-        <details>
-          <summary>xGhost sait-il depuis quand quelqu'un me suivait&nbsp;?</summary>
-          <p>Seulement s'il l'a vu arriver. X ne donne jamais la date d'abonnement : pour un abonné déjà présent à l'installation, xGhost affiche « suivi depuis le … ou avant ». Aucune durée n'est inventée.</p>
-        </details>
-        <details>
-          <summary>Est-ce compatible avec les conditions d'utilisation de X&nbsp;?</summary>
-          <p>xGhost se contente de lire la page d'abonnés comme un utilisateur, sans forcer les protections de X ni automatiser d'action sur ton compte. Il reste un outil non officiel : à utiliser en connaissance de cause.</p>
-        </details>
+        <div class="faq">
+          <details>
+            <summary>Pourquoi un onglet x.com s'ouvre tout seul ?</summary>
+            <p>X ne fournit la liste de tes abonnés qu'à sa propre page. xGhost ouvre donc un onglet épinglé, fait défiler la liste, puis le ferme. Ne le ferme pas pendant le scan.</p>
+          </details>
+          <details>
+            <summary>Est-ce que je risque quelque chose avec mon compte X ?</summary>
+            <p>xGhost se contente de faire défiler ta liste d'abonnés, comme tu le ferais toi-même, en respectant les pauses imposées par X. Le risque est faible, mais aucune extension non officielle ne peut le garantir nul.</p>
+          </details>
+          <details>
+            <summary>Pourquoi le scan n'atteint pas 100 % ?</summary>
+            <p>X compte dans ton total des comptes qu'il n'affiche pas (suspendus, restreints). À partir de 99 %, le scan est considéré comme complet.</p>
+          </details>
+          <details>
+            <summary>Pourquoi « suivi depuis le 12 oct. ou avant » ?</summary>
+            <p>X ne dit jamais depuis quand quelqu'un te suit. xGhost ne connaît que ce qu'il a vu : la date de ton premier scan, ou la date d'arrivée pour les nouveaux abonnés.</p>
+          </details>
+          <details>
+            <summary>Ça marche avec plusieurs comptes ?</summary>
+            <p>Oui. Connecte-toi à un autre compte sur x.com, xGhost le détecte et le suit séparément.</p>
+          </details>
+          <details>
+            <summary>Et sur Firefox ou sur mobile ?</summary>
+            <p>Non, uniquement Chrome et les navigateurs basés sur Chromium, sur ordinateur.</p>
+          </details>
+        </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
     <div class="container footer__inner">
-      <span class="brand brand--small"><img class="brand__logo" src="assets/favicon.png" width="24" height="24" alt=""> xGhost</span>
-      <span>Extension non officielle, sans lien avec X Corp.</span>
-      <a href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">Code source sur GitHub</a>
+      <div class="footer__left">
+        <span class="footer__logo"><img src="assets/images/icone/xghost-32.svg" width="20" height="20" alt=""> xGhost</span>
+        <span>Open source.</span>
+        <span>Projet indépendant, non affilié à X Corp.</span>
+      </div>
+      <div class="footer__links">
+        <a class="btn-share" href="https://x.com/intent/post?text=Qui%20t%27a%20unfollow%20sur%20X%20%3F%20%F0%9F%91%BB%20xGhost%20te%20le%20dit%20!%0AxGhost%20est%20une%20extension%20Chrome%20open%20source&amp;url=https%3A%2F%2Fapp-buildr.github.io%2Fxghost%2F" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Partager
+        </a>
+        <a href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">GitHub</a>
+      </div>
     </div>
   </footer>
 
-  <script src="nav.js" defer></script>
 </body>
 </html>

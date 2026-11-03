@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { AVATAR } from '@/features/x-api/parse';
 import { initials } from '../utils/format';
 import logoUrl from './logo.svg';
 
@@ -44,7 +45,12 @@ export function Avatar({
       style={{ width: size, height: size, background: bg, color: fg, fontSize: size * 0.36 }}
       aria-hidden="true"
     >
-      {src && !failed ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} /> : initials(name)}
+      {/* Seules les images de X sont chargées : une URL d'une autre origine (sauvegarde modifiée…) est ignorée. */}
+      {src && AVATAR.test(src) && !failed ? (
+        <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+      ) : (
+        initials(name)
+      )}
     </span>
   );
 }
@@ -73,25 +79,47 @@ export function Toggle({
   );
 }
 
+/**
+ * Choix exclusif (groupe de boutons radio) : un seul arrêt de tabulation, flèches pour
+ * changer de choix, comme un groupe radio natif.
+ */
 export function Segmented<T extends string | number>({
   options,
   value,
   onChange,
   label,
+  className = 'xg-segmented',
 }: {
-  options: { value: T; label: ReactNode }[];
+  options: readonly { value: T; label: ReactNode }[];
   value: T;
   onChange: (v: T) => void;
   label: string;
+  /** Apparence : contrôle segmenté par défaut, ou une autre classe (ex. grandes tuiles de l'onboarding). */
+  className?: string;
 }) {
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const current = Math.max(0, options.findIndex((o) => o.value === value));
+  const onKeyDown = (e: KeyboardEvent) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    const target = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1 : step ? current + step : undefined;
+    if (target === undefined) return;
+    e.preventDefault();
+    const next = (target + options.length) % options.length;
+    onChange(options[next]!.value);
+    buttons.current[next]?.focus();
+  };
   return (
-    <div className="xg-segmented" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
+    <div className={className} role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+      {options.map((o, i) => (
         <button
           key={String(o.value)}
+          ref={(el) => {
+            buttons.current[i] = el;
+          }}
           type="button"
           role="radio"
-          aria-checked={o.value === value}
+          aria-checked={i === current}
+          tabIndex={i === current ? 0 : -1}
           onClick={() => onChange(o.value)}
         >
           {o.label}
@@ -101,11 +129,41 @@ export function Segmented<T extends string | number>({
   );
 }
 
-export function ProgressBar({ value, max }: { value: number; max: number }) {
+export function ProgressBar({ value, max, label }: { value: number; max: number; label: string }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className="xg-progress" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
+    <div
+      className="xg-progress"
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+    >
       <div className="xg-progress__bar" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/** Tuile de chiffre (indicateurs du tableau de bord, statistiques de la popup). */
+export function StatTile({
+  label,
+  value,
+  tone,
+  hint,
+  size = 'md',
+}: {
+  label: string;
+  value: string;
+  tone?: 'danger' | 'primary';
+  hint?: string;
+  size?: 'sm' | 'md';
+}) {
+  return (
+    <div className={`xg-stat xg-stat--${size}${size === 'md' ? ' xg-card' : ''}`}>
+      <span className="xg-stat__label">{label}</span>
+      <strong className={`xg-stat__value${tone ? ` xg-stat__value--${tone}` : ''}`}>{value}</strong>
+      {hint && <span className="xg-stat__hint">{hint}</span>}
     </div>
   );
 }

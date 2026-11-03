@@ -32,31 +32,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
-.xg-kpi {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.xg-kpi__label {
-  font-size: 15px;
-  color: var(--xg-text-muted);
-}
-.xg-kpi__value {
-  font-family: var(--xg-font-display);
-  font-size: 36px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-.xg-kpi__value--danger {
-  color: var(--xg-danger-text);
-}
-.xg-kpi__value--primary {
-  color: var(--xg-primary);
-}
-.xg-kpi__hint {
-  font-size: 14px;
-  color: var(--xg-text-muted);
-}
 
 .xg-chart {
   margin: 0;
@@ -80,15 +55,80 @@
   margin-right: 6px;
   border-radius: 2px;
 }
+.xg-chart__swatch--arrival {
+  background: var(--xg-primary);
+}
+.xg-chart__swatch--departure {
+  background: var(--xg-chart-departure);
+}
 .xg-chart__svg {
   display: block;
   width: 100%;
   height: 92px;
 }
+.xg-chart__plot {
+  position: relative;
+}
+.xg-chart__hits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.xg-chart__hits span {
+  flex: 1;
+  cursor: default;
+}
+.xg-chart__tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 170px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--xg-ink);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(17, 19, 24, 0.18);
+  transform: translateX(-50%);
+}
+.xg-chart__tip--start {
+  transform: translateX(-12px);
+}
+.xg-chart__tip--end {
+  transform: translateX(calc(-100% + 12px));
+}
+.xg-chart__tip strong {
+  font-weight: 600;
+}
+.xg-chart__tip strong::first-letter {
+  text-transform: uppercase;
+}
+.xg-chart__tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.xg-chart__tip-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.xg-chart__tip-net {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: #c9ced6;
+}
 
 .xg-dash__split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 32px;
   align-items: start;
 }

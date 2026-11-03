@@ -1,34 +1,39 @@
-import { UpdateBanner } from '@/features/updates/UpdateBanner';
+import { isOnboarded } from '@/features/accounts/repository';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useUnseenByAccount } from '@/features/accounts/ui/AccountsList';
-import { useAccountData, useAppState, visibilityContext } from '@/features/app-state/hooks';
-import { DepartureRowCompact } from '@/features/departures/ui/DepartureRow';
+import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
+import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
+import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
+import { useAppState } from '@/features/app-state/useAppState';
+import { DisplayedContext, useMarkDisplayed } from '@/features/app-state/useSeenOnView';
 import { currentDepartures, stats7d } from '@/features/events/selectors';
+import { joinParts } from '@/features/events/ui/display';
+import { departureMeta } from '@/features/events/ui/DeparturesPanel';
+import { EventRow } from '@/features/events/ui/EventRow';
+import { scanCoverage } from '@/features/scan-status/progress';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
+import { useStartScan } from '@/features/scan-status/ui/useStartScan';
+import { UpdateBanner } from '@/features/updates/ui/UpdateBanner';
+import { focusOrOpenExtensionPage } from '@/shared/browser/tabs';
 import { useNow } from '@/shared/hooks/useNow';
-import { send } from '@/shared/messaging/client';
+import { t } from '@/shared/i18n';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
+import type { FollowEvent } from '@/shared/types';
+import { ActionMenu } from '@/shared/ui/ActionMenu';
 import { IconChevronDown, IconRefresh, IconSettings } from '@/shared/ui/icons';
-import { Logo } from '@/shared/ui/primitives';
-import { formatAgo, formatNumber, formatSigned, percentOf, plural } from '@/shared/utils/format';
+import { Logo, StatTile } from '@/shared/ui/primitives';
+import { formatAgo, formatNumber, formatPercent, formatSigned } from '@/shared/utils/format';
 import './popup.css';
 
-const openOptions = () => {
-  void chrome.runtime.openOptionsPage();
+/** Ouvre une section des options (onglet réutilisé s'il existe), puis ferme la popup. */
+async function openOptions(section: 'dashboard' | 'settings'): Promise<void> {
+  await focusOrOpenExtensionPage('/options.html', section);
   window.close();
-};
+}
 
 /** Ouvre l'onboarding (ou ramène l'onglet existant au premier plan), puis ferme la popup. */
 async function openOnboarding(): Promise<void> {
-  const url = chrome.runtime.getURL('/onboarding.html');
-  const [existing] = await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.TAB], documentUrls: [url] });
-  if (existing && existing.tabId >= 0) {
-    await chrome.tabs.update(existing.tabId, { active: true });
-    if (existing.windowId >= 0) await chrome.windows.update(existing.windowId, { focused: true });
-  } else {
-    await chrome.tabs.create({ url });
-  }
+  await focusOrOpenExtensionPage('/onboarding.html');
   window.close();
 }
 
@@ -43,26 +48,57 @@ function usePreviousVisit(accountId: string | undefined): number | null | undefi
     if (!accountId || done.current === accountId) return;
     done.current = accountId;
     void localKv.get<number>(keys.lastVisit(accountId)).then(async (v) => {
-      setPrevious(v ?? null);
+      setPrevious(typeof v === 'number' ? v : null);
       await localKv.set({ [keys.lastVisit(accountId)]: Date.now() });
     });
   }, [accountId]);
   return previous;
 }
 
+/** Derniers départs de la popup (lignes compactes), signalés comme affichés. */
+function LatestDepartures({
+  events,
+  latest,
+  profiles,
+  baselineAt,
+  now,
+}: {
+  events: FollowEvent[];
+  latest: FollowEvent[];
+  profiles: Parameters<typeof EventRow>[0]['profiles'];
+  baselineAt?: number;
+  now: number;
+}) {
+  useMarkDisplayed(latest);
+  if (latest.length === 0) return <p className="xg-popup__empty">{t('dashboard.departures.empty')}</p>;
+  return (
+    <ul className="xg-dep-list">
+      {latest.map((e) => (
+        <EventRow
+          key={e.id}
+          event={e}
+          profiles={profiles}
+          now={now}
+          variant="compact"
+          meta={departureMeta(e, events, baselineAt, now, true)}
+        />
+      ))}
+    </ul>
+  );
+}
+
 export function PopupApp() {
   const app = useAppState();
   const now = useNow();
   const account = app.selected;
-  const { data } = useAccountData(account?.id, { seenOnView: true });
-  const ctx = useMemo(() => visibilityContext(data, app.settings, account), [data, app.settings, account]);
+  const { data, markDisplayed } = useAccountData(account?.id, { seenOnView: true });
+  const ctx = useVisibilityContext(data, account);
   const previousVisit = usePreviousVisit(account?.id);
-  const unseenByAccount = useUnseenByAccount(app.accounts, app.settings);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const unseenByAccount = useUnseenByAccount(app.accounts);
+  const { start, busy } = useStartScan();
 
   const list = useMemo(() => (data ? currentDepartures(data.events, ctx) : []), [data, ctx]);
-  const latest = list.slice(0, 5);
+  const latest = useMemo(() => list.slice(0, 5), [list]);
   const stats = useMemo(() => stats7d(data?.events ?? [], ctx, now), [data?.events, ctx, now]);
   // `list` ne contient déjà que les comptes toujours absents.
   const fresh = useMemo(
@@ -72,163 +108,141 @@ export function PopupApp() {
 
   // Tant que la première synchronisation n'est pas terminée, un clic sur l'icône
   // ouvre l'écran de synchronisation plutôt que la popup.
-  const onboarded = app.accounts.some((a) => a.baselineAt);
+  const onboarded = isOnboarded(app.accounts);
   useEffect(() => {
     if (!app.loading && !onboarded) void openOnboarding();
   }, [app.loading, onboarded]);
 
   if (app.loading || !onboarded) return <div className="xg-popup" />;
 
+  const handle = account ? (
+    <>
+      <span className="xg-popup__handle">@{account.handle}</span>
+      {app.accounts.length > 1 && <IconChevronDown size={18} />}
+    </>
+  ) : null;
+
   return (
-    <div className="xg-popup">
-      <header className="xg-popup__head">
-        <Logo size={40} />
-        <div className="xg-popup__account">
-          {account ? (
-            <button
-              type="button"
-              className="xg-popup__switch"
-              aria-haspopup="listbox"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-              disabled={app.accounts.length < 2}
-            >
-              <span className="xg-popup__handle">@{account.handle}</span>
-              {app.accounts.length > 1 && <IconChevronDown size={18} />}
-            </button>
-          ) : (
-            <span className="xg-popup__handle">xGhost</span>
-          )}
-          {account && (
-            <span className="xg-popup__sub">
-              {account.followersCount !== undefined ? `${formatNumber(account.followersCount)} abonnés · ` : ''}
-              {plural(app.accounts.length, 'compte')} X
+    <DisplayedContext.Provider value={markDisplayed}>
+      <div className="xg-popup">
+        <header className="xg-popup__head">
+          <Logo size={40} />
+          <div className="xg-popup__account">
+            {!account ? (
+              <span className="xg-popup__handle">{t('common.appName')}</span>
+            ) : app.accounts.length > 1 ? (
+              <ActionMenu
+                label={t('popup.switchAccount')}
+                trigger={handle}
+                triggerClassName="xg-popup__switch"
+                align="start"
+                actions={app.accounts.map((a) => {
+                  const count = unseenByAccount[a.id] ?? 0;
+                  return {
+                    key: a.id,
+                    label: `@${a.handle}`,
+                    checked: a.id === account.id,
+                    trailing: count > 0 ? <UnseenCount count={count} /> : undefined,
+                    onSelect: () => void app.select(a.id),
+                  };
+                })}
+              />
+            ) : (
+              <span className="xg-popup__switch">{handle}</span>
+            )}
+            {account && (
+              <span className="xg-popup__sub">
+                {joinParts([
+                  account.followersCount !== undefined
+                    ? t('popup.followers', { count: account.followersCount, n: formatNumber(account.followersCount) })
+                    : undefined,
+                  t('popup.accounts', { count: app.accounts.length, n: formatNumber(app.accounts.length) }),
+                ])}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="xg-icon-btn"
+            aria-label={t('popup.settings')}
+            onClick={() => void openOptions('settings')}
+          >
+            <IconSettings size={24} />
+          </button>
+        </header>
+
+        <ScanStatusBanner account={account} progress={data?.progress} status={app.status} now={now} compact />
+
+        {fresh > 0 && (
+          <div className="xg-popup__alert" role="status">
+            <strong>{formatNumber(fresh)}</strong>
+            <span>
+              <b>{t('popup.fresh', { count: fresh })}</b>
+              <br />
+              {t('popup.sinceLastVisit')}
             </span>
-          )}
-          {menuOpen && (
-            <ul className="xg-popup__menu" role="listbox" aria-label="Changer de compte">
-              {app.accounts.map((a) => (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={a.id === account?.id}
-                    onClick={() => {
-                      void app.select(a.id);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <span>@{a.handle}</span>
-                    {(unseenByAccount[a.id] ?? 0) > 0 && <span className="xg-count">{unseenByAccount[a.id]}</span>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <button type="button" className="xg-icon-btn" aria-label="Réglages" onClick={openOptions}>
-          <IconSettings size={24} />
-        </button>
-      </header>
-
-      <ScanStatusBanner account={account} progress={data?.progress} status={app.status} now={now} compact />
-
-      {fresh > 0 && (
-        <div className="xg-popup__alert" role="status">
-          <strong>{fresh}</strong>
-          <span>
-            <b>{fresh > 1 ? 'nouveaux départs' : 'nouveau départ'}</b>
-            <br />
-            depuis ta dernière visite
-          </span>
-        </div>
-      )}
-
-      {account?.lastScan && !account.lastScan.complete && !data?.progress && (
-        <button
-          type="button"
-          className="xg-popup__alert xg-popup__alert--link"
-          onClick={() => void chrome.runtime.openOptionsPage().then(() => window.close())}
-        >
-          <span>
-            <b>Scan incomplet ({percentOf(account.lastScan.scanned, account.lastScan.detected, { emptyIsFull: true })} %)</b>
-            <br />
-            ouvre le tableau de bord pour le terminer
-          </span>
-        </button>
-      )}
-
-      {account && (
-        <section>
-          <h2 className="xg-popup__section">Derniers unfollows</h2>
-          {latest.length === 0 ? (
-            <p className="xg-popup__empty">Aucun départ pour l’instant. xGhost veille.</p>
-          ) : (
-            <ul className="xg-dep-list">
-              {latest.map((e) => (
-                <DepartureRowCompact
-                  key={e.id}
-                  event={e}
-                  events={data?.events ?? []}
-                  profiles={data?.profiles}
-                  baselineAt={account.baselineAt}
-                  now={now}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {account && (
-        <div className="xg-popup__stats">
-          <div>
-            <span>Départs, 7 j</span>
-            <strong className="is-danger">{formatSigned(-stats.departures)}</strong>
           </div>
-          <div>
-            <span>Arrivées, 7 j</span>
-            <strong className="is-primary">{formatSigned(stats.arrivals)}</strong>
+        )}
+
+        {account?.lastScan && !account.lastScan.complete && !data?.progress && (
+          <button
+            type="button"
+            className="xg-popup__alert xg-popup__alert--link"
+            onClick={() => void openOptions('dashboard')}
+          >
+            <span>
+              <b>{t('popup.incomplete', { pct: formatPercent(scanCoverage(account.lastScan)) })}</b>
+              <br />
+              {t('popup.incompleteHint')}
+            </span>
+          </button>
+        )}
+
+        <UpdateBanner />
+
+        {account && data && (
+          <section>
+            <h2 className="xg-eyebrow xg-popup__section">{t('popup.latest')}</h2>
+            <LatestDepartures
+              events={data.events}
+              latest={latest}
+              profiles={data.profiles}
+              baselineAt={account.baselineAt}
+              now={now}
+            />
+          </section>
+        )}
+
+        {account && (
+          <div className="xg-popup__stats">
+            <StatTile size="sm" label={t('popup.departures7d')} value={formatSigned(-stats.departures)} tone="danger" />
+            <StatTile size="sm" label={t('popup.arrivals7d')} value={formatSigned(stats.arrivals)} tone="primary" />
+            <StatTile size="sm" label={t('popup.net')} value={formatSigned(stats.net)} />
           </div>
-          <div>
-            <span>Solde</span>
-            <strong>{formatSigned(stats.net)}</strong>
-          </div>
-        </div>
-      )}
+        )}
 
-      {!account && app.status?.session !== 'disconnected' && (
-        <p className="xg-popup__empty">Ouvre x.com et connecte-toi : xGhost détectera ton compte.</p>
-      )}
+        {!account && app.status?.session !== 'disconnected' && <p className="xg-popup__empty">{t('popup.noAccount')}</p>}
 
-      <UpdateBanner compact />
-
-      <footer className="xg-popup__foot">
-        <button
-          type="button"
-          className="xg-btn xg-btn--ghost"
-          disabled={checking || !account}
-          title="Relancer une vérification"
-          onClick={async () => {
-            setChecking(true);
-            try {
-              await send('scan:start', {});
-            } finally {
-              setChecking(false);
-            }
-          }}
-        >
-          <IconRefresh size={20} />
-          {data?.progress?.status === 'running'
-            ? 'Vérification en cours…'
-            : account?.lastScanAt
-              ? `Vérifié ${formatAgo(account.lastScanAt, now)}`
-              : 'Vérifier maintenant'}
-        </button>
-        <button type="button" className="xg-btn xg-btn--ink xg-btn--lg" onClick={openOptions}>
-          Tout voir
-        </button>
-      </footer>
-    </div>
+        <footer className="xg-popup__foot">
+          <button
+            type="button"
+            className="xg-btn xg-btn--ghost"
+            disabled={busy || !account}
+            title={t('popup.recheckTitle')}
+            onClick={() => void start()}
+          >
+            <IconRefresh size={20} />
+            {data?.progress?.status === 'running'
+              ? t('popup.checking')
+              : account?.lastScanAt
+                ? t('common.checkedAgo', { ago: formatAgo(account.lastScanAt, now) })
+                : t('dashboard.check.checkNow')}
+          </button>
+          <button type="button" className="xg-btn xg-btn--ink xg-btn--lg" onClick={() => void openOptions('dashboard')}>
+            {t('popup.openDashboard')}
+          </button>
+        </footer>
+      </div>
+    </DisplayedContext.Provider>
   );
 }

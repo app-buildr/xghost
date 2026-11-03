@@ -3,7 +3,8 @@ import { onStorageChange } from '../storage/kv';
 
 /**
  * Charge une valeur depuis le stockage et la recharge quand une clé
- * correspondant à `match` change (dans n'importe quelle zone).
+ * correspondant à `match` change. Un changement survenu pendant un chargement en relance un
+ * à la fin (rien n'est perdu, pas de résultats dans le désordre).
  */
 export function useStorageQuery<T>(
   load: () => Promise<T>,
@@ -18,12 +19,23 @@ export function useStorageQuery<T>(
   useEffect(() => {
     let alive = true;
     let pending = false;
+    // Changement survenu pendant un chargement : on recharge à la fin, rien n'est perdu.
+    let dirty = false;
+    // Nouvelles dépendances (ex. autre compte) : pas d'anciennes données sous la nouvelle clé.
+    setData(undefined);
+    setLoading(true);
     const run = async () => {
-      if (pending) return;
+      if (pending) {
+        dirty = true;
+        return;
+      }
       pending = true;
       try {
-        const value = await loadRef.current();
-        if (alive) setData(value);
+        do {
+          dirty = false;
+          const value = await loadRef.current();
+          if (alive) setData(value);
+        } while (dirty && alive);
       } finally {
         pending = false;
         if (alive) setLoading(false);

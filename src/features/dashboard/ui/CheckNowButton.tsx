@@ -1,50 +1,61 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ScanProgress } from '@/features/followers-sync/repository';
-import { send } from '@/shared/messaging/client';
+import { useStartScan } from '@/features/scan-status/ui/useStartScan';
+import { t } from '@/shared/i18n';
+import type { TrackedAccount } from '@/shared/types';
 import { IconRefresh } from '@/shared/ui/icons';
 import { useToast } from '@/shared/ui/toast';
+import { quickSummary } from './quickSummary';
 
-const REASONS: Record<string, string> = {
-  disconnected: 'Connecte-toi à X pour lancer une vérification',
-  'already-running': 'Une vérification est déjà en cours',
-  'rate-limit': 'Limite de X atteinte, la vérification reprendra automatiquement',
-  'checked-elsewhere': 'Vérification déjà faite récemment sur un autre ordinateur',
-};
+/** Au-delà, un contrôle lancé ici sans résultat est oublié (échec, fermeture) : pas de toast tardif. */
+const RESULT_TIMEOUT_MS = 3 * 60_000;
+/** Contrôle si rapide qu'il s'est terminé avant d'être vu tourner. */
+const FAST_RESULT_MS = 30_000;
 
 /**
  * « Vérifier maintenant » : contrôle léger (total + abonnés les plus récents, quelques secondes).
  * S'il manque des abonnés, xGhost enchaîne tout seul un scan complet pour identifier les départs.
  * « Scan complet » relit toute la liste.
  */
-export function CheckNowButton({ progress }: { progress?: ScanProgress }) {
-  const [busy, setBusy] = useState(false);
-  // Contrôle léger lancé ici : 'started' tant qu'il n'est pas apparu, 'seen' pendant qu'il tourne.
-  const phase = useRef<'idle' | 'started' | 'seen'>('idle');
+export function CheckNowButton({ account, progress }: { account: TrackedAccount; progress?: ScanProgress }) {
+  const { start, busy } = useStartScan();
   const toast = useToast();
+  // Contrôle léger lancé ici : heure du clic, et s'il a été vu tourner. Seul ce contrôle-là
+  // donne un toast (pas un contrôle automatique qui se terminerait juste après).
+  const pending = useRef<{ since: number; seen: boolean } | undefined>(undefined);
   const quickRunning = progress?.kind === 'quick';
   const fullRunning = !!progress && progress.kind !== 'quick';
+  const quickAt = account.lastQuick?.at;
 
-  // Fin du contrôle léger lancé ici : on dit ce qu'il a trouvé.
+  // Résultat du contrôle léger lancé ici : arrivées, départs récents, écart (même texte que l'en-tête).
   useEffect(() => {
+    const p = pending.current;
+    if (!p) return;
     if (quickRunning) {
-      if (phase.current === 'started') phase.current = 'seen';
+      p.seen = true;
       return;
     }
-    if (phase.current !== 'seen') return;
-    phase.current = 'idle';
-    toast.show(fullRunning ? 'Il manque des abonnés : scan complet lancé pour savoir qui' : 'À jour : aucun départ détecté');
-  }, [quickRunning, fullRunning, toast]);
-
-  const start = async (full: boolean) => {
-    setBusy(true);
-    try {
-      const res = await send('scan:start', { full });
-      if (!res.started) toast.show(REASONS[res.reason ?? ''] ?? 'Vérification impossible pour le moment');
-      else if (full) toast.show('Scan complet lancé dans l’onglet x.com épinglé');
-      else phase.current = 'started';
-    } finally {
-      setBusy(false);
+    const expired = Date.now() - p.since > RESULT_TIMEOUT_MS;
+    // Le clic a lancé un scan complet (dernier scan incomplet) ou repris un scan : pas de contrôle léger.
+    if (expired || (fullRunning && !p.seen)) {
+      pending.current = undefined;
+      return;
     }
+    const answered = !!quickAt && quickAt >= p.since && (p.seen || quickAt - p.since < FAST_RESULT_MS);
+    if (!answered) {
+      // Contrôle terminé sans résultat (ignoré, échec) : on n'attend plus.
+      if (p.seen) pending.current = undefined;
+      return;
+    }
+    pending.current = undefined;
+    const summary = quickSummary(account);
+    if (summary) toast.show(t('dashboard.check.result', { summary }));
+  }, [account, quickAt, quickRunning, fullRunning, toast]);
+
+  const check = async () => {
+    // Noté avant l'envoi : le résultat peut être enregistré avant la réponse du service worker.
+    pending.current = { since: Date.now() - 1000, seen: false };
+    if (!(await start())) pending.current = undefined;
   };
 
   return (
@@ -53,18 +64,18 @@ export function CheckNowButton({ progress }: { progress?: ScanProgress }) {
         type="button"
         className="xg-btn xg-btn--primary xg-btn--lg"
         disabled={busy || quickRunning || fullRunning}
-        onClick={() => void start(false)}
+        onClick={() => void check()}
       >
-        <IconRefresh size={18} /> {quickRunning ? 'Vérification…' : 'Vérifier maintenant'}
+        <IconRefresh size={18} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
       </button>
       <button
         type="button"
         className="xg-link"
         disabled={busy || fullRunning}
-        title="Relire toute la liste des abonnés"
-        onClick={() => void start(true)}
+        title={t('dashboard.check.fullScanTitle')}
+        onClick={() => void start({ full: true })}
       >
-        Scan complet
+        {t('dashboard.check.fullScan')}
       </button>
     </div>
   );

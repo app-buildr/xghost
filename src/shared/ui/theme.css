@@ -19,6 +19,8 @@
   --xg-danger-border: #f3c9c1;
   --xg-danger-button-text: #b02a16;
   --xg-accent: #ff6b4a;
+  /* Barres de départ du graphique : corail un peu plus soutenu (contraste ≥ 3:1 sur blanc). */
+  --xg-chart-departure: #f4603f;
 
   --xg-ink: #111318;
   --xg-text-muted: #5b6270;

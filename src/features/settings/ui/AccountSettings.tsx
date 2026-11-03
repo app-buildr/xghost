@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { useEventActions, type AccountData } from '@/features/app-state/hooks';
+import type { AccountData } from '@/features/app-state/useAccountData';
+import { useEventActions } from '@/features/events/ui/useEventActions';
+import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
 import type { TrackedAccount } from '@/shared/types';
+import { ConfirmAction } from '@/shared/ui/ConfirmAction';
 import { Avatar } from '@/shared/ui/primitives';
 import { useToast } from '@/shared/ui/toast';
-
-const noop = () => undefined;
+import './settings.css';
 
 /** Réglages propres au compte : comptes ignorés (réversible) et retrait du compte (§ 4.4). */
 export function AccountSettings({ account, data }: { account: TrackedAccount; data: AccountData }) {
   const toast = useToast();
-  const actions = useEventActions(account.id, noop);
-  const [confirming, setConfirming] = useState(false);
+  const actions = useEventActions(account.id);
   const ignored = [...data.ignored];
   const handleOf = (id: string) =>
     data.profiles[id]?.handle ?? data.events.find((e) => e.profileId === id)?.handle ?? id;
 
   return (
-    <div className="xg-settings">
+    <>
       <section className="xg-card">
-        <h2 className="xg-card__title">Comptes ignorés</h2>
+        <h2 className="xg-card__title">{t('options.account.ignoredTitle')}</h2>
         {ignored.length === 0 ? (
-          <p className="xg-setting__hint">Aucun compte ignoré pour @{account.handle}.</p>
+          <p className="xg-setting__hint">{t('options.account.noIgnored', { handle: account.handle })}</p>
         ) : (
           <ul className="xg-ignored">
             {ignored.map((id) => {
@@ -35,7 +35,7 @@ export function AccountSettings({ account, data }: { account: TrackedAccount; da
                     className="xg-btn xg-btn--secondary"
                     onClick={() => void actions.ignore(id, handle, false)}
                   >
-                    Ne plus ignorer
+                    {t('options.account.unignore')}
                   </button>
                 </li>
               );
@@ -45,33 +45,22 @@ export function AccountSettings({ account, data }: { account: TrackedAccount; da
       </section>
 
       <section className="xg-card">
-        <h2 className="xg-card__title">Retirer @{account.handle}</h2>
-        <p className="xg-setting__hint">
-          Efface la référence, l’historique et les réglages de ce compte. Il sera de nouveau détecté si tu te reconnectes
-          à lui sur x.com.
-        </p>
-        {confirming ? (
-          <div className="xg-confirm">
-            <button
-              type="button"
-              className="xg-btn xg-btn--danger"
-              onClick={async () => {
-                await send('account:remove', { accountId: account.id });
-                toast.show(`@${account.handle} a été retiré`);
-              }}
-            >
-              Confirmer le retrait
-            </button>
-            <button type="button" className="xg-btn xg-btn--secondary" onClick={() => setConfirming(false)}>
-              Annuler
-            </button>
-          </div>
-        ) : (
-          <button type="button" className="xg-btn xg-btn--danger" onClick={() => setConfirming(true)}>
-            Retirer ce compte
-          </button>
-        )}
+        <h2 className="xg-card__title">{t('options.account.removeTitle', { handle: account.handle })}</h2>
+        <p className="xg-setting__hint">{t('options.account.removeHint')}</p>
+        <ConfirmAction
+          danger
+          label={t('options.account.remove')}
+          confirmLabel={t('options.account.confirmRemove')}
+          onConfirm={async () => {
+            try {
+              await send('account:remove', { accountId: account.id });
+              toast.show(t('options.account.removed', { handle: account.handle }));
+            } catch {
+              toast.show(t('common.actions.failed'));
+            }
+          }}
+        />
       </section>
-    </div>
+    </>
   );
 }

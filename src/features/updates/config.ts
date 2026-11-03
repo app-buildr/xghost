@@ -10,6 +10,10 @@ export const REPO = 'app-buildr/xghost';
 export const RELEASES_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 /** Archive de la dernière version. */
 export const DOWNLOAD_URL = `https://github.com/${REPO}/releases/latest/download/xghost.zip`;
+/** Code source. */
+export const REPO_URL = `https://github.com/${REPO}`;
+/** Nouvelle issue étiquetée « bug » (corps prérempli par l'interface). */
+export const NEW_ISSUE_URL = `${REPO_URL}/issues/new`;
 /** Guide de mise à jour du site. */
 export const UPDATE_GUIDE_URL = 'https://app-buildr.github.io/xghost/#mise-a-jour';
 /** Intervalle entre deux vérifications, en plus du démarrage et de l'ouverture des options. */

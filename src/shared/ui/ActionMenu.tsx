@@ -8,23 +8,42 @@ export interface MenuAction {
   icon?: ReactNode;
   danger?: boolean;
   separatorBefore?: boolean;
+  /** Choix exclusif (ex. compte sélectionné) : l'élément devient un « menuitemradio ». */
+  checked?: boolean;
+  /** Contenu affiché à droite (ex. compteur). */
+  trailing?: ReactNode;
   onSelect: () => void;
 }
 
 /**
- * Menu d'actions « … » : fermeture au clic extérieur ou Échap,
- * navigation au clavier (flèches, Début/Fin, Entrée).
+ * Menu déroulant : fermeture au clic extérieur ou Échap, navigation au clavier
+ * (flèches, Début/Fin, Entrée). Par défaut, bouton « … » d'actions aligné à droite ;
+ * `trigger` remplace le contenu du bouton (ex. sélecteur de compte de la popup).
  */
-export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: string }) {
+export function ActionMenu({
+  actions,
+  label,
+  trigger,
+  triggerClassName = 'xg-icon-btn',
+  align = 'end',
+  disabled = false,
+}: {
+  actions: MenuAction[];
+  label: string;
+  trigger?: ReactNode;
+  triggerClassName?: string;
+  align?: 'start' | 'end';
+  disabled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const items = useRef<(HTMLButtonElement | null)[]>([]);
   const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
-    items.current[0]?.focus();
+    (items.current[actions.findIndex((a) => a.checked)] ?? items.current[0])?.focus();
     const onDown = (e: MouseEvent) => {
       if (!anchor.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -34,7 +53,7 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
 
   const close = (refocus = true) => {
     setOpen(false);
-    if (refocus) trigger.current?.focus();
+    if (refocus) triggerRef.current?.focus();
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -64,10 +83,11 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
   return (
     <div className="xg-menu-anchor" ref={anchor}>
       <button
-        ref={trigger}
+        ref={triggerRef}
         type="button"
-        className="xg-icon-btn"
-        aria-label={label}
+        className={triggerClassName}
+        aria-label={trigger ? undefined : label}
+        disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -79,10 +99,10 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
           }
         }}
       >
-        <IconMore />
+        {trigger ?? <IconMore />}
       </button>
       {open && (
-        <div className="xg-menu" role="menu" id={menuId} aria-label={label} onKeyDown={onKeyDown}>
+        <div className={`xg-menu xg-menu--${align}`} role="menu" id={menuId} aria-label={label} onKeyDown={onKeyDown}>
           {actions.map((a, i) => (
             <div key={a.key}>
               {a.separatorBefore && <div className="xg-menu__sep" role="separator" />}
@@ -91,7 +111,8 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
                   items.current[i] = el;
                 }}
                 type="button"
-                role="menuitem"
+                role={a.checked === undefined ? 'menuitem' : 'menuitemradio'}
+                aria-checked={a.checked}
                 tabIndex={-1}
                 className={`xg-menu__item${a.danger ? ' xg-menu__item--danger' : ''}`}
                 onClick={() => {
@@ -104,6 +125,7 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
                   {a.label}
                   {a.hint && <small>{a.hint}</small>}
                 </span>
+                {a.trailing && <span className="xg-menu__trailing">{a.trailing}</span>}
               </button>
             </div>
           ))}

@@ -1,7 +1,8 @@
 .xg-update {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 14px 18px;
   border-radius: var(--xg-radius-block);
   background: var(--xg-primary-tint);
@@ -14,7 +15,9 @@
 }
 .xg-update__body {
   display: grid;
-  flex: 1;
+  /* Assez de place pour le texte : sinon (popup) le lien passe à la ligne. */
+  flex: 1 1 220px;
+  min-width: 0;
   gap: 2px;
   font-size: 14px;
 }
@@ -24,10 +27,7 @@
 }
 .xg-update a {
   font-weight: 600;
+  margin-left: auto;
   white-space: nowrap;
   color: var(--xg-primary);
-}
-.xg-update--compact {
-  flex-wrap: wrap;
-  padding: 12px 14px;
 }

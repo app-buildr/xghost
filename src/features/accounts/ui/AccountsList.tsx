@@ -1,31 +1,9 @@
-import { useEffect, useState } from 'react';
-import { unseenCountsByAccount } from '@/features/events/unseen';
-import { onStorageChange } from '@/shared/storage/kv';
-import type { GlobalStatus, Settings, TrackedAccount } from '@/shared/types';
+import type { GlobalStatus, TrackedAccount } from '@/shared/types';
+import { t } from '@/shared/i18n';
 import { Avatar } from '@/shared/ui/primitives';
-import { formatAgo, formatBadgeCount } from '@/shared/utils/format';
+import { formatAgo } from '@/shared/utils/format';
+import { UnseenCount } from './UnseenCount';
 import './accounts.css';
-
-/** Départs non vus par compte, pour les compteurs de la liste et du sélecteur. */
-export function useUnseenByAccount(accounts: TrackedAccount[], settings: Settings): Record<string, number> {
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const ids = accounts.map((a) => `${a.id}:${a.mutualsOnly}`).join(',');
-  useEffect(() => {
-    let alive = true;
-    const run = async () => {
-      const next = await unseenCountsByAccount(accounts, settings);
-      if (alive) setCounts(next);
-    };
-    void run();
-    const off = onStorageChange((k) => k.includes(':ev') || k.includes(':ign') || k.includes(':archive'), () => void run());
-    return () => {
-      alive = false;
-      off();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids, settings.ignoreSuspended]);
-  return counts;
-}
 
 /** Bloc « Comptes X » de la page d'options (§ 3.4). Pas de bouton d'ajout : la détection est automatique. */
 export function AccountsList({
@@ -45,7 +23,7 @@ export function AccountsList({
 }) {
   return (
     <div className="xg-accounts">
-      <h2 className="xg-accounts__title">Comptes X</h2>
+      <h2 className="xg-eyebrow xg-accounts__title">{t('options.accounts.title')}</h2>
       {accounts.length > 0 && (
         <ul className="xg-accounts__list">
           {accounts.map((a) => {
@@ -56,7 +34,7 @@ export function AccountsList({
                 <button
                   type="button"
                   className={`xg-account${a.id === selectedId ? ' is-selected' : ''}`}
-                  aria-current={a.id === selectedId}
+                  aria-current={a.id === selectedId ? 'true' : undefined}
                   onClick={() => onSelect(a.id)}
                 >
                   <Avatar id={a.id} name={a.handle} size={40} />
@@ -64,24 +42,20 @@ export function AccountsList({
                     <span className="xg-account__handle">@{a.handle}</span>
                     <span className={`xg-account__state${active ? ' is-active' : ''}`}>
                       {active
-                        ? 'Session active'
+                        ? t('options.accounts.activeSession')
                         : a.lastScanAt
-                          ? `Vérifié ${formatAgo(a.lastScanAt, now)}`
-                          : 'En attente de vérification'}
+                          ? t('common.checkedAgo', { ago: formatAgo(a.lastScanAt, now) })
+                          : t('options.accounts.awaitingCheck')}
                     </span>
                   </span>
-                  {count > 0 && (
-                    <span className="xg-count" aria-label={`${count} départs non vus`}>
-                      {formatBadgeCount(count)}
-                    </span>
-                  )}
+                  <UnseenCount count={count} />
                 </button>
               </li>
             );
           })}
         </ul>
       )}
-      <p className="xg-accounts__help">Connecte-toi à un autre compte sur x.com, xGhost le détecte tout seul.</p>
+      <p className="xg-accounts__help">{t('options.accounts.help')}</p>
     </div>
   );
 }

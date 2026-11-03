@@ -1,26 +1,35 @@
-import { UpdateBanner } from '@/features/updates/UpdateBanner';
-import { installedVersion } from '@/features/updates/version';
-import { formatBadgeCount } from '@/shared/utils/format';
-import { useEffect, useMemo, useState } from 'react';
-import { send } from '@/shared/messaging/client';
-import { AccountsList, useUnseenByAccount } from '@/features/accounts/ui/AccountsList';
-import { useAccountData, useAppState, visibilityContext } from '@/features/app-state/hooks';
-import { Dashboard, DashboardHeader } from '@/features/dashboard/ui/Dashboard';
-import { ArrivalsPanel } from '@/features/departures/ui/ArrivalsPanel';
-import { DeparturesPanel } from '@/features/departures/ui/DeparturesPanel';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AccountsList } from '@/features/accounts/ui/AccountsList';
+import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
+import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
+import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
+import { useAppState } from '@/features/app-state/useAppState';
+import { DisplayedContext } from '@/features/app-state/useSeenOnView';
+import { DataPanel } from '@/features/backup/ui/DataPanel';
+import { Dashboard } from '@/features/dashboard/ui/Dashboard';
+import { DashboardHeader } from '@/features/dashboard/ui/DashboardHeader';
+import { ArrivalsPanel } from '@/features/events/ui/ArrivalsPanel';
+import { DeparturesPanel } from '@/features/events/ui/DeparturesPanel';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { AccountSettings } from '@/features/settings/ui/AccountSettings';
 import { SettingsPanel } from '@/features/settings/ui/SettingsPanel';
+import { UpdateBanner } from '@/features/updates/ui/UpdateBanner';
 import { useNow } from '@/shared/hooks/useNow';
+import { t } from '@/shared/i18n';
+import { send } from '@/shared/messaging/client';
+import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
+import { ExternalLink } from '@/shared/ui/ExternalLink';
 import { Logo } from '@/shared/ui/primitives';
+import { X_LOGIN_URL } from '@/shared/x-urls';
+import { OptionsFooter } from './OptionsFooter';
 import './options.css';
 
 type Section = 'dashboard' | 'departures' | 'arrivals' | 'settings';
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'dashboard', label: 'Tableau de bord' },
-  { id: 'departures', label: 'Départs' },
-  { id: 'arrivals', label: 'Nouveaux abonnés' },
-  { id: 'settings', label: 'Réglages' },
+const SECTIONS: { id: Section; label: `options.nav.${Section}` }[] = [
+  { id: 'dashboard', label: 'options.nav.dashboard' },
+  { id: 'departures', label: 'options.nav.departures' },
+  { id: 'arrivals', label: 'options.nav.arrivals' },
+  { id: 'settings', label: 'options.nav.settings' },
 ];
 
 function useSection(): [Section, (s: Section) => void] {
@@ -43,6 +52,28 @@ function useSection(): [Section, (s: Section) => void] {
   ];
 }
 
+/**
+ * Page affichée quand les données ne peuvent pas être lues (sauvegarde ou stockage corrompu) :
+ * la restauration d'une sauvegarde reste accessible.
+ */
+export function OptionsRecovery() {
+  return (
+    <main className="xg-options__content xg-options__recovery">
+      <h1 className="xg-options__title">{t('options.recovery.title')}</h1>
+      <p className="xg-options__lead">{t('options.recovery.lead')}</p>
+      <DataPanel />
+    </main>
+  );
+}
+
+/**
+ * Section protégée : une erreur de rendu n'emporte pas le reste de la page. Elle est retentée
+ * quand les données affichées changent (autre compte, sauvegarde importée).
+ */
+const Guard = ({ children, resetKey }: { children: ReactNode; resetKey?: unknown }) => (
+  <ErrorBoundary resetKey={resetKey}>{children}</ErrorBoundary>
+);
+
 export function OptionsApp() {
   // Ouverture des options : on relève tout de suite la dernière version publiée.
   useEffect(() => void send('update:check', undefined).catch(() => undefined), []);
@@ -50,113 +81,125 @@ export function OptionsApp() {
   const now = useNow();
   const [section, go] = useSection();
   const account = app.selected;
-  const { data, markSeenLocally } = useAccountData(account?.id, { seenOnView: true });
-  const ctx = useMemo(() => visibilityContext(data, app.settings, account), [data, app.settings, account]);
-  const unseen = useUnseenByAccount(app.accounts, app.settings);
+  // Les listes signalent leurs lignes affichées ; seules celles-ci sont marquées vues.
+  const { data, markDisplayed } = useAccountData(account?.id, { seenOnView: true });
+  const ctx = useVisibilityContext(data, account);
+  const unseen = useUnseenByAccount(app.accounts);
   const unseenSelected = account ? (unseen[account.id] ?? 0) : 0;
 
   return (
-    <div className="xg-options">
-      <aside className="xg-options__side">
-        <div className="xg-brand">
-          <Logo size={44} />
-          <span>xGhost</span>
-        </div>
-        <nav aria-label="Navigation" className="xg-nav">
-          {SECTIONS.map((s) => (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              className={`xg-nav__item${section === s.id ? ' is-current' : ''}`}
-              aria-current={section === s.id ? 'page' : undefined}
-              onClick={(e) => {
-                e.preventDefault();
-                go(s.id);
-              }}
-            >
-              {s.label}
-              {s.id === 'departures' && unseenSelected > 0 && (
-                <span className="xg-count">{formatBadgeCount(unseenSelected)}</span>
-              )}
-            </a>
-          ))}
-        </nav>
-        <AccountsList
-          accounts={app.accounts}
-          selectedId={account?.id}
-          status={app.status}
-          unseen={unseen}
-          now={now}
-          onSelect={(id) => void app.select(id)}
-        />
-        <p className="xg-options__version">xGhost {installedVersion()}</p>
-      </aside>
-
-      <main className="xg-options__main">
-        <UpdateBanner />
-        {app.loading ? null : !account ? (
-          <EmptyState statusBanner={<ScanStatusBanner status={app.status} now={now} />} />
-        ) : !data ? null : section === 'dashboard' ? (
-          <div className="xg-options__content">
-            <Dashboard
-              key={account.id}
-              account={account}
-              data={data}
-              ctx={ctx}
+    <DisplayedContext.Provider value={markDisplayed}>
+      <div className="xg-options">
+        <aside className="xg-options__side">
+          <div className="xg-brand">
+            <Logo size={44} />
+            <span>{t('common.appName')}</span>
+          </div>
+          <nav aria-label={t('options.nav.label')} className="xg-nav">
+            {SECTIONS.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className={`xg-nav__item${section === s.id ? ' is-current' : ''}`}
+                aria-current={section === s.id ? 'page' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  go(s.id);
+                }}
+              >
+                {t(s.label)}
+                {s.id === 'departures' && <UnseenCount count={unseenSelected} />}
+              </a>
+            ))}
+          </nav>
+          <Guard resetKey={data}>
+            <AccountsList
+              accounts={app.accounts}
+              selectedId={account?.id}
               status={app.status}
+              unseen={unseen}
               now={now}
-              markSeenLocally={markSeenLocally}
-              onShowAllDepartures={() => go('departures')}
-              aside={
-                <SettingsPanel settings={app.settings} account={account} onUpdate={(p) => void app.updateSettings(p)} />
-              }
+              onSelect={(id) => void app.select(id)}
             />
-          </div>
-        ) : section === 'departures' ? (
-          <div className="xg-options__content">
-            <DashboardHeader account={account} progress={data.progress} now={now} />
-            <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />
-            <DeparturesPanel
-              key={account.id}
-              title="Tous les départs"
-              account={account}
-              data={data}
-              ctx={ctx}
-              now={now}
-              markSeenLocally={markSeenLocally}
-            />
-          </div>
-        ) : section === 'arrivals' ? (
-          <div className="xg-options__content">
-            <DashboardHeader account={account} progress={data.progress} now={now} />
-            <ArrivalsPanel account={account} data={data} ctx={ctx} now={now} />
-          </div>
-        ) : (
-          <div className="xg-options__content">
-            <h1 className="xg-options__title">Réglages</h1>
-            <div className="xg-options__settings">
-              <SettingsPanel settings={app.settings} account={account} onUpdate={(p) => void app.updateSettings(p)} />
-              <AccountSettings account={account} data={data} />
+          </Guard>
+        </aside>
+
+        <main className="xg-options__main">
+          <UpdateBanner />
+          {app.loading ? null : !account ? (
+            <EmptyState statusBanner={<ScanStatusBanner status={app.status} now={now} />} />
+          ) : !data ? null : section === 'dashboard' ? (
+            <div className="xg-options__content">
+              <Guard resetKey={data}>
+                <Dashboard
+                  key={account.id}
+                  account={account}
+                  data={data}
+                  ctx={ctx}
+                  status={app.status}
+                  now={now}
+                  onShowAllDepartures={() => go('departures')}
+                  onShowAllArrivals={() => go('arrivals')}
+                />
+              </Guard>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+          ) : section === 'departures' ? (
+            <div className="xg-options__content">
+              <Guard resetKey={data}>
+                <DashboardHeader account={account} progress={data.progress} now={now} />
+                <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />
+                <DeparturesPanel
+                  key={account.id}
+                  title={t('options.allDepartures')}
+                  account={account}
+                  data={data}
+                  ctx={ctx}
+                  now={now}
+                />
+              </Guard>
+            </div>
+          ) : section === 'arrivals' ? (
+            <div className="xg-options__content">
+              <Guard resetKey={data}>
+                <DashboardHeader account={account} progress={data.progress} now={now} />
+                <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />
+                <ArrivalsPanel key={account.id} data={data} ctx={ctx} now={now} />
+              </Guard>
+            </div>
+          ) : (
+            <div className="xg-options__content">
+              <h1 className="xg-options__title">{t('options.settingsTitle')}</h1>
+              <div className="xg-options__settings">
+                <Guard resetKey={data}>
+                  <SettingsPanel settings={app.settings} account={account} onUpdate={(p) => void app.updateSettings(p)} />
+                </Guard>
+                <div className="xg-settings">
+                  <Guard resetKey={data}>
+                    <AccountSettings account={account} data={data} />
+                  </Guard>
+                  {/* Hors de toute zone dépendant des données : la restauration reste toujours possible. */}
+                  <DataPanel />
+                </div>
+              </div>
+            </div>
+          )}
+          <OptionsFooter />
+        </main>
+      </div>
+    </DisplayedContext.Provider>
   );
 }
 
-function EmptyState({ statusBanner }: { statusBanner: React.ReactNode }) {
+function EmptyState({ statusBanner }: { statusBanner: ReactNode }) {
   return (
     <div className="xg-options__content">
-      <h1 className="xg-options__title">Aucun compte suivi</h1>
-      <p className="xg-options__lead">
-        Connecte-toi à X dans ce navigateur : xGhost détecte ton compte et prend une photo de tes abonnés.
-      </p>
+      <h1 className="xg-options__title">{t('options.empty.title')}</h1>
+      <p className="xg-options__lead">{t('options.empty.lead')}</p>
       {statusBanner}
       <div>
-        <a className="xg-btn xg-btn--ink xg-btn--lg" href="https://x.com/login" target="_blank" rel="noreferrer">
-          Ouvrir x.com
-        </a>
+        <ExternalLink className="xg-btn xg-btn--ink xg-btn--lg" href={X_LOGIN_URL}>
+          {t('common.openX')}
+        </ExternalLink>
       </div>
     </div>
   );

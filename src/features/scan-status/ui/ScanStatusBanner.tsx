@@ -1,10 +1,14 @@
-import type { ScanProgress } from '@/features/followers-sync/repository';
-import { send } from '@/shared/messaging/client';
-import type { GlobalStatus, TrackedAccount } from '@/shared/types';
-import { ProgressBar } from '@/shared/ui/primitives';
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import { formatNumber, plural } from '@/shared/utils/format';
-import { pauseMessage, SCAN_TAB_HINT, STALL_TEXT } from '../messages';
+import type { ScanProgress } from '@/features/followers-sync/repository';
+import { t } from '@/shared/i18n';
+import type { GlobalStatus, TrackedAccount } from '@/shared/types';
+import { ExternalLink } from '@/shared/ui/ExternalLink';
+import { formatNumber, formatProgressCount } from '@/shared/utils/format';
+import { X_LOGIN_URL } from '@/shared/x-urls';
+import { pauseMessage, scanTabHint, stallText } from '../messages';
+import { ScanProgressBar } from './ScanProgressBar';
+import { ShowScanTabButton } from './ShowScanTabButton';
+import { useStartScan } from './useStartScan';
 
 /** Bandeau d'état : session, scan en cours, pause (limite, onglet requis, autre compte). */
 export function ScanStatusBanner({
@@ -20,73 +24,65 @@ export function ScanStatusBanner({
   now: number;
   compact?: boolean;
 }) {
+  const { start, busy } = useStartScan();
   if (status?.session === 'disconnected') {
     return (
       <div className="xg-banner xg-banner--warn" role="status">
-        <span>Aucune session X trouvée. Connecte-toi à X pour reprendre la vérification.</span>
-        <a className="xg-btn xg-btn--secondary" href="https://x.com/login" target="_blank" rel="noreferrer">
-          Ouvrir x.com
-        </a>
+        <span>{t('common.scanStatus.noSession')}</span>
+        <ExternalLink className="xg-btn xg-btn--secondary" href={X_LOGIN_URL}>
+          {t('common.openX')}
+        </ExternalLink>
       </div>
     );
   }
   // Le contrôle léger dure quelques secondes, en arrière-plan : rien à afficher.
-  if (progress?.kind === 'quick') progress = undefined;
+  const live = progress?.kind === 'quick' ? undefined : progress;
 
-  if (!progress && account?.pending) {
+  if (!live && account?.pending) {
     const { count, full } = account.pending;
     return (
       <div className="xg-banner xg-banner--warn" role="status">
         <span>
           {count > 0
-            ? `X indique ${plural(count, 'abonné')} en moins. Lance une vérification pour savoir qui est parti.`
+            ? t('common.scanStatus.pendingCount', { count, n: formatNumber(count) })
             : full
-              ? 'Beaucoup de nouveaux abonnés : une vérification complète est nécessaire.'
-              : 'Une vérification complète est nécessaire.'}
+              ? t('common.scanStatus.pendingManyArrivals')
+              : t('common.scanStatus.pendingFull')}
         </span>
-        <button type="button" className="xg-btn xg-btn--primary" onClick={() => void send('scan:start', { full: true })}>
-          Identifier
+        <button type="button" className="xg-btn xg-btn--primary" disabled={busy} onClick={() => void start({ full: true })}>
+          {t('common.scanStatus.identify')}
         </button>
       </div>
     );
   }
-  if (!progress) return null;
+  if (!live) return null;
 
-  if (progress.status === 'paused' && progress.pausedReason === 'needs-focus' && account) {
+  if (live.status === 'paused' && live.pausedReason === 'needs-focus' && account) {
     return (
       <div className="xg-banner xg-banner--warn" role="status">
-        <span>{STALL_TEXT}</span>
-        <button
-          type="button"
-          className="xg-btn xg-btn--secondary"
-          onClick={() => void send('scan:focus', { accountId: account.id })}
-        >
-          Afficher
-        </button>
+        <span>{stallText()}</span>
+        <ShowScanTabButton accountId={account.id} />
       </div>
     );
   }
 
   // Tableau de bord : la carte « Dernier scan » montre déjà l'état du scan (en cours, pause, blocage).
   if (!compact) return null;
-  if (progress.status === 'running') {
-    const label =
-      progress.kind === 'baseline'
-        ? 'Scan de référence en cours'
-        : 'Vérification en cours';
+  if (live.status === 'running') {
+    const remaining = remainingLabel(live, now);
     return (
-      <div className="xg-banner xg-banner--info" role="status" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <strong>{label}</strong>
-          <span>
-            {formatNumber(progress.collected)}
-            {progress.expected > 0 ? ` / ${formatNumber(progress.expected)}` : ''}
-          </span>
+      <div className="xg-banner xg-banner--info xg-banner--stacked" role="status">
+        <div className="xg-banner__row">
+          <strong>
+            {live.kind === 'baseline' ? t('common.scanStatus.baselineRunning') : t('common.scanStatus.checkRunning')}
+          </strong>
+          <span>{formatProgressCount(live.collected, live.expected)}</span>
         </div>
-        <ProgressBar value={progress.collected} max={progress.expected || progress.collected + 1} />
+        <ScanProgressBar progress={live} />
         <span>
-          {SCAN_TAB_HINT}
-          {remainingLabel(progress, now) ? ` ${remainingLabel(progress, now)}.` : ''}
+          {remaining
+            ? t('common.scanStatus.hintWithRemaining', { hint: scanTabHint(), remaining })
+            : scanTabHint()}
         </span>
       </div>
     );
@@ -94,7 +90,7 @@ export function ScanStatusBanner({
 
   return (
     <div className="xg-banner xg-banner--warn" role="status">
-      <span>{pauseMessage(progress, account)}</span>
+      <span>{pauseMessage(live, account)}</span>
     </div>
   );
 }

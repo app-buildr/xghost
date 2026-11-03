@@ -240,8 +240,7 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.xg-segmented button[aria-checked='true'],
-.xg-segmented button[aria-selected='true'] {
+.xg-segmented button[aria-checked='true'] {
   background: var(--xg-surface);
   color: var(--xg-ink);
   font-weight: 600;
@@ -302,6 +301,17 @@
   margin: 6px 8px;
   background: var(--xg-border);
 }
+.xg-menu--start {
+  right: auto;
+  left: 0;
+  min-width: 220px;
+}
+.xg-menu__item[aria-checked='true'] {
+  background: var(--xg-primary-tint);
+}
+.xg-menu__trailing {
+  margin-left: auto;
+}
 
 /* --- Toasts --- */
 .xg-toasts {
@@ -332,6 +342,88 @@
   font-weight: 600;
   cursor: pointer;
 }
+.xg-toast .xg-toast__close {
+  display: inline-flex;
+  padding: 2px;
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* --- Libellé de section (petites capitales) --- */
+.xg-eyebrow {
+  font-family: var(--xg-font-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--xg-text-muted);
+}
+
+/* --- Texte réservé aux lecteurs d'écran --- */
+.xg-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Texte d'aide et confirmation (réglages, sauvegarde) --- */
+.xg-setting__hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--xg-text-muted);
+}
+.xg-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* --- Tuile de chiffre --- */
+.xg-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.xg-stat__label {
+  font-size: 15px;
+  color: var(--xg-text-muted);
+}
+.xg-stat__value {
+  font-family: var(--xg-font-display);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.xg-stat__value--danger {
+  color: var(--xg-danger-text);
+}
+.xg-stat__value--primary {
+  color: var(--xg-primary);
+}
+.xg-stat__hint {
+  font-size: 14px;
+  color: var(--xg-text-muted);
+}
+.xg-stat--sm {
+  gap: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--xg-border);
+  border-radius: var(--xg-radius-block);
+}
+.xg-stat--sm .xg-stat__label {
+  font-size: 13px;
+}
+.xg-stat--sm .xg-stat__value {
+  font-size: 22px;
+  line-height: 1.5;
+}
 
 /* --- Bandeau d'état --- */
 .xg-banner {
@@ -352,6 +444,15 @@
 }
 .xg-banner .xg-btn {
   margin-left: auto;
+}
+.xg-banner--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+.xg-banner__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .xg-progress {

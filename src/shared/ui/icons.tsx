@@ -28,6 +28,11 @@ export const IconRefresh = (p: P) => (
     <path d="M20 4v7h-7" />
   </Svg>
 );
+export const IconUpload = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M5 20h14" />
+  </Svg>
+);
 export const IconSettings = (p: P) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="3" />
@@ -71,5 +76,10 @@ export const IconMore = (p: P) => (
     <circle cx="5" cy="12" r="1" fill="currentColor" />
     <circle cx="12" cy="12" r="1" fill="currentColor" />
     <circle cx="19" cy="12" r="1" fill="currentColor" />
+  </Svg>
+);
+export const IconClose = (p: P) => (
+  <Svg {...p}>
+    <path d="M18 6 6 18M6 6l12 12" />
   </Svg>
 );

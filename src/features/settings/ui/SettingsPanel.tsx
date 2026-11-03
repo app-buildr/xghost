@@ -1,6 +1,8 @@
 import { send } from '@/shared/messaging/client';
+import { t } from '@/shared/i18n';
 import type { Frequency, Settings, TrackedAccount } from '@/shared/types';
 import { Segmented, Toggle } from '@/shared/ui/primitives';
+import { frequencyOptions } from '../model';
 import './settings.css';
 
 function Row({
@@ -27,14 +29,7 @@ function Row({
   );
 }
 
-export const FREQUENCIES: { value: Frequency; label: string }[] = [
-  { value: 1, label: '1 h' },
-  { value: 6, label: '6 h' },
-  { value: 12, label: '12 h' },
-  { value: 24, label: '24 h' },
-];
-
-/** Colonne des réglages (§ 3.4) : vérification et alertes. Le bloc « Données » est hors périmètre. */
+/** Colonne des réglages (§ 3.4) : vérification et alertes. */
 export function SettingsPanel({
   settings,
   account,
@@ -47,42 +42,42 @@ export function SettingsPanel({
   return (
     <div className="xg-settings">
       <section className="xg-card">
-        <h2 className="xg-card__title">Vérification</h2>
-        <div className="xg-setting__label">Fréquence</div>
+        <h2 className="xg-card__title">{t('options.settings.check')}</h2>
+        <div className="xg-setting__label">{t('options.settings.frequency')}</div>
         <Segmented<Frequency>
-          label="Fréquence de vérification"
-          options={FREQUENCIES}
+          label={t('common.frequency.label')}
+          options={frequencyOptions('short')}
           value={settings.frequencyHours}
           onChange={(frequencyHours) => onUpdate({ frequencyHours })}
         />
       </section>
 
       <section className="xg-card">
-        <h2 className="xg-card__title">Alertes</h2>
+        <h2 className="xg-card__title">{t('options.settings.alerts')}</h2>
         <Row
-          title="Badge sur l’icône"
-          hint="Nombre de départs non vus"
+          title={t('options.settings.badge')}
+          hint={t('options.settings.badgeHint')}
           checked={settings.badge}
           onChange={(badge) => onUpdate({ badge })}
         />
         <Row
-          title="Notification système"
-          hint="Une notif Chrome à chaque vérification avec départs"
+          title={t('options.settings.notifications')}
+          hint={t('options.settings.notificationsHint')}
           checked={settings.notifications}
           onChange={(notifications) => onUpdate({ notifications })}
         />
         <Row
-          title="Uniquement les mutuels"
-          hint={account ? `Alerter seulement si je le suivais (@${account.handle})` : 'Alerter seulement si je le suivais'}
+          title={t('options.settings.mutualsOnly')}
+          hint={
+            account
+              ? t('options.settings.mutualsOnlyHintAccount', { handle: account.handle })
+              : t('options.settings.mutualsOnlyHint')
+          }
           checked={account?.mutualsOnly ?? false}
           disabled={!account}
-          onChange={(mutualsOnly) => account && void send('account:update', { accountId: account.id, mutualsOnly })}
-        />
-        <Row
-          title="Ignorer les comptes suspendus"
-          hint="Ce n’est pas un vrai unfollow"
-          checked={settings.ignoreSuspended}
-          onChange={(ignoreSuspended) => onUpdate({ ignoreSuspended })}
+          onChange={(mutualsOnly) =>
+            account && void send('account:update', { accountId: account.id, mutualsOnly }).catch(() => undefined)
+          }
         />
       </section>
     </div>

@@ -1,36 +1,34 @@
-import { useState } from 'react';
+import { joinParts } from '@/features/events/ui/display';
 import { remainingLabel } from '@/features/followers-sync/estimate';
 import type { ScanProgress } from '@/features/followers-sync/repository';
-import { pauseMessage, RATE_LIMIT_TEXT, SCAN_TAB_HINT, STALL_TEXT } from '@/features/scan-status/messages';
+import { pauseMessage, rateLimitText, scanTabHint, stallText } from '@/features/scan-status/messages';
+import { scanCoverage } from '@/features/scan-status/progress';
+import { ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
+import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
+import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { useNow } from '@/shared/hooks/useNow';
-import { send } from '@/shared/messaging/client';
-import type { TrackedAccount } from '@/shared/types';
+import { t } from '@/shared/i18n';
+import type { ScanReason, TrackedAccount } from '@/shared/types';
 import { ProgressBar } from '@/shared/ui/primitives';
 import {
   formatCountdown,
   formatDayOrDate,
   formatElapsedShort,
   formatNumber,
-  percentOf,
-  plural,
-  pluralS,
+  formatPercent,
+  formatProgressCount,
 } from '@/shared/utils/format';
 
-const coverage = (scanned: number, detected: number) => percentOf(scanned, detected, { emptyIsFull: true });
-
-/**
- * Carte « Dernier scan » (§ 3.4, 4.7) : abonnés détectés sur X face aux abonnés scannés.
- * Pendant un scan complet, elle suit le scan en direct.
- */
 /** Pourquoi le scan complet en cours a été lancé (témoin pour l'utilisateur). */
-const REASONS: Record<string, string> = {
-  baseline: 'Premier scan : il sert de référence.',
-  'new-account': 'Nouveau compte X détecté sur x.com : premier scan de référence de ce compte.',
-  user: 'Scan complet demandé.',
-  missing: 'Le contrôle rapide a vu des abonnés en moins : scan complet pour savoir qui est parti.',
-  overflow: 'Trop de nouveaux abonnés pour le contrôle rapide : scan complet.',
-  incomplete: 'Le scan précédent était incomplet : on le continue.',
-  safety: 'Scan de contrôle complet (tous les 10 contrôles rapides), pour rattraper ce qui aurait pu échapper.',
+const REASONS: Partial<Record<ScanReason, () => string>> = {
+  baseline: () => t('dashboard.coverage.reasons.baseline'),
+  'new-account': () => t('dashboard.coverage.reasons.newAccount'),
+  user: () => t('dashboard.coverage.reasons.user'),
+  missing: () => t('dashboard.coverage.reasons.missing'),
+  overflow: () => t('dashboard.coverage.reasons.overflow'),
+  incomplete: () => t('dashboard.coverage.reasons.incomplete'),
+  safety: () => t('dashboard.coverage.reasons.safety'),
+  recheck: () => t('dashboard.coverage.reasons.recheck'),
 };
 
 /** Sans nouvel abonné depuis ce délai pendant un scan en cours, on le signale comme bloqué. */
@@ -52,6 +50,28 @@ function liveState(p: ScanProgress, now: number): LiveState {
   return now - last > STUCK_MS ? { kind: 'stuck', since: last } : { kind: 'running' };
 }
 
+function StateTag({ state, complete, hasLast }: { state?: LiveState; complete: boolean; hasLast: boolean }) {
+  if (state?.kind === 'running') return <span className="xg-tag xg-tag--follow">{t('dashboard.coverage.tag.running')}</span>;
+  if (state?.kind === 'rate-limit') return <span className="xg-tag xg-tag--muted">{t('dashboard.coverage.tag.paused')}</span>;
+  if (state) {
+    return (
+      <span className="xg-tag xg-tag--new">
+        {state.kind === 'stuck' ? t('dashboard.coverage.tag.stuck') : t('dashboard.coverage.tag.interrupted')}
+      </span>
+    );
+  }
+  if (!hasLast) return null;
+  return complete ? (
+    <span className="xg-tag xg-tag--ok">{t('dashboard.coverage.tag.complete')}</span>
+  ) : (
+    <span className="xg-tag xg-tag--new">{t('dashboard.coverage.tag.incomplete')}</span>
+  );
+}
+
+/**
+ * Carte « Dernier scan » (§ 3.4, 4.7) : abonnés détectés sur X face aux abonnés scannés.
+ * Pendant un scan complet, elle suit le scan en direct.
+ */
 export function ScanCoverageCard({
   account,
   progress,
@@ -61,9 +81,11 @@ export function ScanCoverageCard({
   progress?: ScanProgress;
   now: number;
 }) {
-  const [busy, setBusy] = useState(false);
+  const { start, busy } = useStartScan();
   const live = progress && progress.kind !== 'quick' ? progress : undefined;
-  const state = live ? liveState(live, now) : undefined;
+  // Horloge propre à la carte pendant un scan : l'état « bloqué » apparaît sans attendre le parent.
+  const clock = useNow(5_000, !!live);
+  const state = live ? liveState(live, Math.max(now, clock)) : undefined;
   const tick = useNow(1000, !!state && state.kind !== 'running');
   const last = account.lastScan;
   // Pendant un nouveau scan, la carte garde les chiffres du dernier scan : rien n'est effacé,
@@ -73,45 +95,32 @@ export function ScanCoverageCard({
   const scanned = shown?.scanned ?? 0;
   const complete = !!shown?.complete;
   const missing = Math.max(0, detected - scanned);
-  const pct = coverage(scanned, detected);
-  const livePct = live ? coverage(live.collected, live.expected) : 0;
-
-  const tag = state ? (
-    state.kind === 'running' ? (
-      <span className="xg-tag xg-tag--follow">En cours</span>
-    ) : state.kind === 'rate-limit' ? (
-      <span className="xg-tag xg-tag--muted">Petite pause</span>
-    ) : (
-      <span className="xg-tag xg-tag--new">{state.kind === 'stuck' ? 'Bloqué' : 'Interrompu'}</span>
-    )
-  ) : !last ? null : complete ? (
-    <span className="xg-tag xg-tag--ok">Complet</span>
-  ) : (
-    <span className="xg-tag xg-tag--new">Incomplet</span>
-  );
+  const pct = scanCoverage({ scanned, detected });
 
   return (
     <div className={`xg-card xg-coverage${state?.kind === 'rate-limit' ? ' is-paused' : ''}`}>
       <div className="xg-coverage__head">
-        <span className="xg-kpi__label">Dernier scan</span>
-        {tag}
-        <span className="xg-coverage__date">{last ? formatDayOrDate(last.at, now) : live ? 'en cours' : '—'}</span>
+        <span className="xg-stat__label">{t('dashboard.coverage.title')}</span>
+        <StateTag state={state} complete={complete} hasLast={!!last} />
+        <span className="xg-coverage__date">
+          {last ? formatDayOrDate(last.at, now) : live ? t('dashboard.coverage.inProgress') : '—'}
+        </span>
       </div>
       <div className="xg-coverage__figures">
         <div>
-          <span className="xg-coverage__label">Détectés sur X</span>
-          <strong className="xg-kpi__value">{detected ? formatNumber(detected) : '—'}</strong>
+          <span className="xg-coverage__label">{t('dashboard.coverage.detected')}</span>
+          <strong className="xg-stat__value">{detected ? formatNumber(detected) : '—'}</strong>
         </div>
         <div>
-          <span className="xg-coverage__label">Scannés</span>
-          <strong className="xg-kpi__value xg-kpi__value--primary">{formatNumber(scanned)}</strong>
+          <span className="xg-coverage__label">{t('dashboard.coverage.scanned')}</span>
+          <strong className="xg-stat__value xg-stat__value--primary">{formatNumber(scanned)}</strong>
         </div>
       </div>
       {/* Barre : progression du scan en cours s'il y en a un, sinon couverture du dernier scan. */}
       {live ? (
-        <ProgressBar value={live.collected} max={live.expected || live.collected + 1} />
+        <ScanProgressBar progress={live} />
       ) : (
-        <ProgressBar value={scanned} max={detected || scanned || 1} />
+        <ProgressBar value={scanned} max={detected || scanned || 1} label={t('dashboard.coverage.title')} />
       )}
       {live && state ? (
         <div className="xg-coverage__foot">
@@ -119,80 +128,76 @@ export function ScanCoverageCard({
             {state.kind === 'running' && (
               <>
                 <strong>
-                  Nouveau scan : {formatNumber(live.collected)}
-                  {live.expected > 0 ? ` / ${formatNumber(live.expected)} (${livePct} %)` : ''}
-                  {remainingLabel(live, now) ? ` · ${remainingLabel(live, now)}` : ''}
+                  {joinParts([
+                    live.expected > 0
+                      ? t('dashboard.coverage.newScanPct', {
+                          progress: formatProgressCount(live.collected, live.expected),
+                          pct: formatPercent(scanCoverage({ scanned: live.collected, detected: live.expected })),
+                        })
+                      : t('dashboard.coverage.newScan', { progress: formatProgressCount(live.collected, 0) }),
+                    remainingLabel(live, now),
+                  ])}
                 </strong>
                 <span>
-                  {REASONS[live.reason ?? ''] ?? SCAN_TAB_HINT}
-                  {last ? ' Les chiffres ci-dessus restent ceux du dernier scan jusqu’à la fin de celui-ci.' : ''}
+                  {last
+                    ? t('dashboard.coverage.keepsLast', { reason: REASONS[live.reason as ScanReason]?.() ?? scanTabHint() })
+                    : (REASONS[live.reason as ScanReason]?.() ?? scanTabHint())}
                 </span>
               </>
             )}
             {state.kind === 'rate-limit' && (
               <>
                 <strong>
-                  Nouveau scan en pause à {formatNumber(live.collected)}
-                  {live.expected > 0 ? ` / ${formatNumber(live.expected)}` : ''} · reprise {formatCountdown(state.resumeAt, tick)}
+                  {joinParts([
+                    t('dashboard.coverage.pausedAt', { progress: formatProgressCount(live.collected, live.expected) }),
+                    t('dashboard.coverage.resume', { countdown: formatCountdown(state.resumeAt, tick) }),
+                  ])}
                 </strong>
-                <span>{RATE_LIMIT_TEXT}</span>
+                <span>{rateLimitText()}</span>
               </>
             )}
             {state.kind === 'stuck' && (
               <>
-                <strong>Aucun nouvel abonné depuis {formatElapsedShort(state.since, tick)}</strong>
-                <span>{STALL_TEXT}</span>
+                <strong>{t('dashboard.coverage.stuckSince', { elapsed: formatElapsedShort(state.since, tick) })}</strong>
+                <span>{stallText()}</span>
               </>
             )}
             {state.kind === 'interrupted' && <span>{state.text}</span>}
           </div>
-          {state.kind === 'stuck' && (
-            <button
-              type="button"
-              className="xg-btn xg-btn--secondary"
-              onClick={() => void send('scan:focus', { accountId: account.id })}
-            >
-              Afficher l’onglet
-            </button>
-          )}
+          {state.kind === 'stuck' && <ShowScanTabButton accountId={account.id} />}
         </div>
       ) : !live && last && !complete ? (
         <div className="xg-coverage__foot">
           <div>
             <strong>
-              {pct} % · {plural(missing, 'compte')} manquant{pluralS(missing)}
+              {joinParts([
+                formatPercent(pct),
+                t('dashboard.coverage.missingAccounts', { count: missing, n: formatNumber(missing) }),
+              ])}
             </strong>
-            <span>Les départs ne sont calculés qu’après un scan complet.</span>
+            <span>{t('dashboard.coverage.departuresAfterComplete')}</span>
           </div>
           <button
             type="button"
             className="xg-btn xg-btn--primary"
             disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await send('scan:start', { full: true });
-              } finally {
-                setBusy(false);
-              }
-            }}
+            onClick={() => void start({ full: true, announce: false })}
           >
-            Continuer le scan
+            {t('common.continueScan')}
           </button>
         </div>
       ) : (
         <div className="xg-coverage__foot">
           <div>
             <strong>
-              {pct} %{missing > 0 ? ` · ${formatNumber(missing)} non affiché${pluralS(missing)} par X` : ''}
-              {last?.stoppedAt ? ` · arrêté après ${formatNumber(last.stoppedAt)} : la suite n’avait pas changé` : ''}
+              {joinParts([
+                formatPercent(pct),
+                missing > 0 ? t('dashboard.coverage.notShown', { count: missing, n: formatNumber(missing) }) : undefined,
+                last?.stoppedAt ? t('dashboard.coverage.stoppedAt', { n: formatNumber(last.stoppedAt) }) : undefined,
+              ])}
             </strong>
             <span>
-              {live
-                ? SCAN_TAB_HINT
-                : last
-                  ? 'X compte aussi des comptes qu’il n’affiche pas (suspendus, restreints).'
-                  : 'Le premier scan n’est pas encore terminé.'}
+              {live ? scanTabHint() : last ? t('dashboard.coverage.hiddenAccounts') : t('dashboard.coverage.firstNotDone')}
             </span>
           </div>
         </div>

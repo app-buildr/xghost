@@ -112,6 +112,21 @@
 }
 .xg-dep-panel {
   padding: 0;
+  container-type: inline-size;
+}
+.xg-dep__date--inline {
+  display: none;
+}
+/* Panneau étroit : la date rejoint le texte, le nom garde la place de s'afficher. */
+@container (max-width: 520px) {
+  .xg-dep__date--side {
+    display: none;
+  }
+  .xg-dep__date--inline {
+    display: block;
+    min-width: 0;
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 800px) {

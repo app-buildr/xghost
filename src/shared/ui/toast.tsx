@@ -1,4 +1,6 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { t } from '@/shared/i18n';
+import { IconClose } from './icons';
 
 interface Toast {
   id: number;
@@ -17,35 +19,55 @@ export const useToast = () => useContext(ToastContext);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
-  const dismiss = useCallback((id: number) => setToasts((all) => all.filter((t) => t.id !== id)), []);
+  const dismiss = useCallback((id: number) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setToasts((all) => all.filter((item) => item.id !== id));
+  }, []);
 
   const show = useCallback<ToastApi['show']>(
     (message, options) => {
       const id = nextId.current++;
       setToasts((all) => [...all, { id, message, action: options?.action }]);
-      setTimeout(() => dismiss(id), options?.durationMs ?? 3000);
+      // Un toast avec action (ex. « Annuler ») reste jusqu'à ce qu'on agisse ou le ferme (WCAG 2.2.1).
+      if (!options?.action) timers.current.set(id, setTimeout(() => dismiss(id), options?.durationMs ?? 3000));
     },
     [dismiss],
   );
 
+  // Timers annulés au démontage de la page.
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach(clearTimeout);
+  }, []);
+
+  // Valeur stable : les composants qui dépendent de `toast` ne se relancent pas à chaque toast.
+  const api = useMemo(() => ({ show }), [show]);
+
   return (
-    <ToastContext.Provider value={{ show }}>
+    <ToastContext.Provider value={api}>
       {children}
       <div className="xg-toasts" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div className="xg-toast" key={t.id}>
-            <span>{t.message}</span>
-            {t.action && (
-              <button
-                type="button"
-                onClick={() => {
-                  t.action?.run();
-                  dismiss(t.id);
-                }}
-              >
-                {t.action.label}
-              </button>
+        {toasts.map((toast) => (
+          <div className="xg-toast" key={toast.id}>
+            <span>{toast.message}</span>
+            {toast.action && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.action?.run();
+                    dismiss(toast.id);
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+                <button type="button" className="xg-toast__close" aria-label={t('common.actions.close')} onClick={() => dismiss(toast.id)}>
+                  <IconClose size={16} />
+                </button>
+              </>
             )}
           </div>
         ))}

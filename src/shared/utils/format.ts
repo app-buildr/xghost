@@ -1,13 +1,15 @@
-/** Formats d'affichage en français. */
+import { LOCALE, t } from '@/shared/i18n';
+
+/** Formats d'affichage, dans la langue du navigateur (textes dans locales/<langue>/format.json). */
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
-const numberFmt = new Intl.NumberFormat('fr-FR');
-const dayMonth = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-const dayMonthYear = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const numberFmt = new Intl.NumberFormat(LOCALE);
+const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
+const dayMonthYear = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
+const time = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit' });
 
 export const formatNumber = (n: number) => numberFmt.format(n);
 
@@ -34,50 +36,45 @@ function isYesterday(at: number, now: number): boolean {
 /** Forme courte de la popup : « 2 h », « hier », « 3 j », « 29 oct. ». */
 export function formatAgoShort(at: number, now = Date.now()): string {
   const diff = Math.max(0, now - at);
-  if (diff < MIN) return 'maint.';
-  if (diff < HOUR) return `${Math.floor(diff / MIN)} min`;
-  if (isYesterday(at, now)) return 'hier';
-  if (diff < DAY) return `${Math.floor(diff / HOUR)} h`;
-  if (diff < 7 * DAY) return `${Math.max(2, Math.floor(diff / DAY))} j`;
+  if (diff < MIN) return t('format.agoShort.now');
+  if (diff < HOUR) return t('format.agoShort.minutes', { count: Math.floor(diff / MIN) });
+  if (isYesterday(at, now)) return t('format.agoShort.yesterday');
+  if (diff < DAY) return t('format.agoShort.hours', { count: Math.floor(diff / HOUR) });
+  if (diff < 7 * DAY) return t('format.agoShort.days', { count: Math.max(2, Math.floor(diff / DAY)) });
   return formatDate(at, now);
 }
 
 /** Forme longue : « il y a 2 h », « hier, 21:40 », « 29 oct. ». */
 export function formatAgo(at: number, now = Date.now()): string {
   const diff = Math.max(0, now - at);
-  if (diff < MIN) return 'à l’instant';
-  if (diff < HOUR) return `il y a ${Math.floor(diff / MIN)} min`;
-  if (isYesterday(at, now)) return `hier, ${formatTime(at)}`;
-  if (diff < DAY) return `il y a ${Math.floor(diff / HOUR)} h`;
+  if (diff < MIN) return t('format.ago.now');
+  if (diff < HOUR) return t('format.ago.minutes', { count: Math.floor(diff / MIN) });
+  if (isYesterday(at, now)) return t('format.ago.yesterday', { time: formatTime(at) });
+  if (diff < DAY) return t('format.ago.hours', { count: Math.floor(diff / HOUR) });
   return formatDate(at, now);
 }
 
 /** « dans 5 h 48 », « dans 12 min ». */
 export function formatIn(at: number, now = Date.now()): string {
   const diff = Math.max(0, at - now);
-  if (diff < HOUR) return `dans ${Math.max(1, Math.round(diff / MIN))} min`;
+  if (diff < HOUR) return t('format.in.minutes', { count: Math.max(1, Math.round(diff / MIN)) });
   const h = Math.floor(diff / HOUR);
   const m = Math.floor((diff % HOUR) / MIN);
-  return m ? `dans ${h} h ${String(m).padStart(2, '0')}` : `dans ${h} h`;
+  return m ? t('format.in.hoursMinutes', { h, m: String(m).padStart(2, '0') }) : t('format.in.hours', { count: h });
 }
 
 /** Durée observée : « 10 jours », « 3 semaines », « 5 mois », « 1 an ». */
 export function formatDuration(ms: number): string {
   const days = Math.floor(ms / DAY);
-  if (days < 1) return plural(Math.max(1, Math.floor(ms / HOUR)), 'heure');
-  if (days < 14) return plural(days, 'jour');
-  if (days < 60) return `${Math.floor(days / 7)} semaines`;
-  if (days < 365) return `${Math.floor(days / 30)} mois`;
-  return plural(Math.floor(days / 365), 'an');
+  if (days < 1) return t('format.duration.hours', { count: Math.max(1, Math.floor(ms / HOUR)) });
+  if (days < 14) return t('format.duration.days', { count: days });
+  if (days < 60) return t('format.duration.weeks', { count: Math.floor(days / 7) });
+  if (days < 365) return t('format.duration.months', { count: Math.floor(days / 30) });
+  return t('format.duration.years', { count: Math.floor(days / 365) });
 }
 
-/** « 1 abonné », « 2 abonnés », « 1 250 abonnés » (nombre formaté). */
-export function plural(n: number, singular: string, pluralForm = `${singular}s`): string {
-  return `${formatNumber(n)} ${n > 1 ? pluralForm : singular}`;
-}
-
-/** Accord seul (« s » ou rien), pour les phrases où le nombre est déjà écrit. */
-export const pluralS = (n: number) => (n > 1 ? 's' : '');
+/** Pourcentage affiché : « 41 % » en français, « 41% » en anglais. */
+export const formatPercent = (pct: number) => t('format.percent', { pct });
 
 /**
  * Pourcentage arrondi. `capBelowTotal` : jamais 100 % tant qu'il manque quelque chose.
@@ -91,17 +88,17 @@ export function percentOf(part: number, total: number, { capBelowTotal = true, e
 
 /** Compte à rebours : « dans 3 min 12 s », « imminente », « dans quelques minutes ». */
 export function formatCountdown(at: number | undefined, now = Date.now()): string {
-  if (!at) return 'dans quelques minutes';
+  if (!at) return t('format.countdown.unknown');
   const s = Math.max(0, Math.round((at - now) / 1000));
-  if (s === 0) return 'imminente';
+  if (s === 0) return t('format.countdown.now');
   const m = Math.floor(s / 60);
-  return `dans ${m > 0 ? `${m} min ` : ''}${s % 60} s`;
+  return m > 0 ? t('format.countdown.minutesSeconds', { m, s: s % 60 }) : t('format.countdown.seconds', { s });
 }
 
 /** Temps écoulé court : « 45 s », « 3 min ». */
 export function formatElapsedShort(since: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - since) / 1000));
-  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min`;
+  return s < 60 ? t('format.elapsed.seconds', { s }) : t('format.elapsed.minutes', { m: Math.floor(s / 60) });
 }
 
 /** Compteur de badge : « 7 », « 99+ », vide à 0. */
@@ -109,10 +106,23 @@ export const formatBadgeCount = (n: number) => (n <= 0 ? '' : n > 99 ? '99+' : S
 
 /** « aujourd’hui, 09:14 » ou « 12 oct. ». */
 export const formatDayOrDate = (at: number, now = Date.now()) =>
-  new Date(at).toDateString() === new Date(now).toDateString() ? `aujourd’hui, ${formatTime(at)}` : formatDate(at, now);
+  new Date(at).toDateString() === new Date(now).toDateString()
+    ? t('format.todayAt', { time: formatTime(at) })
+    : formatDate(at, now);
 
 export function initials(name: string): string {
   const parts = name.replace(/[@_.-]+/g, ' ').trim().split(/\s+/).filter(Boolean);
   const letters = parts.length > 1 ? `${parts[0]![0]}${parts[1]![0]}` : (parts[0] ?? '?').slice(0, 2);
   return letters.toUpperCase();
 }
+
+/** Compteur d'un scan : « 643 / 1 573 », ou « 643 » tant que le total de X est inconnu. */
+export const formatProgressCount = (collected: number, expected: number) =>
+  expected > 0
+    ? t('format.progressCount', { collected: formatNumber(collected), expected: formatNumber(expected) })
+    : formatNumber(collected);
+
+const conjunction = new Intl.ListFormat(LOCALE, { style: 'long', type: 'conjunction' });
+
+/** Énumération dans la langue : « a et b », « a, b et c ». */
+export const formatList = (items: readonly string[]) => conjunction.format(items);

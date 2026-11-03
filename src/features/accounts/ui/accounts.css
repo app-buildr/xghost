@@ -1,11 +1,6 @@
 .xg-accounts__title {
   margin: 0 0 12px 12px;
-  font-family: var(--xg-font-text);
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--xg-text-muted);
 }
 .xg-accounts__list {
   list-style: none;

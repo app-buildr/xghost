@@ -1,0 +1,21 @@
+{
+  "followers_one": "{{n}} abonné",
+  "followers_other": "{{n}} abonnés",
+  "accounts_one": "{{n}} compte X",
+  "accounts_other": "{{n}} comptes X",
+  "switchAccount": "Changer de compte",
+  "settings": "Réglages",
+  "fresh_one": "nouveau départ",
+  "fresh_other": "nouveaux départs",
+  "sinceLastVisit": "depuis ta dernière visite",
+  "incomplete": "Scan incomplet ({{pct}})",
+  "incompleteHint": "ouvre le tableau de bord pour le terminer",
+  "latest": "Derniers unfollows",
+  "departures7d": "Départs, 7 j",
+  "arrivals7d": "Arrivées, 7 j",
+  "net": "Solde",
+  "noAccount": "Ouvre x.com et connecte-toi : xGhost détectera ton compte.",
+  "recheckTitle": "Relancer une vérification",
+  "checking": "Vérification en cours…",
+  "openDashboard": "Tableau de bord"
+}

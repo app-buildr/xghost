@@ -1,0 +1,18 @@
+{
+  "title": "Backup",
+  "hint": "Export all your data (tracked accounts, history, follower list, settings) to a file, to import it again after reinstalling or on another computer. The file contains your follower list: keep it private.",
+  "export": "Export my data",
+  "import": "Import a backup",
+  "fileName": "xghost-backup-{{date}}.json",
+  "exported": "Backup downloaded",
+  "exportFailed": "Export failed",
+  "confirmText": "Import “{{file}}”? All current xGhost data will be replaced with the backup’s.",
+  "confirmImport": "Replace my data",
+  "imported": "Backup imported: xGhost is back to the backup’s state",
+  "errors": {
+    "invalid": "This file isn’t a valid xGhost backup: nothing was changed",
+    "newer": "This backup comes from a newer version of xGhost: update the extension first",
+    "too-large": "This file is too large to be an xGhost backup",
+    "failed": "Import failed: your data was not changed"
+  }
+}

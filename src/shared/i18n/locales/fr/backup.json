@@ -1,0 +1,18 @@
+{
+  "title": "Sauvegarde",
+  "hint": "Exporte toutes tes données (comptes suivis, historique, liste d’abonnés, réglages) dans un fichier, pour les réimporter après une réinstallation ou sur un autre ordinateur. Le fichier contient la liste de tes abonnés : garde-le pour toi.",
+  "export": "Exporter mes données",
+  "import": "Importer une sauvegarde",
+  "fileName": "xghost-sauvegarde-{{date}}.json",
+  "exported": "Sauvegarde téléchargée",
+  "exportFailed": "Export impossible",
+  "confirmText": "Importer « {{file}} » ? Toutes les données actuelles de xGhost seront remplacées par celles de la sauvegarde.",
+  "confirmImport": "Remplacer mes données",
+  "imported": "Sauvegarde importée : xGhost est revenu à l’état de la sauvegarde",
+  "errors": {
+    "invalid": "Ce fichier n’est pas une sauvegarde xGhost valide : rien n’a été modifié",
+    "newer": "Cette sauvegarde vient d’une version plus récente de xGhost : mets d’abord l’extension à jour",
+    "too-large": "Ce fichier est trop volumineux pour être une sauvegarde xGhost",
+    "failed": "Import impossible : tes données n’ont pas été modifiées"
+  }
+}

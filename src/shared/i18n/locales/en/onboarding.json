@@ -1,0 +1,36 @@
+{
+  "pageTitle": "Welcome to xGhost",
+  "title": "Let’s sync your followers.",
+  "lead": "This first sync is the baseline. Then xGhost compares regularly and tells you about every unfollow. Your data stays on this computer; export it from the settings to back it up.",
+  "session": {
+    "detected": "X session detected",
+    "connect": "Log in to X",
+    "searching": "Looking for your X session…",
+    "loggedInAs": "Logged in as @{{handle}}",
+    "readingHandle": "Your X account is connected. Your @ will show after the sync.",
+    "loginThenBack": "Log in to X, then come back here."
+  },
+  "scan": {
+    "title": "Syncing your followers",
+    "done_one": "Baseline of {{n}} follower saved. Taking you to your dashboard…",
+    "done_other": "Baseline of {{n}} followers saved. Taking you to your dashboard…",
+    "incomplete": "Incomplete sync ({{pct}}): the x.com tab was closed or the list stopped too early. Followers already fetched are kept.",
+    "doneTitle": "Sync complete",
+    "stop": "Stop"
+  },
+  "frequency": {
+    "title": "How often should we check?",
+    "hint": "The more often, the sooner you know. You can change it later."
+  },
+  "dashboard": "See my dashboard",
+  "keepBrowsing": "You can keep using Chrome normally during the sync.",
+  "choice": {
+    "title": "How do you want to start?",
+    "hint": "Nothing runs until you choose.",
+    "syncTitle": "New sync",
+    "syncText": "xGhost fetches your followers on X. About 3 min.",
+    "syncButton": "Start syncing",
+    "restoreTitle": "Restore a backup",
+    "restoreText": "Used xGhost before? Import your .json file, without going through X again."
+  }
+}

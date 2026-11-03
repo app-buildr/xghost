@@ -1,0 +1,36 @@
+{
+  "pageTitle": "Bienvenue sur xGhost",
+  "title": "On synchronise tes abonnés.",
+  "lead": "Cette première synchronisation sert de référence. Ensuite, xGhost compare régulièrement et te signale chaque départ. Tes données restent sur cet ordinateur ; exporte-les depuis les réglages pour les sauvegarder.",
+  "session": {
+    "detected": "Session X détectée",
+    "connect": "Connexion à X",
+    "searching": "Recherche de ta session X…",
+    "loggedInAs": "Connecté en tant que @{{handle}}",
+    "readingHandle": "Ton compte X est connecté. Ton @ s’affichera après la synchronisation.",
+    "loginThenBack": "Connecte-toi à X puis reviens ici."
+  },
+  "scan": {
+    "title": "Synchronisation de tes abonnés",
+    "done_one": "Référence de {{n}} abonné enregistrée. Redirection vers ton tableau de bord…",
+    "done_other": "Référence de {{n}} abonnés enregistrée. Redirection vers ton tableau de bord…",
+    "incomplete": "Synchronisation incomplète ({{pct}}) : l’onglet x.com a été fermé ou la liste s’est arrêtée trop tôt. Les abonnés déjà récupérés sont gardés.",
+    "doneTitle": "Synchronisation terminée",
+    "stop": "Arrêter"
+  },
+  "frequency": {
+    "title": "À quelle fréquence vérifier ?",
+    "hint": "Plus c’est fréquent, plus tu sais vite. Modifiable plus tard."
+  },
+  "dashboard": "Voir mon tableau de bord",
+  "keepBrowsing": "Tu peux continuer à utiliser Chrome normalement pendant la synchronisation.",
+  "choice": {
+    "title": "Comment veux-tu démarrer ?",
+    "hint": "Rien n’est lancé tant que tu n’as pas choisi.",
+    "syncTitle": "Nouvelle synchronisation",
+    "syncText": "xGhost récupère tes abonnés sur X. Environ 3 min.",
+    "syncButton": "Lancer la synchronisation",
+    "restoreTitle": "Restaurer une sauvegarde",
+    "restoreText": "Tu as déjà utilisé xGhost ? Importe ton fichier .json, sans repasser par X."
+  }
+}

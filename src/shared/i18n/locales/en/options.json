@@ -1,0 +1,54 @@
+{
+  "nav": {
+    "label": "Navigation",
+    "dashboard": "Dashboard",
+    "departures": "Unfollows",
+    "arrivals": "New followers",
+    "settings": "Settings"
+  },
+  "allDepartures": "All unfollows",
+  "settingsTitle": "Settings",
+  "empty": {
+    "title": "No tracked account",
+    "lead": "Log in to X in this browser: xGhost detects your account and takes a snapshot of your followers."
+  },
+  "accounts": {
+    "title": "X accounts",
+    "activeSession": "Active session",
+    "awaitingCheck": "Waiting for a check",
+    "help": "Log in to another account on x.com, xGhost detects it by itself."
+  },
+  "settings": {
+    "check": "Checks",
+    "frequency": "Frequency",
+    "alerts": "Alerts",
+    "badge": "Icon badge",
+    "badgeHint": "Number of unseen unfollows",
+    "notifications": "System notification",
+    "notificationsHint": "A Chrome notification after each check that finds unfollows",
+    "mutualsOnly": "Follow-backs only",
+    "mutualsOnlyHint": "Only alert if I was following them",
+    "mutualsOnlyHintAccount": "Only alert if I was following them (@{{handle}})"
+  },
+  "account": {
+    "ignoredTitle": "Ignored accounts",
+    "noIgnored": "No ignored accounts for @{{handle}}.",
+    "unignore": "Stop ignoring",
+    "removeTitle": "Remove @{{handle}}",
+    "removeHint": "Deletes this account’s baseline, history and settings. It will be detected again if you log back in to it on x.com.",
+    "removed": "@{{handle}} has been removed",
+    "confirmRemove": "Confirm removal",
+    "remove": "Remove this account"
+  },
+  "footer": {
+    "label": "Project links",
+    "source": "Source code on GitHub",
+    "reportBug": "Report a bug",
+    "version": "xGhost {{version}}",
+    "issueBody": "**What happens:**\n\n\n**What was expected:**\n\n\n**Steps to reproduce:**\n1. \n\n---\nxGhost {{version}}\n{{browser}}"
+  },
+  "recovery": {
+    "title": "Unreadable data",
+    "lead": "xGhost can’t read its data. You can restore a backup below."
+  }
+}

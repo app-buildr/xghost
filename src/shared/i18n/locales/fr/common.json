@@ -1,0 +1,110 @@
+{
+  "appName": "xGhost",
+  "scan": {
+    "tabHint": "Le scan se fait dans un onglet x.com épinglé : ne le ferme pas, il se fermera tout seul.",
+    "rateLimitTitle": "Petite pause…",
+    "rateLimitText": "X limite le nombre de requêtes. Le scan reprend tout seul, garde l’onglet ouvert.",
+    "stallText": "Le chargement s’est arrêté dans l’onglet x.com. Affiche-le quelques secondes pour le relancer.",
+    "pause": {
+      "rateLimit": "Limite de requêtes X atteinte : reprise automatique.",
+      "disconnected": "Session X absente : reconnecte-toi à x.com, le scan reprendra.",
+      "accountSwitched": "Un autre compte est connecté sur x.com : reviens sur @{{handle}} pour terminer le scan.",
+      "error": "Erreur, nouvel essai automatique.",
+      "rateLimitAt": "Limite de requêtes X atteinte : reprise automatique à {{time}}.",
+      "errorAt": "Erreur, nouvel essai automatique à {{time}}.",
+      "errorDetail": "Erreur ({{detail}}), nouvel essai automatique.",
+      "errorDetailAt": "Erreur ({{detail}}), nouvel essai automatique à {{time}}."
+    },
+    "remaining": {
+      "lessThanMinute": "Moins d’une minute restante",
+      "minutes_one": "Environ {{count}} min restante",
+      "minutes_other": "Environ {{count}} min restantes",
+      "hours_one": "Environ {{count}} h restante",
+      "hours_other": "Environ {{count}} h restantes"
+    },
+    "tabOpenFailed": "Onglet x.com impossible à ouvrir"
+  },
+  "veil": {
+    "title": "Synchronisation des abonnés…",
+    "text": "Ne ferme pas cet onglet. Tu peux utiliser les autres, celui-ci se fermera tout seul à la fin.",
+    "resume": "Reprise {{countdown}}",
+    "computing": "Calcul du temps restant…",
+    "tabTitleScanning": "xGhost, scan en cours",
+    "tabTitlePaused": "xGhost, petite pause",
+    "tabTitleScanningPct": "({{pct}}) xGhost, scan en cours",
+    "tabTitlePausedPct": "({{pct}}) xGhost, petite pause"
+  },
+  "event": {
+    "detectedAt": "Détecté le {{date}}",
+    "followedFor": "suivi pendant {{duration}}",
+    "followedSince": "suivi depuis le {{date}} ou avant"
+  },
+  "notifications": {
+    "departureOne": "@{{handle}} ne suit plus @{{account}}",
+    "departureMany": "{{count}} comptes ne suivent plus @{{account}}",
+    "detectedNow": "Détecté à l’instant par xGhost.",
+    "andOthers_one": "{{list}} et {{count}} autre",
+    "andOthers_other": "{{list}} et {{count}} autres",
+    "accountAddedTitle": "Nouveau compte suivi",
+    "accountAddedText": "Un nouveau compte X est maintenant suivi par xGhost."
+  },
+  "badge": {
+    "noSession": "xGhost : aucune session X",
+    "scanning": "vérification en cours",
+    "unseen_one": "{{count}} départ non vu",
+    "unseen_other": "{{count}} départs non vus",
+    "update": "version {{version}} disponible",
+    "title": "xGhost : {{parts}}"
+  },
+  "update": {
+    "title": "Nouvelle version de xGhost disponible",
+    "text": "Version {{latest}} publiée, tu as la {{installed}}.",
+    "howTo": "Comment mettre à jour"
+  },
+  "scanStatus": {
+    "noSession": "Aucune session X trouvée. Connecte-toi à X pour reprendre la vérification.",
+    "pendingCount_one": "X indique {{n}} abonné en moins. Lance une vérification pour savoir qui est parti.",
+    "pendingCount_other": "X indique {{n}} abonnés en moins. Lance une vérification pour savoir qui est parti.",
+    "pendingManyArrivals": "Beaucoup de nouveaux abonnés : une vérification complète est nécessaire.",
+    "pendingFull": "Une vérification complète est nécessaire.",
+    "identify": "Identifier",
+    "baselineRunning": "Scan de référence en cours",
+    "checkRunning": "Vérification en cours",
+    "showTab": "Afficher l’onglet x.com",
+    "progressLabel": "Progression du scan",
+    "hintWithRemaining": "{{hint}} {{remaining}}."
+  },
+  "actions": {
+    "copied": "@{{handle}} copié",
+    "ignored": "@{{handle}} est ignoré",
+    "unignored": "@{{handle}} n’est plus ignoré",
+    "removed": "Supprimé de l’historique",
+    "undo": "Annuler",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "copyFailed": "Copie impossible",
+    "failed": "Action impossible pour le moment"
+  },
+  "errors": {
+    "noReply": "Pas de réponse du service worker",
+    "noRoot": "#root introuvable",
+    "render": "Cette partie ne peut pas s’afficher. Recharge la page ; si le problème continue, restaure une sauvegarde depuis les réglages.",
+    "importing": "Import d’une sauvegarde en cours : réessaie dans un instant."
+  },
+  "log": {
+    "scanEnd": "[xGhost] fin de scan",
+    "request": "[xGhost] requête {{type}}",
+    "tabEvent": "[xGhost] onglet de scan",
+    "render": "[xGhost] erreur d’affichage"
+  },
+  "frequency": {
+    "label": "Fréquence de vérification",
+    "short": "{{h}} h",
+    "hourly": "Toutes les heures",
+    "everyHours": "Toutes les {{h}} h",
+    "daily": "1 fois par jour"
+  },
+  "checkedAgo": "Vérifié {{ago}}",
+  "continueScan": "Continuer le scan",
+  "openX": "Ouvrir x.com"
+}

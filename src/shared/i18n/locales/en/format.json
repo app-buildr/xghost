@@ -1,0 +1,53 @@
+{
+  "agoShort": {
+    "now": "now",
+    "minutes_one": "{{count}}m",
+    "minutes_other": "{{count}}m",
+    "yesterday": "yesterday",
+    "hours_one": "{{count}}h",
+    "hours_other": "{{count}}h",
+    "days_one": "{{count}}d",
+    "days_other": "{{count}}d"
+  },
+  "ago": {
+    "now": "just now",
+    "minutes_one": "{{count}} min ago",
+    "minutes_other": "{{count}} min ago",
+    "yesterday": "yesterday, {{time}}",
+    "hours_one": "{{count}} hour ago",
+    "hours_other": "{{count}} hours ago"
+  },
+  "in": {
+    "minutes_one": "in {{count}} min",
+    "minutes_other": "in {{count}} min",
+    "hours_one": "in {{count}} h",
+    "hours_other": "in {{count}} h",
+    "hoursMinutes": "in {{h}} h {{m}}"
+  },
+  "duration": {
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks",
+    "months_one": "{{count}} month",
+    "months_other": "{{count}} months",
+    "years_one": "{{count}} year",
+    "years_other": "{{count}} years"
+  },
+  "percent": "{{pct}}%",
+  "countdown": {
+    "unknown": "in a few minutes",
+    "now": "any moment now",
+    "seconds": "in {{s}} s",
+    "minutesSeconds": "in {{m}} min {{s}} s"
+  },
+  "elapsed": {
+    "seconds": "{{s}} s",
+    "minutes": "{{m}} min"
+  },
+  "todayAt": "today, {{time}}",
+  "separator": " · ",
+  "progressCount": "{{collected}} / {{expected}}"
+}

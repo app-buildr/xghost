@@ -15,8 +15,10 @@ export default defineConfig({
     },
   }),
   manifest: {
-    name: 'xGhost',
-    description: 'Détecte les comptes X qui ont arrêté de te suivre, et te prévient.',
+    // Nom et description traduits par Chrome (public/_locales), anglais par défaut.
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     permissions: [
       'storage',
       'unlimitedStorage',

@@ -1,0 +1,110 @@
+{
+  "appName": "xGhost",
+  "scan": {
+    "tabHint": "The scan runs in a pinned x.com tab: don’t close it, it will close by itself.",
+    "rateLimitTitle": "Short break…",
+    "rateLimitText": "X limits the number of requests. The scan resumes by itself, keep the tab open.",
+    "stallText": "Loading stopped in the x.com tab. Show it for a few seconds to restart it.",
+    "pause": {
+      "rateLimit": "X request limit reached: resuming automatically.",
+      "disconnected": "No X session: log back in to x.com and the scan will resume.",
+      "accountSwitched": "Another account is logged in on x.com: switch back to @{{handle}} to finish the scan.",
+      "error": "Error, retrying automatically.",
+      "rateLimitAt": "X request limit reached: resuming automatically at {{time}}.",
+      "errorAt": "Error, retrying automatically at {{time}}.",
+      "errorDetail": "Error ({{detail}}), retrying automatically.",
+      "errorDetailAt": "Error ({{detail}}), retrying automatically at {{time}}."
+    },
+    "remaining": {
+      "lessThanMinute": "Less than a minute left",
+      "minutes_one": "About {{count}} min left",
+      "minutes_other": "About {{count}} min left",
+      "hours_one": "About {{count}} hour left",
+      "hours_other": "About {{count}} hours left"
+    },
+    "tabOpenFailed": "Could not open the x.com tab"
+  },
+  "veil": {
+    "title": "Syncing followers…",
+    "text": "Don’t close this tab. You can use the others, this one will close by itself when done.",
+    "resume": "Resuming {{countdown}}",
+    "computing": "Estimating time left…",
+    "tabTitleScanning": "xGhost, scanning",
+    "tabTitlePaused": "xGhost, short break",
+    "tabTitleScanningPct": "({{pct}}) xGhost, scanning",
+    "tabTitlePausedPct": "({{pct}}) xGhost, short break"
+  },
+  "event": {
+    "detectedAt": "Detected on {{date}}",
+    "followedFor": "followed for {{duration}}",
+    "followedSince": "followed since {{date}} or earlier"
+  },
+  "notifications": {
+    "departureOne": "@{{handle}} no longer follows @{{account}}",
+    "departureMany": "{{count}} accounts no longer follow @{{account}}",
+    "detectedNow": "Just detected by xGhost.",
+    "andOthers_one": "{{list}} and {{count}} other",
+    "andOthers_other": "{{list}} and {{count}} others",
+    "accountAddedTitle": "New account tracked",
+    "accountAddedText": "A new X account is now tracked by xGhost."
+  },
+  "badge": {
+    "noSession": "xGhost: no X session",
+    "scanning": "check in progress",
+    "unseen_one": "{{count}} unseen unfollow",
+    "unseen_other": "{{count}} unseen unfollows",
+    "update": "version {{version}} available",
+    "title": "xGhost: {{parts}}"
+  },
+  "update": {
+    "title": "A new version of xGhost is available",
+    "text": "Version {{latest}} is out, you have {{installed}}.",
+    "howTo": "How to update"
+  },
+  "scanStatus": {
+    "noSession": "No X session found. Log in to X to resume checking.",
+    "pendingCount_one": "X reports {{n}} fewer follower. Run a check to find out who left.",
+    "pendingCount_other": "X reports {{n}} fewer followers. Run a check to find out who left.",
+    "pendingManyArrivals": "Lots of new followers: a full check is needed.",
+    "pendingFull": "A full check is needed.",
+    "identify": "Identify",
+    "baselineRunning": "Baseline scan in progress",
+    "checkRunning": "Check in progress",
+    "showTab": "Show the x.com tab",
+    "progressLabel": "Scan progress",
+    "hintWithRemaining": "{{hint}} {{remaining}}."
+  },
+  "actions": {
+    "copied": "@{{handle}} copied",
+    "ignored": "@{{handle}} is now ignored",
+    "unignored": "@{{handle}} is no longer ignored",
+    "removed": "Removed from history",
+    "undo": "Undo",
+    "close": "Close",
+    "cancel": "Cancel",
+    "copyFailed": "Couldn’t copy",
+    "failed": "Couldn’t do that right now"
+  },
+  "errors": {
+    "noReply": "No reply from the service worker",
+    "noRoot": "#root not found",
+    "render": "This part can’t be displayed. Reload the page; if the problem persists, restore a backup from the settings.",
+    "importing": "A backup is being imported: try again in a moment."
+  },
+  "log": {
+    "scanEnd": "[xGhost] end of scan",
+    "request": "[xGhost] request {{type}}",
+    "tabEvent": "[xGhost] scan tab",
+    "render": "[xGhost] render error"
+  },
+  "frequency": {
+    "label": "Check frequency",
+    "short": "{{h}}h",
+    "hourly": "Every hour",
+    "everyHours": "Every {{h}} hours",
+    "daily": "Once a day"
+  },
+  "checkedAgo": "Checked {{ago}}",
+  "continueScan": "Continue the scan",
+  "openX": "Open x.com"
+}

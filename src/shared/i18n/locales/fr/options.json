@@ -1,0 +1,54 @@
+{
+  "nav": {
+    "label": "Navigation",
+    "dashboard": "Tableau de bord",
+    "departures": "Départs",
+    "arrivals": "Nouveaux abonnés",
+    "settings": "Réglages"
+  },
+  "allDepartures": "Tous les départs",
+  "settingsTitle": "Réglages",
+  "empty": {
+    "title": "Aucun compte suivi",
+    "lead": "Connecte-toi à X dans ce navigateur : xGhost détecte ton compte et prend une photo de tes abonnés."
+  },
+  "accounts": {
+    "title": "Comptes X",
+    "activeSession": "Session active",
+    "awaitingCheck": "En attente de vérification",
+    "help": "Connecte-toi à un autre compte sur x.com, xGhost le détecte tout seul."
+  },
+  "settings": {
+    "check": "Vérification",
+    "frequency": "Fréquence",
+    "alerts": "Alertes",
+    "badge": "Badge sur l’icône",
+    "badgeHint": "Nombre de départs non vus",
+    "notifications": "Notification système",
+    "notificationsHint": "Une notif Chrome à chaque vérification avec départs",
+    "mutualsOnly": "Uniquement les follow back",
+    "mutualsOnlyHint": "Alerter seulement si je le suivais",
+    "mutualsOnlyHintAccount": "Alerter seulement si je le suivais (@{{handle}})"
+  },
+  "account": {
+    "ignoredTitle": "Comptes ignorés",
+    "noIgnored": "Aucun compte ignoré pour @{{handle}}.",
+    "unignore": "Ne plus ignorer",
+    "removeTitle": "Retirer @{{handle}}",
+    "removeHint": "Efface la référence, l’historique et les réglages de ce compte. Il sera de nouveau détecté si tu te reconnectes à lui sur x.com.",
+    "removed": "@{{handle}} a été retiré",
+    "confirmRemove": "Confirmer le retrait",
+    "remove": "Retirer ce compte"
+  },
+  "footer": {
+    "label": "Liens du projet",
+    "source": "Code source sur GitHub",
+    "reportBug": "Signaler un bug",
+    "version": "xGhost {{version}}",
+    "issueBody": "**Ce qui se passe :**\n\n\n**Ce qui était attendu :**\n\n\n**Étapes pour reproduire :**\n1. \n\n---\nxGhost {{version}}\n{{browser}}"
+  },
+  "recovery": {
+    "title": "Données illisibles",
+    "lead": "xGhost n’arrive pas à lire ses données. Tu peux restaurer une sauvegarde ci-dessous."
+  }
+}

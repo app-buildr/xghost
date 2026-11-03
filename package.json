@@ -11,11 +11,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "postinstall": "wxt prepare",
-    "package": "npm run build && rm -rf pack xghost.zip && mkdir pack && cp -R dist pack/xGhost && (cd pack && zip -qrX ../xghost.zip xGhost) && rm -rf pack"
+    "package": "npm run build && rm -rf pack xghost.zip && mkdir pack && cp -R dist pack/xGhost && (cd pack && zip -qrX ../xghost.zip xGhost) && rm -rf pack",
+    "release": "./release.sh"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
+    "i18next": "^26.7.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

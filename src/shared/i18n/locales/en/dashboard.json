@@ -1,0 +1,129 @@
+{
+  "header": {
+    "title": "Dashboard",
+    "lastCheck": "Last checked {{ago}}",
+    "neverChecked": "Not checked yet",
+    "nextCheck": "next {{in}}",
+    "lastQuick": "Last quick check: {{summary}}"
+  },
+  "quick": {
+    "arrivals_one": "{{n}} new follower",
+    "arrivals_other": "{{n}} new followers",
+    "departed_one": "{{n}} recent unfollow",
+    "departed_other": "{{n}} recent unfollows",
+    "missing_one": "{{n}} follower",
+    "missing_other": "{{n}} followers",
+    "overflow": "too many new followers at once, full scan started.",
+    "nothingNew": "nothing new",
+    "stale": "{{seen}}, but the total shown by X isn’t up to date yet: checking again in 10 min.",
+    "missingWithSeen": "{{seen}}, and {{missing}} still missing, full scan started to find out who left.",
+    "missingOnly": "{{missing}} missing, full scan started to find out who left.",
+    "seenOnly": "{{seen}}.",
+    "noChange": "no change."
+  },
+  "kpi": {
+    "departures": "Unfollows, 7 days",
+    "new_one": "{{n}} new",
+    "new_other": "{{n}} new",
+    "arrivals": "New followers, 7 days",
+    "net": "Net {{net}}"
+  },
+  "latestDepartures": "Latest unfollows",
+  "check": {
+    "reasons": {
+      "disconnected": "Log in to X to run a check",
+      "alreadyRunning": "A check is already running",
+      "rateLimit": "X limit reached, the check will resume automatically"
+    },
+    "impossible": "Can’t check right now",
+    "fullStarted": "Full scan started in the pinned x.com tab",
+    "checking": "Checking…",
+    "checkNow": "Check now",
+    "fullScan": "Full scan",
+    "fullScanTitle": "Read the whole follower list again",
+    "result": "Check done: {{summary}}",
+    "quickStarted": "Check started"
+  },
+  "chart": {
+    "title": "Last 30 days",
+    "arrivals": "New followers",
+    "departures": "Unfollows",
+    "aria": "Last 30 days: {{arrivals}}, {{departures}}",
+    "tipArrivals_one": "{{n}} new follower",
+    "tipArrivals_other": "{{n}} new followers",
+    "tipDepartures_one": "{{n}} unfollow",
+    "tipDepartures_other": "{{n}} unfollows",
+    "tipNet": "Net for the day: {{net}}",
+    "tipNoData": "No data: xGhost wasn’t tracking this account yet."
+  },
+  "coverage": {
+    "reasons": {
+      "baseline": "First scan: it’s used as the reference.",
+      "newAccount": "New X account detected on x.com: first reference scan for this account.",
+      "user": "Full scan requested.",
+      "missing": "The quick check saw fewer followers: full scan to find out who left.",
+      "overflow": "Too many new followers for the quick check: full scan.",
+      "incomplete": "The previous scan was incomplete: picking it up.",
+      "safety": "Full safety scan (every 10 quick checks), to catch anything that might have slipped through.",
+      "recheck": "The previous result looked abnormal: checking everything again before recording it."
+    },
+    "tag": {
+      "running": "Running",
+      "paused": "Short break",
+      "stuck": "Stuck",
+      "interrupted": "Interrupted",
+      "complete": "Complete",
+      "incomplete": "Incomplete"
+    },
+    "title": "Last scan",
+    "inProgress": "in progress",
+    "detected": "Shown on X",
+    "scanned": "Scanned",
+    "newScan": "New scan: {{progress}}",
+    "keepsLast": "{{reason}} The figures above stay those of the last scan until this one ends.",
+    "pausedAt": "New scan paused at {{progress}}",
+    "resume": "resuming {{countdown}}",
+    "stuckSince": "No new follower for {{elapsed}}",
+    "missingAccounts_one": "{{n}} account missing",
+    "missingAccounts_other": "{{n}} accounts missing",
+    "departuresAfterComplete": "Unfollows are only computed after a complete scan.",
+    "notShown_one": "{{n}} not shown by X",
+    "notShown_other": "{{n}} not shown by X",
+    "stoppedAt": "stopped after {{n}}: the rest hadn’t changed",
+    "hiddenAccounts": "X also counts accounts it doesn’t show (suspended, restricted).",
+    "firstNotDone": "The first scan isn’t finished yet.",
+    "newScanPct": "New scan: {{progress}} ({{pct}})"
+  },
+  "departures": {
+    "filterLabel": "Filter unfollows",
+    "empty": "No unfollows yet. xGhost is watching.",
+    "emptyFilter": "No unfollows for this filter.",
+    "showAll_one": "See full history ({{n}} unfollow)",
+    "showAll_other": "See full history ({{n}} unfollows)"
+  },
+  "row": {
+    "mutual": "follow back",
+    "new": "New",
+    "actionsFor": "Actions for @{{handle}}",
+    "copyUsername": "Copy @username",
+    "ignore": "Ignore this account",
+    "ignoreHint": "Stop reporting their unfollows",
+    "delete": "Remove from history",
+    "viewProfile": "View profile",
+    "suspended": "account suspended",
+    "gone": "account deleted or deactivated",
+    "viewProfileOf": "View @{{handle}}’s profile"
+  },
+  "arrivals": {
+    "title": "New followers",
+    "empty": "No new followers detected since the reference scan.",
+    "showAll_one": "See full history ({{n}} new follower)",
+    "showAll_other": "See full history ({{n}} new followers)",
+    "filterLabel": "Filter new followers",
+    "emptyFilter": "No new followers for this filter."
+  },
+  "filter": {
+    "all": "All",
+    "followBack": "Follow-backs"
+  }
+}

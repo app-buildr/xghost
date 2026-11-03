@@ -1,0 +1,129 @@
+{
+  "header": {
+    "title": "Tableau de bord",
+    "lastCheck": "Dernière vérification {{ago}}",
+    "neverChecked": "Pas encore vérifié",
+    "nextCheck": "prochaine {{in}}",
+    "lastQuick": "Dernier contrôle rapide : {{summary}}"
+  },
+  "quick": {
+    "arrivals_one": "{{n}} nouvel abonné",
+    "arrivals_other": "{{n}} nouveaux abonnés",
+    "departed_one": "{{n}} départ récent",
+    "departed_other": "{{n}} départs récents",
+    "missing_one": "{{n}} abonné",
+    "missing_other": "{{n}} abonnés",
+    "overflow": "trop de nouveaux abonnés d’un coup, scan complet lancé.",
+    "nothingNew": "rien de nouveau",
+    "stale": "{{seen}}, mais le total affiché par X n’est pas encore à jour : nouvelle vérification dans 10 min.",
+    "missingWithSeen": "{{seen}}, et il manque encore {{missing}}, scan complet lancé pour savoir qui est parti.",
+    "missingOnly": "il manque {{missing}}, scan complet lancé pour savoir qui est parti.",
+    "seenOnly": "{{seen}}.",
+    "noChange": "aucun changement."
+  },
+  "kpi": {
+    "departures": "Départs, 7 jours",
+    "new_one": "dont {{n}} nouveau",
+    "new_other": "dont {{n}} nouveaux",
+    "arrivals": "Arrivées, 7 jours",
+    "net": "Solde net {{net}}"
+  },
+  "latestDepartures": "Derniers départs",
+  "check": {
+    "reasons": {
+      "disconnected": "Connecte-toi à X pour lancer une vérification",
+      "alreadyRunning": "Une vérification est déjà en cours",
+      "rateLimit": "Limite de X atteinte, la vérification reprendra automatiquement"
+    },
+    "impossible": "Vérification impossible pour le moment",
+    "fullStarted": "Scan complet lancé dans l’onglet x.com épinglé",
+    "checking": "Vérification…",
+    "checkNow": "Vérifier maintenant",
+    "fullScan": "Scan complet",
+    "fullScanTitle": "Relire toute la liste des abonnés",
+    "result": "Contrôle terminé : {{summary}}",
+    "quickStarted": "Vérification lancée"
+  },
+  "chart": {
+    "title": "30 derniers jours",
+    "arrivals": "Arrivées",
+    "departures": "Départs",
+    "aria": "30 derniers jours : {{arrivals}}, {{departures}}",
+    "tipArrivals_one": "{{n}} arrivée",
+    "tipArrivals_other": "{{n}} arrivées",
+    "tipDepartures_one": "{{n}} départ",
+    "tipDepartures_other": "{{n}} départs",
+    "tipNet": "Solde du jour : {{net}}",
+    "tipNoData": "Pas de donnée : xGhost ne suivait pas encore ce compte."
+  },
+  "coverage": {
+    "reasons": {
+      "baseline": "Premier scan : il sert de référence.",
+      "newAccount": "Nouveau compte X détecté sur x.com : premier scan de référence de ce compte.",
+      "user": "Scan complet demandé.",
+      "missing": "Le contrôle rapide a vu des abonnés en moins : scan complet pour savoir qui est parti.",
+      "overflow": "Trop de nouveaux abonnés pour le contrôle rapide : scan complet.",
+      "incomplete": "Le scan précédent était incomplet : on le continue.",
+      "safety": "Scan de contrôle complet (tous les 10 contrôles rapides), pour rattraper ce qui aurait pu échapper.",
+      "recheck": "Le résultat précédent semblait anormal : nouvelle vérification complète avant de l'enregistrer."
+    },
+    "tag": {
+      "running": "En cours",
+      "paused": "Petite pause",
+      "stuck": "Bloqué",
+      "interrupted": "Interrompu",
+      "complete": "Complet",
+      "incomplete": "Incomplet"
+    },
+    "title": "Dernier scan",
+    "inProgress": "en cours",
+    "detected": "Détectés sur X",
+    "scanned": "Scannés",
+    "newScan": "Nouveau scan : {{progress}}",
+    "keepsLast": "{{reason}} Les chiffres ci-dessus restent ceux du dernier scan jusqu’à la fin de celui-ci.",
+    "pausedAt": "Nouveau scan en pause à {{progress}}",
+    "resume": "reprise {{countdown}}",
+    "stuckSince": "Aucun nouvel abonné depuis {{elapsed}}",
+    "missingAccounts_one": "{{n}} compte manquant",
+    "missingAccounts_other": "{{n}} comptes manquants",
+    "departuresAfterComplete": "Les départs ne sont calculés qu’après un scan complet.",
+    "notShown_one": "{{n}} non affiché par X",
+    "notShown_other": "{{n}} non affichés par X",
+    "stoppedAt": "arrêté après {{n}} : la suite n’avait pas changé",
+    "hiddenAccounts": "X compte aussi des comptes qu’il n’affiche pas (suspendus, restreints).",
+    "firstNotDone": "Le premier scan n’est pas encore terminé.",
+    "newScanPct": "Nouveau scan : {{progress}} ({{pct}})"
+  },
+  "departures": {
+    "filterLabel": "Filtrer les départs",
+    "empty": "Aucun départ pour l’instant. xGhost veille.",
+    "emptyFilter": "Aucun départ pour ce filtre.",
+    "showAll_one": "Voir tout l’historique ({{n}} départ)",
+    "showAll_other": "Voir tout l’historique ({{n}} départs)"
+  },
+  "row": {
+    "mutual": "follow back",
+    "new": "Nouveau",
+    "actionsFor": "Actions pour @{{handle}}",
+    "copyUsername": "Copier le @username",
+    "ignore": "Ignorer ce compte",
+    "ignoreHint": "Ne plus signaler ses départs",
+    "delete": "Supprimer de l’historique",
+    "viewProfile": "Voir le profil",
+    "suspended": "compte suspendu",
+    "gone": "compte supprimé ou désactivé",
+    "viewProfileOf": "Voir le profil de @{{handle}}"
+  },
+  "arrivals": {
+    "title": "Nouveaux abonnés",
+    "empty": "Aucun nouvel abonné détecté depuis la référence.",
+    "showAll_one": "Voir tout l’historique ({{n}} nouvel abonné)",
+    "showAll_other": "Voir tout l’historique ({{n}} nouveaux abonnés)",
+    "filterLabel": "Filtrer les nouveaux abonnés",
+    "emptyFilter": "Aucun nouvel abonné pour ce filtre."
+  },
+  "filter": {
+    "all": "Tous",
+    "followBack": "Follow back"
+  }
+}

@@ -8,5 +8,5 @@
     "allowImportingTsExtensions": true,
     "types": ["chrome"]
   },
-  "exclude": ["node_modules", "dist", "resources", "vitest.config.ts", "scripts"]
+  "exclude": ["node_modules", "dist", "resources", "vitest.config.ts", "scripts", "src/shared/i18n/no-hardcoded-text.test.ts"]
 }

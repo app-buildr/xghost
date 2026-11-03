@@ -2,16 +2,16 @@
   "name": "xghost",
   "description": "Extension Chrome qui détecte les comptes X qui ont arrêté de te suivre.",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
-    "zip": "wxt zip",
     "icons": "node scripts/build-icons.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "package": "npm run build && rm -rf pack xghost.zip && mkdir pack && cp -R dist pack/xGhost && (cd pack && zip -qrX ../xghost.zip xGhost) && rm -rf pack"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
@@ -28,5 +28,10 @@
     "typescript": "~5.9.3",
     "vitest": "^5.1.0",
     "wxt": "^0.21.5"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/app-buildr/xghost.git"
+  },
+  "homepage": "https://app-buildr.github.io/xghost/"
 }

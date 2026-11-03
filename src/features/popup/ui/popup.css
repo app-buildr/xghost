@@ -171,3 +171,6 @@ body {
 .xg-popup .xg-banner {
   font-size: 13px;
 }
+.xg-popup > .xg-update {
+  margin-top: 4px;
+}

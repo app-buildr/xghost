@@ -81,3 +81,6 @@
   font-size: 12px;
   color: var(--xg-text-muted);
 }
+.xg-options__main > .xg-update {
+  margin-bottom: 24px;
+}

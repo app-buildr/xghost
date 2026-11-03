@@ -1,0 +1,12 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "types": ["chrome"]
+  },
+  "exclude": ["node_modules", "dist", "resources", "vitest.config.ts", "scripts"]
+}

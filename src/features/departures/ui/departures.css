@@ -1,0 +1,132 @@
+.xg-dep-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.xg-dep__body {
+  flex: 1;
+  min-width: 0;
+}
+.xg-dep__title {
+  display: flex;
+  flex-wrap: nowrap;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.xg-dep__title .xg-tag {
+  flex: none;
+}
+.xg-dep__name {
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xg-dep__meta {
+  font-size: 14px;
+  color: var(--xg-text-muted);
+}
+.is-inactive .xg-dep__name {
+  color: var(--xg-text-muted);
+  font-weight: 400;
+}
+
+/* Popup */
+.xg-dep-compact {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+}
+.xg-dep-compact .xg-dep__name {
+  font-size: 16px;
+}
+.xg-dep-compact .xg-dep__meta {
+  font-size: 13px;
+}
+.xg-dep-compact__side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 36px;
+  font-size: 13px;
+  color: var(--xg-text-muted);
+  /* Les dates restent sur une ligne : c'est la méta qui passe à la ligne. */
+  white-space: nowrap;
+}
+
+/* Page d'options */
+.xg-dep {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--xg-surface-muted);
+}
+.xg-dep__date {
+  flex: none;
+  min-width: 72px;
+  font-size: 14px;
+  color: var(--xg-text-muted);
+  white-space: nowrap;
+}
+.xg-dep__actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xg-dep-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 20px 16px;
+}
+.xg-dep-panel__head h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-right: auto;
+}
+.xg-dep-panel__head .xg-segmented button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+}
+.xg-dep-panel__foot {
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--xg-surface-muted);
+}
+.xg-dep-panel__empty {
+  padding: 32px 20px;
+  border-top: 1px solid var(--xg-surface-muted);
+  color: var(--xg-text-muted);
+  text-align: center;
+}
+.xg-dep-panel {
+  padding: 0;
+}
+
+@media (max-width: 800px) {
+  .xg-dep {
+    flex-wrap: wrap;
+    padding: 16px;
+  }
+  .xg-dep__body {
+    flex-basis: calc(100% - 64px);
+  }
+  .xg-dep__date {
+    margin-left: 64px;
+    min-width: 0;
+  }
+  .xg-dep-panel__head {
+    padding: 16px;
+  }
+}

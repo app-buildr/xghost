@@ -1,0 +1,62 @@
+.xg-accounts__title {
+  margin: 0 0 12px 12px;
+  font-family: var(--xg-font-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--xg-text-muted);
+}
+.xg-accounts__list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--xg-surface);
+  border: 1px solid var(--xg-border);
+  border-radius: var(--xg-radius-block);
+}
+.xg-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.xg-account:hover {
+  background: var(--xg-surface-muted);
+}
+.xg-account.is-selected {
+  background: var(--xg-primary-tint);
+}
+.xg-account__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.xg-account__handle {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xg-account__state {
+  font-size: 13px;
+  color: var(--xg-text-muted);
+}
+.xg-account__state.is-active {
+  color: var(--xg-success);
+}
+.xg-accounts__help {
+  margin: 12px 12px 0;
+  font-size: 13px;
+  color: var(--xg-text-muted);
+}

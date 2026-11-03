@@ -1,0 +1,94 @@
+/* Polices embarquées (§ 2.2) : aucun appel réseau. */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/manrope/latin-700.css';
+@import '@fontsource/manrope/latin-800.css';
+
+/* Jetons du thème (§ 2.1). Aucune couleur en dur ailleurs. */
+:root {
+  --xg-primary: #0f766e;
+  --xg-primary-hover: #115e59;
+  --xg-primary-soft: #ccfbf1;
+  --xg-primary-tint: #f0fdfa;
+
+  --xg-danger: #d4361f;
+  --xg-danger-text: #c2311b;
+  --xg-danger-strong: #8f2414;
+  --xg-danger-tint: #fdedea;
+  --xg-danger-border: #f3c9c1;
+  --xg-danger-button-text: #b02a16;
+  --xg-accent: #ff6b4a;
+
+  --xg-ink: #111318;
+  --xg-text-muted: #5b6270;
+  --xg-text-subtle: #4b5260;
+  --xg-background: #f5f6f8;
+  --xg-surface: #ffffff;
+  --xg-surface-muted: #f1f2f5;
+  --xg-border: #e6e8ec;
+  --xg-toggle-off: #d5d9e0;
+  --xg-success: #1c5c3a;
+  --xg-success-tint: #e3f2ea;
+  --xg-disabled-icon: #9aa1ad;
+
+  --xg-font-display: 'Manrope', system-ui, sans-serif;
+  --xg-font-text: 'Inter', system-ui, sans-serif;
+
+  --xg-radius-control: 10px;
+  --xg-radius-block: 14px;
+  --xg-radius-card: 18px;
+  --xg-shadow-selected: 0 1px 2px rgba(17, 19, 24, 0.07);
+  --xg-focus: 0 0 0 3px rgba(15, 118, 110, 0.28);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--xg-font-text);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--xg-ink);
+  background: var(--xg-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--xg-font-display);
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--xg-primary);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--xg-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

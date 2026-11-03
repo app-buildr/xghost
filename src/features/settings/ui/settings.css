@@ -1,0 +1,51 @@
+.xg-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.xg-setting__label {
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: var(--xg-text-muted);
+}
+.xg-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+.xg-setting__title {
+  font-size: 16px;
+  font-weight: 500;
+}
+.xg-setting__hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--xg-text-muted);
+}
+.xg-ignored {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.xg-ignored li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.xg-ignored li span {
+  flex: 1;
+}
+.xg-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.xg-settings .xg-card > .xg-btn {
+  margin-top: 16px;
+}

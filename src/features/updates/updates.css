@@ -1,0 +1,33 @@
+.xg-update {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--xg-radius-block);
+  background: var(--xg-primary-tint);
+  border: 1px solid var(--xg-primary-soft);
+  color: var(--xg-ink);
+}
+.xg-update svg {
+  flex: none;
+  color: var(--xg-primary);
+}
+.xg-update__body {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  font-size: 14px;
+}
+.xg-update__body strong {
+  font-size: 15px;
+  color: var(--xg-primary-hover);
+}
+.xg-update a {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--xg-primary);
+}
+.xg-update--compact {
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}

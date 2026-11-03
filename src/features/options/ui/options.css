@@ -1,0 +1,83 @@
+.xg-options {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 40px;
+  max-width: 1600px;
+  min-height: 100vh;
+  padding: 36px 40px 48px;
+}
+.xg-options__side {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.xg-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.xg-nav__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 12px;
+  color: var(--xg-text-subtle);
+  font-size: 17px;
+  text-decoration: none;
+}
+.xg-nav__item:hover {
+  color: var(--xg-ink);
+}
+.xg-nav__item.is-current {
+  background: var(--xg-surface);
+  color: var(--xg-ink);
+  font-weight: 600;
+  box-shadow: var(--xg-shadow-selected);
+}
+
+.xg-options__main {
+  min-width: 0;
+}
+.xg-options__content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.xg-options__title {
+  font-size: 40px;
+}
+.xg-options__lead {
+  margin: 0;
+  font-size: 16px;
+  color: var(--xg-text-muted);
+}
+.xg-options__settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+/* Responsive (§ 3.4) : sous ~800 px, la navigation passe au-dessus du contenu. */
+@media (max-width: 800px) {
+  .xg-options {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 24px 16px 40px;
+  }
+  .xg-options__settings {
+    grid-template-columns: 1fr;
+  }
+  .xg-options__title {
+    font-size: 32px;
+  }
+}
+
+.xg-options__version {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--xg-text-muted);
+}

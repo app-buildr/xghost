@@ -1,39 +1,39 @@
 .xg-onb {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 88px 24px 64px;
+  padding: 40px 24px 40px;
 }
 .xg-onb .xg-brand {
-  font-size: 28px;
+  font-size: 24px;
 }
 .xg-onb h1 {
-  margin-top: 48px;
-  font-size: 56px;
+  margin-top: 24px;
+  font-size: 44px;
   line-height: 1.12;
   max-width: 800px;
 }
 .xg-onb__lead {
   max-width: 980px;
-  margin: 24px 0 48px;
-  font-size: 19px;
-  line-height: 1.6;
+  margin: 12px 0 24px;
+  font-size: 17px;
+  line-height: 1.55;
   color: var(--xg-text-muted);
 }
 .xg-onb__steps {
   list-style: none;
   margin: 0;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   background: var(--xg-surface);
   border: 1px solid var(--xg-border);
   border-radius: var(--xg-radius-card);
 }
 .xg-step {
   display: flex;
-  gap: 24px;
-  padding: 20px 24px;
+  gap: 20px;
+  padding: 14px 20px;
   border-radius: 16px;
 }
 .xg-step.is-current:not(:last-child) {
@@ -44,8 +44,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--xg-surface-muted);
   color: var(--xg-text-subtle);
@@ -68,7 +68,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   min-width: 0;
 }
 .xg-step__row {
@@ -77,7 +77,7 @@
   gap: 16px;
 }
 .xg-step__title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
 }
 .xg-step__count {
@@ -93,11 +93,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .xg-onb__freq button {
-  min-height: 56px;
-  padding: 0 24px;
+  min-height: 48px;
+  padding: 0 20px;
   border: 1px solid var(--xg-border);
   border-radius: 12px;
   background: var(--xg-surface);
@@ -111,7 +111,54 @@
   font-weight: 600;
 }
 .xg-onb__cta {
-  margin-top: 40px;
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.xg-onb__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+/* Choix du démarrage : deux cartes côte à côte, empilées sur mobile (§ 3.3). */
+.xg-onb__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+.xg-onb__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  border: 1px solid var(--xg-border);
+  border-radius: 16px;
+  background: var(--xg-surface);
+}
+.xg-onb__choice h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.xg-onb__choice h3 svg {
+  color: var(--xg-primary);
+}
+.xg-onb__choice p {
+  flex: 1;
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--xg-text-muted);
+}
+.xg-onb__choice .xg-btn {
+  min-height: 44px;
+  justify-content: center;
 }
 .xg-onb__cta .xg-btn--lg {
   min-height: 64px;
@@ -127,13 +174,16 @@
 
 @media (max-width: 700px) {
   .xg-onb {
-    padding-top: 40px;
+    padding-top: 24px;
   }
   .xg-onb h1 {
-    font-size: 36px;
+    font-size: 32px;
   }
   .xg-step {
     gap: 16px;
     padding: 16px;
+  }
+  .xg-onb__choices {
+    grid-template-columns: 1fr;
   }
 }

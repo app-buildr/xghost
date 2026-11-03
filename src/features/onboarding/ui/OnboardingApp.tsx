@@ -1,22 +1,26 @@
-import { hasKnownHandle } from '@/features/accounts/repository';
 import { useEffect, useRef, useState } from 'react';
-import { useAccountData, useAppState } from '@/features/app-state/hooks';
+import { hasKnownHandle } from '@/features/accounts/repository';
+import { useBackupImport } from '@/features/backup/ui/useBackupImport';
+import { useAccountData } from '@/features/app-state/useAccountData';
+import { useAppState } from '@/features/app-state/useAppState';
 import { remainingLabel } from '@/features/followers-sync/estimate';
 import type { ScanProgress } from '@/features/followers-sync/repository';
-import { pauseMessage, SCAN_TAB_HINT } from '@/features/scan-status/messages';
+import { pauseMessage, scanTabHint } from '@/features/scan-status/messages';
+import { scanCoverage } from '@/features/scan-status/progress';
+import { ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
+import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
+import { useStartScan } from '@/features/scan-status/ui/useStartScan';
+import { frequencyOptions } from '@/features/settings/model';
 import { useNow } from '@/shared/hooks/useNow';
+import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
 import type { Frequency } from '@/shared/types';
-import { IconCheck } from '@/shared/ui/icons';
-import { Logo, ProgressBar } from '@/shared/ui/primitives';
-import { formatNumber, percentOf } from '@/shared/utils/format';
+import { ExternalLink } from '@/shared/ui/ExternalLink';
+import { IconCheck, IconRefresh, IconUpload } from '@/shared/ui/icons';
+import { Logo, ProgressBar, Segmented } from '@/shared/ui/primitives';
+import { formatNumber, formatPercent, formatProgressCount } from '@/shared/utils/format';
+import { X_LOGIN_URL } from '@/shared/x-urls';
 import './onboarding.css';
-
-const FREQUENCIES: { value: Frequency; label: string }[] = [
-  { value: 1, label: 'Toutes les heures' },
-  { value: 6, label: 'Toutes les 6 h' },
-  { value: 24, label: '1 fois par jour' },
-];
 
 /** Détecte la session X, en réessayant tant que l'utilisateur n'est pas connecté. */
 function useSessionDetection() {
@@ -39,58 +43,100 @@ function useSessionDetection() {
   return session;
 }
 
-/** Onboarding (§ 3.3) : session, scan initial, fréquence. */
+/** Texte sous la barre pendant le scan initial : pause, ou temps restant et consigne de l'onglet. */
+function scanHint(progress: ScanProgress, now: number): string {
+  if (progress.status === 'paused') return pauseMessage(progress);
+  const remaining = remainingLabel(progress, now);
+  return remaining ? t('common.scanStatus.hintWithRemaining', { hint: scanTabHint(), remaining }) : scanTabHint();
+}
+
+/** Délai avant la redirection vers le tableau de bord, le temps de lire « terminé ». */
+const REDIRECT_MS = 2_000;
+const DASHBOARD_URL = () => chrome.runtime.getURL('/options.html');
+
+/**
+ * Onboarding (§ 3.3) : session X, choix du démarrage (nouvelle synchronisation ou sauvegarde),
+ * fréquence. Rien ne part vers X avant ce choix. Une sauvegarde importée mène directement au
+ * tableau de bord ; une synchronisation terminée y redirige après un court délai (le bouton reste
+ * affiché si la redirection n'a pas lieu).
+ */
 export function OnboardingApp() {
   const app = useAppState();
   const now = useNow(5_000);
   const session = useSessionDetection();
   const account = app.accounts.find((a) => a.id === session?.accountId);
   const { data } = useAccountData(account?.id);
-  const started = useRef(false);
-
-  // Lance le scan de référence dès que le compte est connu.
-  useEffect(() => {
-    if (!account || account.baselineAt || started.current) return;
-    started.current = true;
-    void send('scan:start', {});
-  }, [account]);
+  const { start, busy } = useStartScan();
+  const backup = useBackupImport();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [stopping, setStopping] = useState(false);
 
   const progress = data?.progress;
-  const done = !!account?.baselineAt && !progress;
+  const scanning = !!progress && progress.kind !== 'quick';
+  const synced = !!account?.baselineAt && !progress;
+  const done = synced;
   const incomplete = !done && !progress && !!account?.lastScan && !account.lastScan.complete;
   const handle = account?.handle ?? session?.handle;
+  const doneCount = account?.lastScan?.scanned ?? account?.followersCount ?? 0;
+
+  // Synchronisation terminée : direction le tableau de bord, le temps de lire « terminé ».
+  useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => location.assign(DASHBOARD_URL()), REDIRECT_MS);
+    return () => clearTimeout(timer);
+  }, [done]);
+
+  const restore = async (file: File | undefined) => {
+    const picked = await backup.readFile(file);
+    if (!picked) return;
+    // Sauvegarde importée : rien à montrer ici, direction le tableau de bord.
+    if ((await backup.importBackup(picked)) !== undefined) location.assign(DASHBOARD_URL());
+  };
+
+  const stop = async () => {
+    if (!account) return;
+    setStopping(true);
+    try {
+      await send('scan:stop', { accountId: account.id });
+    } finally {
+      setStopping(false);
+    }
+  };
+
+  const step2Title = done
+    ? t('onboarding.scan.doneTitle')
+    : scanning || incomplete
+      ? t('onboarding.scan.title')
+      : t('onboarding.choice.title');
 
   return (
     <main className="xg-onb">
       <div className="xg-brand">
         <Logo size={56} />
-        <span>xGhost</span>
+        <span>{t('common.appName')}</span>
       </div>
-      <h1>On prend une photo de tes abonnés.</h1>
-      <p className="xg-onb__lead">
-        Ce premier scan sert de référence. Ensuite, xGhost compare régulièrement et te signale chaque départ. Tes données
-        restent dans Chrome, synchronisées avec ton compte Chrome.
-      </p>
+      <h1>{t('onboarding.title')}</h1>
+      <p className="xg-onb__lead">{t('onboarding.lead')}</p>
 
       <ol className="xg-onb__steps">
         <li className={`xg-step${session?.loggedIn ? ' is-done' : ' is-current'}`}>
           <span className="xg-step__num">{session?.loggedIn ? <IconCheck size={18} /> : 1}</span>
           <div>
-            <div className="xg-step__title">{session?.loggedIn ? 'Session X détectée' : 'Connexion à X'}</div>
+            <div className="xg-step__title">
+              {session?.loggedIn ? t('onboarding.session.detected') : t('onboarding.session.connect')}
+            </div>
             {session === undefined ? (
-              <div className="xg-step__hint">Recherche de ta session X…</div>
+              <div className="xg-step__hint">{t('onboarding.session.searching')}</div>
             ) : session.loggedIn ? (
               <div className="xg-step__hint">
                 {account && hasKnownHandle(account)
-                  ? `Connecté en tant que @${handle}`
-                  : 'Compte X détecté, lecture de ton @ en cours…'}
+                  ? t('onboarding.session.loggedInAs', { handle })
+                  : t('onboarding.session.readingHandle')}
               </div>
             ) : (
               <div className="xg-step__hint">
-                Connecte-toi à X puis reviens ici.{' '}
-                <a href="https://x.com/login" target="_blank" rel="noreferrer">
-                  Ouvrir x.com
-                </a>
+                {t('onboarding.session.loginThenBack')}{' '}
+                <ExternalLink href={X_LOGIN_URL}>{t('common.openX')}</ExternalLink>
               </div>
             )}
           </div>
@@ -100,50 +146,94 @@ export function OnboardingApp() {
           <span className="xg-step__num">{done ? <IconCheck size={18} /> : 2}</span>
           <div className="xg-step__body">
             <div className="xg-step__row">
-              <span className="xg-step__title">Scan initial des abonnés</span>
-              {progress && (
-                <span className="xg-step__count">
-                  {formatNumber(progress.collected)}
-                  {progress.expected > 0 ? ` / ${formatNumber(progress.expected)}` : ''}
-                </span>
+              <span className="xg-step__title">{step2Title}</span>
+              {scanning && progress && (
+                <span className="xg-step__count">{formatProgressCount(progress.collected, progress.expected)}</span>
               )}
             </div>
-            {done ? (
+            {synced ? (
               <div className="xg-step__hint">
-                Scan terminé : référence de {formatNumber(account?.lastScan?.scanned ?? account?.followersCount ?? 0)}{' '}
-                abonnés enregistrée.
+                {t('onboarding.scan.done', { count: doneCount, n: formatNumber(doneCount) })}
               </div>
-            ) : progress && progress.kind !== 'quick' ? (
+            ) : scanning && progress ? (
               <>
-                <ProgressBar value={progress.collected} max={progress.expected || progress.collected + 1} />
+                <ScanProgressBar progress={progress} />
                 <div className="xg-step__hint">{scanHint(progress, now)}</div>
-                {progress.pausedReason === 'needs-focus' && account && (
-                  <div>
-                    <button
-                      type="button"
-                      className="xg-btn xg-btn--secondary"
-                      onClick={() => void send('scan:focus', { accountId: account.id })}
-                    >
-                      Afficher l’onglet x.com
-                    </button>
-                  </div>
-                )}
+                <div className="xg-onb__actions">
+                  {progress.pausedReason === 'needs-focus' && account && <ShowScanTabButton accountId={account.id} />}
+                  <button type="button" className="xg-btn xg-btn--secondary" disabled={stopping} onClick={() => void stop()}>
+                    {t('onboarding.scan.stop')}
+                  </button>
+                </div>
               </>
             ) : incomplete && account?.lastScan ? (
               <>
-                <ProgressBar value={account.lastScan.scanned} max={account.lastScan.detected || 1} />
+                <ProgressBar
+                  value={account.lastScan.scanned}
+                  max={account.lastScan.detected || 1}
+                  label={t('onboarding.scan.title')}
+                />
                 <div className="xg-step__hint">
-                  Scan incomplet ({percentOf(account.lastScan.scanned, account.lastScan.detected, { emptyIsFull: true })} %) : l’onglet
-                  x.com a été fermé ou la liste s’est arrêtée trop tôt. Les abonnés déjà récupérés sont gardés.
+                  {t('onboarding.scan.incomplete', { pct: formatPercent(scanCoverage(account.lastScan)) })}
                 </div>
-                <div>
-                  <button type="button" className="xg-btn xg-btn--primary" onClick={() => void send('scan:start', { full: true })}>
-                    Continuer le scan
+                <div className="xg-onb__actions">
+                  <button
+                    type="button"
+                    className="xg-btn xg-btn--primary"
+                    disabled={busy}
+                    onClick={() => void start({ full: true, announce: false })}
+                  >
+                    {t('common.continueScan')}
+                  </button>
+                  <button type="button" className="xg-btn xg-btn--secondary" disabled={stopping} onClick={() => void stop()}>
+                    {t('onboarding.scan.stop')}
                   </button>
                 </div>
               </>
             ) : session?.loggedIn ? (
-              <div className="xg-step__hint">Démarrage du scan…</div>
+              <>
+                <div className="xg-step__hint">{t('onboarding.choice.hint')}</div>
+                <div className="xg-onb__choices">
+                  <section className="xg-onb__choice">
+                    <h3>
+                      <IconRefresh size={20} /> {t('onboarding.choice.syncTitle')}
+                    </h3>
+                    <p>{t('onboarding.choice.syncText')}</p>
+                    <button
+                      type="button"
+                      className="xg-btn xg-btn--primary"
+                      disabled={busy || backup.busy || !account}
+                      onClick={() => void start({ announce: false })}
+                    >
+                      {t('onboarding.choice.syncButton')}
+                    </button>
+                  </section>
+                  <section className="xg-onb__choice">
+                    <h3>
+                      <IconUpload size={20} /> {t('onboarding.choice.restoreTitle')}
+                    </h3>
+                    <p>{t('onboarding.choice.restoreText')}</p>
+                    <button
+                      type="button"
+                      className="xg-btn xg-btn--secondary"
+                      disabled={busy || backup.busy}
+                      onClick={() => fileInput.current?.click()}
+                    >
+                      {t('backup.import')}
+                    </button>
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      accept="application/json,.json"
+                      hidden
+                      onChange={(e) => {
+                        void restore(e.target.files?.[0]);
+                        e.target.value = ''; // permet de choisir à nouveau le même fichier
+                      }}
+                    />
+                  </section>
+                </div>
+              </>
             ) : null}
           </div>
         </li>
@@ -151,40 +241,27 @@ export function OnboardingApp() {
         <li className={`xg-step${session?.loggedIn ? ' is-current' : ''}`}>
           <span className="xg-step__num">3</span>
           <div className="xg-step__body">
-            <div className="xg-step__title">À quelle fréquence vérifier ?</div>
-            <div className="xg-step__hint">Plus c’est fréquent, plus tu sais vite. Modifiable plus tard.</div>
-            <div className="xg-onb__freq" role="radiogroup" aria-label="Fréquence de vérification">
-              {FREQUENCIES.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={app.settings.frequencyHours === f.value}
-                  onClick={() => void app.updateSettings({ frequencyHours: f.value })}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <div className="xg-step__title">{t('onboarding.frequency.title')}</div>
+            <div className="xg-step__hint">{t('onboarding.frequency.hint')}</div>
+            <Segmented<Frequency>
+              className="xg-onb__freq"
+              label={t('common.frequency.label')}
+              options={frequencyOptions('long')}
+              value={app.settings.frequencyHours}
+              onChange={(frequencyHours) => void app.updateSettings({ frequencyHours })}
+            />
           </div>
         </li>
       </ol>
 
-      {/* Pas de bouton de sortie pendant le scan (§ 3.3) : la page se met à jour à la fin. */}
       <div className="xg-onb__cta">
-        {done ? (
-          <a className="xg-btn xg-btn--ink xg-btn--lg" href={chrome.runtime.getURL('/options.html')}>
-            Voir mon tableau de bord
+        {done && (
+          <a className="xg-btn xg-btn--ink xg-btn--lg" href={DASHBOARD_URL()}>
+            {t('onboarding.dashboard')}
           </a>
-        ) : null}
-        <p>Tu peux continuer à utiliser Chrome normalement pendant le scan.</p>
+        )}
+        {scanning && <p>{t('onboarding.keepBrowsing')}</p>}
       </div>
     </main>
   );
-}
-
-function scanHint(progress: ScanProgress, now: number): string {
-  if (progress.status === 'paused') return pauseMessage(progress);
-  const remaining = remainingLabel(progress, now);
-  return `${remaining ? `${remaining}. ` : ''}${SCAN_TAB_HINT}`;
 }

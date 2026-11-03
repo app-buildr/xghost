@@ -1,8 +1,9 @@
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import { RATE_LIMIT_TEXT, RATE_LIMIT_TITLE } from '@/features/scan-status/messages';
+import { rateLimitText, rateLimitTitle } from '@/features/scan-status/messages';
 import type { VeilState } from '@/shared/messaging/protocol';
 import { COLORS } from '@/shared/ui/tokens';
-import { formatCountdown, formatNumber, percentOf } from '@/shared/utils/format';
+import { t } from '@/shared/i18n';
+import { formatCountdown, formatNumber, formatPercent, percentOf } from '@/shared/utils/format';
 
 /**
  * Overlay de l'onglet de scan (§ 3.5, écran 6) : voile sombre flouté qui bloque la page,
@@ -114,7 +115,7 @@ function create(): Veil | undefined {
   logo.src = chrome.runtime.getURL('/icon/128.png');
   logo.alt = '';
   const handle = el('span', 'handle');
-  head.append(logo, el('span', 'brand', 'xGhost'), handle);
+  head.append(logo, el('span', 'brand', t('common.appName')), handle);
 
   const title = el('h2');
   const text = el('p');
@@ -147,18 +148,18 @@ function render(): void {
   const paused = s.state === 'rate-limit';
   veil.card.classList.toggle('paused', paused);
   veil.handle.textContent = s.handle ? `@${s.handle}` : '';
-  veil.title.textContent = paused ? RATE_LIMIT_TITLE : 'Je récupère tes abonnés…';
+  veil.title.textContent = paused ? rateLimitTitle() : t('common.veil.title');
   veil.text.textContent = paused
-    ? RATE_LIMIT_TEXT
-    : 'Ne ferme pas cet onglet. Tu peux utiliser les autres, celui-ci se fermera tout seul à la fin.';
+    ? rateLimitText()
+    : t('common.veil.text');
   veil.count.textContent = formatNumber(s.collected);
   veil.total.textContent = s.expected > 0 ? `/ ${formatNumber(s.expected)}` : '';
-  veil.pct.textContent = s.expected > 0 ? `${percent(s)} %` : '';
+  veil.pct.textContent = s.expected > 0 ? formatPercent(percent(s)) : '';
   veil.fill.style.width = `${percent(s)}%`;
   veil.foot.hidden = paused;
   veil.chip.hidden = !paused;
-  if (paused) veil.chipText.textContent = `Reprise ${formatCountdown(s.resumeAt)}`;
-  else veil.foot.textContent = remainingLabel(s) ?? 'Calcul du temps restant…';
+  if (paused) veil.chipText.textContent = t('common.veil.resume', { countdown: formatCountdown(s.resumeAt) });
+  else veil.foot.textContent = remainingLabel(s) ?? t('common.veil.computing');
 
   if (paused && !countdown) countdown = setInterval(render, 1000);
   if (!paused && countdown) {
@@ -176,8 +177,10 @@ let headObserver: MutationObserver | undefined;
 
 function tabTitle(): string | undefined {
   if (!last) return undefined;
-  const pct = last.expected > 0 ? `(${percent(last)} %) ` : '';
-  return `${pct}xGhost, ${last.state === 'rate-limit' ? 'petite pause' : 'scan en cours'}`;
+  const paused = last.state === 'rate-limit';
+  if (last.expected <= 0) return paused ? t('common.veil.tabTitlePaused') : t('common.veil.tabTitleScanning');
+  const pct = formatPercent(percent(last));
+  return paused ? t('common.veil.tabTitlePausedPct', { pct }) : t('common.veil.tabTitleScanningPct', { pct });
 }
 
 async function loadGhost(): Promise<void> {

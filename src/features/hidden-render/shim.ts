@@ -75,19 +75,23 @@ export function installHiddenRenderShim(): () => void {
       super(cb, opts);
       this.cb = cb;
       this.opts = opts;
-      polled.add(this);
     }
+    // Interrogé seulement tant qu'il observe quelque chose : un observateur abandonné par la page
+    // (et le DOM qu'il retient) n'est pas gardé en vie pendant tout le scan.
     override observe(target: Element): void {
       super.observe(target);
       this.targets.set(target, undefined);
+      polled.add(this);
     }
     override unobserve(target: Element): void {
       super.unobserve(target);
       this.targets.delete(target);
+      if (this.targets.size === 0) polled.delete(this);
     }
     override disconnect(): void {
       super.disconnect();
       this.targets.clear();
+      polled.delete(this);
     }
     poll(): void {
       if (this.targets.size === 0) return;
@@ -141,19 +145,21 @@ export function installHiddenRenderShim(): () => void {
     constructor(cb: ResizeObserverCallback) {
       super(cb);
       this.cb = cb;
-      polled.add(this);
     }
     override observe(target: Element, options?: ResizeObserverOptions): void {
       super.observe(target, options);
       this.targets.set(target, undefined);
+      polled.add(this);
     }
     override unobserve(target: Element): void {
       super.unobserve(target);
       this.targets.delete(target);
+      if (this.targets.size === 0) polled.delete(this);
     }
     override disconnect(): void {
       super.disconnect();
       this.targets.clear();
+      polled.delete(this);
     }
     poll(): void {
       const entries: ResizeObserverEntry[] = [];

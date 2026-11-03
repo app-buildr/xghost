@@ -35,10 +35,14 @@ describe('parseFollowersPage', () => {
     expect(page.users[0]).toMatchObject({ handle: 'a', name: 'A', following: true });
     expect(page).toMatchObject({ nextCursor: '123|456', done: false });
   });
-  it('fin de liste : curseur « 0|… » ou page vide', () => {
+  it('fin de liste : curseur « 0|… » ou aucun curseur suivant', () => {
     const end = { data: { user: { result: { timeline: { timeline: { instructions: [{ entries: [user('1', 'a'), { entryId: 'cursor-bottom-0', content: { cursorType: 'Bottom', value: '0|999' } }] }] } } } } } };
     expect(parseFollowersPage(end).done).toBe(true);
     expect(parseFollowersPage({}).done).toBe(true);
+  });
+  it('page vide qui annonce une suite : pas la fin de la liste', () => {
+    const empty = { data: { user: { result: { timeline: { timeline: { instructions: [{ entries: [{ entryId: 'cursor-bottom-1', content: { cursorType: 'Bottom', value: '77|88' } }] }] } } } } } };
+    expect(parseFollowersPage(empty, '11|22')).toMatchObject({ users: [], done: false });
   });
   it('accepte l’ancien format (legacy.screen_name)', () => {
     const legacy = {

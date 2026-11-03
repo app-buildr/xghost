@@ -1,12 +1,16 @@
+import { createSerialQueue } from '@/shared/utils/serial';
 import { hasKnownHandle, loadAccounts, patchAccount } from '@/features/accounts/repository';
+import { importEpoch, isImporting } from '@/features/backup/lock';
 import { earlyStop } from '@/features/unfollow-detection/diff';
 import { isRateLimited, parseFollowersPage, parseUserLookup, variablesOf, watchedOperation } from '@/features/x-api/parse';
 import { readSession } from '@/features/x-api/session';
-import { SCAN_MARKER, type TabCommand, type TabEvent } from '@/shared/messaging/protocol';
+import { ALARM_QUICK_TIMEOUT_PREFIX } from '@/features/scheduler/alarms';
+import { t } from '@/shared/i18n';
+import { SCAN_MARKER, type SimpleTabCommand, type TabCommand, type TabEvent } from '@/shared/messaging/protocol';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
 import type { ScanJob, ScanKind, ScanReason, TrackedAccount } from '@/shared/types';
-import { clearJob, loadJob, loadPartial, loadSnapshot, saveJob, saveProgressOnly } from './repository';
+import { clearJob, loadJob, loadPartial, loadSnapshot, saveJob, saveProgressOnly, type ScanProgress } from './repository';
 
 /**
  * Moteur de scan par onglet (§ 4.6).
@@ -42,6 +46,15 @@ const END_MS = 60_000;
 const QUICK_TOP_SIZE = 100;
 /** La liste complète n'est écrite en stockage que toutes les N pages (l'état léger, à chaque page). */
 const PERSIST_EVERY = 5;
+/** Abonnés repris d'un scan incomplet : au-delà de cet âge, ils ne sont plus fiables (départs depuis). */
+const SEED_MAX_AGE_MS = 24 * 3600_000;
+/**
+ * Arrêt anticipé : pages relues en plus une fois les départs annoncés trouvés. Le total de X
+ * compte des comptes qu'il n'affiche pas : l'écart peut sous-estimer les départs réels.
+ */
+const EARLY_STOP_MARGIN_PAGES = 2;
+/** Analyse de fin de scan abandonnée (service worker arrêté) : reprise après ce délai. */
+const STALE_FINISH_MS = 2 * 60_000;
 
 interface ScanTab {
   tabId: number;
@@ -52,39 +65,59 @@ let hooks: ScanHooks | undefined;
 export const setScanHooks = (h: ScanHooks) => (hooks = h);
 
 // Les événements d'onglet arrivent vite : on les traite un par un.
-let queue: Promise<unknown> = Promise.resolve();
-const serial = <T>(fn: () => Promise<T>): Promise<T> => {
-  const run = queue.then(fn);
-  queue = run.catch(() => undefined);
-  return run;
-};
+const tabEvents = createSerialQueue();
+const serial = <T>(fn: () => Promise<T>): Promise<T> => tabEvents.run(fn);
 
 // ---------------------------------------------------------------------------
 // Scan en cours, gardé en mémoire (le service worker reste éveillé pendant un scan)
 // ---------------------------------------------------------------------------
 
-let active: ScanJob | undefined;
-/** Ancienne liste ordonnée et ids déjà lus, pour l'arrêt anticipé (chargés une fois par scan). */
-let previousOrder: { accountId: string; ids: string[] | undefined } | undefined;
-let readIds: Set<string> | undefined;
+/**
+ * État en mémoire d'un scan, par compte : le scan, les ids déjà lus et l'ancienne liste
+ * ordonnée (arrêt anticipé, chargée une fois par scan). Un compte ne touche jamais à l'état
+ * d'un autre (un contrôle léger abandonné ne peut pas évincer le scan d'un autre compte).
+ */
+interface Live {
+  job: ScanJob;
+  readIds?: Set<string>;
+  previousOrder?: string[] | null;
+}
+const live = new Map<string, Live>();
+/** Comptes dont l'analyse de fin de scan tourne dans ce service worker. */
+const analyzing = new Set<string>();
+/** Analyses en cours (toutes comptes confondus), attendues par l'import d'une sauvegarde. */
+const inFlight = new Set<Promise<void>>();
+
+/** Attend la fin des analyses déjà lancées (elles écrivent historique, instantané et compte). */
+export async function settleAnalyses(): Promise<void> {
+  await Promise.all([...inFlight]);
+}
 
 async function getJob(accountId: string): Promise<ScanJob | undefined> {
-  if (active?.accountId === accountId) return active;
-  active = await loadJob(accountId);
-  readIds = undefined;
-  return active;
+  const cached = live.get(accountId);
+  if (cached) return cached.job;
+  const job = await loadJob(accountId);
+  if (!job) return undefined;
+  if (!job.finishing && job.kind !== 'quick') {
+    // La liste complète n'est écrite que toutes les N pages : si l'état léger en compte plus,
+    // le service worker a été relancé et les pages intermédiaires sont perdues.
+    const progress = await localKv.get<ScanProgress>(keys.scanProgress(accountId));
+    if ((progress?.collected ?? 0) > (job.count ?? 0)) job.gap = true;
+  }
+  live.set(accountId, { job });
+  return job;
 }
 
 /** Enregistre le scan : complet (liste comprise) si `full`, sinon seulement son état léger. */
 async function putJob(job: ScanJob, full = true): Promise<void> {
-  active = job;
+  const cached = live.get(job.accountId);
+  if (cached?.job === job) cached.job = job;
+  else live.set(job.accountId, { job });
   await (full ? saveJob(job) : saveProgressOnly(job));
 }
 
 async function dropJob(accountId: string): Promise<void> {
-  if (active?.accountId === accountId) active = undefined;
-  previousOrder = undefined;
-  readIds = undefined;
+  live.delete(accountId);
   await clearJob(accountId);
 }
 
@@ -109,7 +142,8 @@ const isFollowersPath = (path: string, handle: string) => path.toLowerCase() ===
 /** x.com a redirigé l'onglet de scan vers la connexion : session absente (§ 4.6). */
 const isLoginPath = (path: string) => /^\/(login|logout|i\/flow\/login|i\/flow\/signup)(\/|$)/.test(path);
 
-async function send(tabId: number, command: TabCommand | 'drive-start' | 'drive-stop' | 'retry'): Promise<unknown> {
+/** Commande vers l'onglet de scan ; les commandes sans données s'écrivent par leur seul nom. */
+async function send(tabId: number, command: TabCommand | SimpleTabCommand): Promise<unknown> {
   try {
     return await chrome.tabs.sendMessage(tabId, typeof command === 'string' ? { xgCmd: command } : command);
   } catch {
@@ -152,7 +186,7 @@ async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
   } else {
     tab = await chrome.tabs.create({ url, active: false });
   }
-  if (tab.id === undefined) throw new Error('Onglet x.com impossible à ouvrir');
+  if (tab.id === undefined) throw new Error(t('common.scan.tabOpenFailed'));
   await chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(() => undefined);
   if (!job.visible) await hideInCollapsedGroup(tab.id);
   job.tabId = tab.id;
@@ -165,7 +199,7 @@ async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
 async function hideInCollapsedGroup(tabId: number): Promise<void> {
   try {
     const groupId = await chrome.tabs.group({ tabIds: tabId });
-    await chrome.tabGroups.update(groupId, { title: 'xGhost', color: 'grey', collapsed: true });
+    await chrome.tabGroups.update(groupId, { title: t('common.appName'), color: 'grey', collapsed: true });
   } catch {
     // Groupes indisponibles (fenêtre spéciale…) : l'onglet reste simplement en arrière-plan.
   }
@@ -213,11 +247,18 @@ export async function startScan(
 ): Promise<void> {
   return serial(async () => {
     let job = await getJob(account.id);
+    // Un contrôle léger en cours ne remplace pas un scan complet demandé : on l'abandonne.
+    // (Un scan complet en cours couvre au contraire un contrôle léger : il est repris.)
+    if (job?.kind === 'quick' && kind !== 'quick' && !job.finishing) {
+      await discardQuick(job);
+      job = undefined;
+    }
     if (!job) {
       const now = Date.now();
-      // « Continuer le scan » (§ 4.7) : les abonnés d'un scan incomplet sont repris (union).
+      // « Continuer le scan » (§ 4.7) : les abonnés d'un scan incomplet récent sont repris (union).
       const partial = kind === 'quick' ? undefined : await loadPartial(account.id);
-      const seed = partial && (partial.kind === kind || kind === 'baseline') ? partial.collected : {};
+      const fresh = partial && now - partial.at < SEED_MAX_AGE_MS;
+      const seed = fresh && (partial.kind === kind || kind === 'baseline') ? partial.collected : {};
       const seeded = Object.keys(seed).length;
       job = {
         accountId: account.id,
@@ -292,6 +333,8 @@ export function focusScanTab(accountId: string): Promise<void> {
 }
 
 async function discardQuick(job: ScanJob): Promise<void> {
+  // Son délai d'expiration ne doit pas sonner plus tard sur un autre scan.
+  await chrome.alarms.clear(`${ALARM_QUICK_TIMEOUT_PREFIX}${job.accountId}`);
   await closeTab(job);
   await dropJob(job.accountId);
   await hooks?.onStateChange();
@@ -311,6 +354,7 @@ export function abortQuick(accountId: string): Promise<void> {
 
 export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
   return serial(async () => {
+    if (isImporting()) return; // données en cours de remplacement
     const scanTab = await getScanTab();
     if (!scanTab || scanTab.tabId !== tabId) return;
     const job = await getJob(scanTab.accountId);
@@ -342,11 +386,11 @@ async function onProfile(job: ScanJob, account: TrackedAccount, tabId: number, b
   const profile = parseJson(body, parseUserLookup)?.profile;
   if (profile?.id !== job.accountId) return;
   // Identité à jour (handle, nom, total annoncé par X) : § 4.3, changement de @handle.
-  await patchAccount(job.accountId, {
-    handle: profile.handle,
-    name: profile.name,
-    followersCount: profile.followersCount ?? account.followersCount,
-  });
+  // Écriture seulement si quelque chose change (évite une écriture de la liste des comptes à chaque profil).
+  const followersCount = profile.followersCount ?? account.followersCount;
+  if (profile.handle !== account.handle || profile.name !== account.name || followersCount !== account.followersCount) {
+    await patchAccount(job.accountId, { handle: profile.handle, name: profile.name, followersCount });
+  }
   if (profile.followersCount !== undefined) {
     job.expectedTotal = profile.followersCount;
     job.totalSeen = true;
@@ -371,7 +415,9 @@ async function onFollowersPage(
 
   // Fusion, et ordre de la liste (x.com charge les pages du plus récent au plus ancien).
   const order = (job.top ??= []);
-  readIds ??= new Set(order);
+  const state = live.get(job.accountId) ?? { job };
+  live.set(job.accountId, state);
+  const readIds = (state.readIds ??= new Set(order));
   let added = 0;
   for (const { id, ...profile } of page.users) {
     if (!(id in job.collected)) added++;
@@ -384,12 +430,13 @@ async function onFollowersPage(
   job.count = (job.count ?? 0) + added;
   job.pages++;
   job.updatedAt = Date.now();
-  if (added > 0) {
-    job.lastProgressAt = Date.now();
-    if (job.status === 'paused') {
-      clearPause(job);
-      await hooks?.onStateChange();
-    }
+  // Toute page reçue est un progrès, même sans nouvel abonné (reprise qui relit la zone déjà lue).
+  job.lastProgressAt = Date.now();
+  // Page reçue : une pause « chargement arrêté » est levée. La pause pour la limite de X, elle,
+  // dure jusqu'à l'échéance (le défilement est arrêté) : une page arrivée en retard ne la lève pas.
+  if (job.status === 'paused' && job.pausedReason !== 'rate-limit') {
+    clearPause(job);
+    await hooks?.onStateChange();
   }
   await putJob(job, job.kind === 'quick' || job.pages % PERSIST_EVERY === 0);
 
@@ -406,16 +453,21 @@ async function onFollowersPage(
   if (!page.done && event.rateRemaining === 0) return pauseForRateLimit(job, account, event.rateReset);
   await sendVeil(job, account);
 
-  // Scan lancé par un écart : arrêt dès que tous les départs annoncés sont trouvés.
-  if (job.target && !job.seeded) {
-    if (previousOrder?.accountId !== job.accountId) {
+  // Scan lancé par un écart : arrêt dès que tous les départs annoncés sont trouvés. Jamais
+  // après une perte de pages (`gap`) : les abonnés de ces pages passeraient pour des départs.
+  if (job.target && !job.seeded && !job.gap) {
+    if (state.previousOrder === undefined) {
       const snapshot = await loadSnapshot(job.accountId);
-      previousOrder = { accountId: job.accountId, ids: snapshot?.ordered ? snapshot.ids : undefined };
+      state.previousOrder = snapshot?.ordered ? snapshot.ids : null;
     }
-    const stop = previousOrder.ids ? earlyStop(previousOrder.ids, readIds, job.target) : undefined;
+    const stop = state.previousOrder ? earlyStop(state.previousOrder, readIds, job.target) : undefined;
     if (stop) {
-      job.earlyStop = stop;
-      return finish(job);
+      // Marge : quelques pages de plus, au cas où l'écart sous-estime les départs réels.
+      job.earlyStopPages = (job.earlyStopPages ?? 0) + 1;
+      if (job.earlyStopPages > EARLY_STOP_MARGIN_PAGES) {
+        job.earlyStop = stop;
+        return finish(job);
+      }
     }
   }
   if (page.done) {
@@ -475,23 +527,81 @@ async function checkStall(job: ScanJob, visible: boolean): Promise<void> {
 async function finish(job: ScanJob): Promise<void> {
   if (job.finishing) return;
   job.finishing = true;
+  job.updatedAt = Date.now();
   await putJob(job);
   // Fin (§ 4.6) : l'onglet se ferme immédiatement, l'analyse se fait ensuite.
   await closeTab(job);
+  // `finish` tourne dans la file des événements : l'analyse en sort pour ne pas la bloquer.
+  void analyze(job);
+}
 
-  // `finish` tourne dans la file des événements : on en sort pour ne pas la bloquer.
-  void (async () => {
+/**
+ * Analyse d'un scan terminé (comparaison, événements, instantané), puis effacement du scan.
+ * Un échec de l'analyse met le scan en pause pour un nouvel essai ; ce qui suit l'effacement
+ * (statut, enchaînement) ne fait que journaliser ses erreurs, sans ressusciter le scan.
+ */
+function analyze(job: ScanJob): Promise<void> {
+  if (analyzing.has(job.accountId)) return Promise.resolve();
+  const run = runAnalysis(job);
+  inFlight.add(run);
+  void run.finally(() => inFlight.delete(run));
+  return run;
+}
+
+async function runAnalysis(job: ScanJob): Promise<void> {
+  analyzing.add(job.accountId);
+  const epoch = importEpoch();
+  try {
     try {
-      await hooks?.onComplete(job);
+      // Import d'une sauvegarde pendant le scan : ses données font foi, l'analyse est abandonnée.
+      if (!isImporting() && epoch === importEpoch()) await hooks?.onComplete(job);
       await dropJob(job.accountId);
-      await hooks?.onStateChange();
-      await hooks?.onFinished(job);
     } catch (err) {
-      console.error('[xGhost] fin de scan', err);
+      console.error(t('common.log.scanEnd'), err);
+      if (epoch !== importEpoch()) return;
       job.finishing = false;
-      await pause(job, 'error', Date.now() + 15 * 60_000, err instanceof Error ? err.message : String(err));
+      await serial(() => pause(job, 'error', Date.now() + 15 * 60_000, err instanceof Error ? err.message : String(err)));
+      return;
     }
-  })();
+    await hooks?.onStateChange();
+    if (epoch === importEpoch()) await hooks?.onFinished(job);
+  } catch (err) {
+    console.error(t('common.log.scanEnd'), err);
+  } finally {
+    analyzing.delete(job.accountId);
+  }
+}
+
+/**
+ * Scan resté « en analyse » alors qu'aucune analyse ne tourne : le service worker a été arrêté
+ * pendant l'analyse. Elle est relancée (elle ne recrée ni départ ni arrivée déjà enregistrés).
+ * Renvoie vrai si le scan est en fin d'analyse (récupéré ou en cours).
+ */
+export function recoverFinishing(accountId: string): Promise<boolean> {
+  return serial(async () => {
+    const job = await getJob(accountId);
+    if (!job?.finishing) return false;
+    const stale = !analyzing.has(accountId) && Date.now() - job.updatedAt > STALE_FINISH_MS;
+    if (stale) void analyze(job);
+    return true;
+  });
+}
+
+/**
+ * La session x.com est passée sur un autre compte : le scan en cours d'un autre compte ne peut
+ * plus lire sa liste (X la servirait avec la session du nouveau compte). Il est mis en pause,
+ * onglet fermé, et reprendra quand ce compte sera de nouveau connecté.
+ */
+export function suspendForeignScan(sessionAccountId: string): Promise<void> {
+  return serial(async () => {
+    const scanTab = await getScanTab();
+    if (!scanTab || scanTab.accountId === sessionAccountId) return;
+    const job = await getJob(scanTab.accountId);
+    if (!job || job.finishing) return void (await localKv.remove(keys.scanTab));
+    if (job.kind === 'quick') return discardQuick(job);
+    await closeTab(job);
+    await pause(job, 'account-switched');
+  });
 }
 
 /** L'utilisateur a fermé l'onglet de scan. */
@@ -511,9 +621,11 @@ export function handleTabRemoved(tabId: number): Promise<void> {
   });
 }
 
-/** Annule le scan d'un compte (retrait du compte). */
-export async function cancelScan(accountId: string): Promise<void> {
-  const job = await getJob(accountId);
-  if (job) await closeTab(job);
-  await dropJob(accountId);
+/** Annule le scan d'un compte (retrait du compte, import d'une sauvegarde). */
+export function cancelScan(accountId: string): Promise<void> {
+  return serial(async () => {
+    const job = await getJob(accountId);
+    if (job) await closeTab(job);
+    await dropJob(accountId);
+  });
 }

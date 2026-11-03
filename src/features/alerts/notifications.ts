@@ -1,4 +1,5 @@
 import { loadSettings } from '@/features/settings/repository';
+import { t } from '@/shared/i18n';
 import type { FollowEvent } from '@/shared/types';
 
 /** Notifications système : une seule par vérification, groupée (§ 8, question 3). */
@@ -14,8 +15,14 @@ export async function notifyDepartures(accountHandle: string, departures: Follow
   await chrome.notifications.create(`departures:${Date.now()}`, {
     type: 'basic',
     iconUrl: ICON,
-    title: single ? `@${first.handle} ne suit plus @${accountHandle}` : `${departures.length} comptes ne suivent plus @${accountHandle}`,
-    message: single ? 'Détecté à l’instant par xGhost.' : `${shown.join(', ')}${rest > 0 ? ` et ${rest} autre(s)` : ''}`,
+    title: single
+      ? t('common.notifications.departureOne', { handle: first.handle, account: accountHandle })
+      : t('common.notifications.departureMany', { count: departures.length, account: accountHandle }),
+    message: single
+      ? t('common.notifications.detectedNow')
+      : rest > 0
+        ? t('common.notifications.andOthers', { list: shown.join(', '), count: rest })
+        : shown.join(', '),
     priority: 1,
   });
 }
@@ -25,8 +32,8 @@ export async function notifyAccountAdded(): Promise<void> {
   await chrome.notifications.create(`account:${Date.now()}`, {
     type: 'basic',
     iconUrl: ICON,
-    title: 'Nouveau compte suivi',
-    message: 'Un nouveau compte X est maintenant suivi par xGhost.',
+    title: t('common.notifications.accountAddedTitle'),
+    message: t('common.notifications.accountAddedText'),
     priority: 0,
   });
 }

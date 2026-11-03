@@ -1,5 +1,7 @@
+import { t } from '@/shared/i18n';
 import { ALARM_UPDATE, checkLatestVersion, scheduleUpdateChecks } from '@/features/updates/check';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
+import { importBackup } from '@/features/backup/backup';
 import { loadAccounts, patchAccount, setIgnored, setSelectedAccountId, updateAccounts } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
 import { onNotificationClick } from '@/features/alerts/notifications';
@@ -12,15 +14,31 @@ import {
   handleAlarm,
   handleSessionChange,
   setupAlarms,
+  abandonScan,
   triggerCheck,
   updateStatus,
 } from '@/features/scheduler/orchestrator';
 import { saveSettings } from '@/features/settings/repository';
 import { onSessionCookieChange, readSession } from '@/features/x-api/session';
-import type { TabEvent } from '@/shared/messaging/protocol';
+import type { RequestType, TabEvent } from '@/shared/messaging/protocol';
 import { registerHandlers } from '@/shared/messaging/server';
+import { isImporting } from '@/features/backup/lock';
 import { keys } from '@/shared/storage/keys';
-import { syncKv } from '@/shared/storage/kv';
+import { localKv } from '@/shared/storage/kv';
+
+/** Écritures refusées pendant l'import d'une sauvegarde (elles viseraient des données remplacées). */
+const WRITES = new Set<RequestType>([
+  'events:mark-seen',
+  'events:delete',
+  'events:restore',
+  'profile:ignore',
+  'settings:update',
+  'account:update',
+  'account:remove',
+  'scan:stop',
+]);
+const refuseDuringImport = (type: RequestType) =>
+  isImporting() && WRITES.has(type) ? t('common.errors.importing') : undefined;
 
 export default defineBackground(() => {
   chrome.runtime.onInstalled.addListener(async ({ reason }) => {
@@ -53,31 +71,23 @@ export default defineBackground(() => {
 
   onNotificationClick(() => void chrome.runtime.openOptionsPage());
 
-  // Données synchronisées depuis une autre machine : le badge suit (§ 5.3, état « vu »).
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local') {
-      if (keys.latestVersion in changes) void refreshBadge(); // nouvelle version publiée
-      // Un scan démarre, se met en pause ou se termine : l'icône « scan en cours » suit.
-      const statusChanged = Object.entries(changes).some(
-        ([k, c]) =>
-          k.endsWith(':progress') &&
-          (c.oldValue as { status?: string } | undefined)?.status !== (c.newValue as { status?: string } | undefined)?.status,
-      );
-      if (statusChanged) void refreshBadge();
-      return;
-    }
-    if (area !== 'sync') return;
-    if (Object.keys(changes).some((k) => k === keys.settings || k === keys.accounts || k.includes(':ev'))) {
-      void refreshBadge();
-    }
-    if (keys.settings in changes) void setupAlarms();
+    if (area !== 'local') return;
+    if (keys.latestVersion in changes) void refreshBadge(); // nouvelle version publiée
+    // Un scan démarre, se met en pause ou se termine : l'icône « scan en cours » suit.
+    const statusChanged = Object.entries(changes).some(
+      ([k, c]) =>
+        k.endsWith(':progress') &&
+        (c.oldValue as { status?: string } | undefined)?.status !== (c.newValue as { status?: string } | undefined)?.status,
+    );
+    if (statusChanged) void refreshBadge();
   });
 
   // Onglets x.com : réponses lues dans la page, défilement, onglet de scan prêt.
   chrome.runtime.onMessage.addListener((message: Partial<TabEvent>, sender, sendResponse) => {
     const fromX = sender.id === chrome.runtime.id && !!sender.url?.startsWith('https://x.com/');
     if (!fromX || !message?.xgTab || sender.tab?.id === undefined) return false;
-    void handleTabEvent(message as TabEvent, sender.tab.id).catch((err) => console.error('[xGhost] onglet', err));
+    void handleTabEvent(message as TabEvent, sender.tab.id).catch((err) => console.error(t('common.log.tabEvent'), err));
     if (message.xgTab === 'tick') {
       // Rythme du défilement : la réponse arrive après 1,3 à 2 s (minuteur non ralenti ici).
       setTimeout(() => sendResponse({ paced: true }), 1300 + Math.random() * 700);
@@ -88,6 +98,15 @@ export default defineBackground(() => {
   chrome.tabs.onRemoved.addListener((tabId) => void handleTabRemoved(tabId));
 
   registerHandlers({
+    async 'data:import'({ backup }) {
+      const result = await importBackup(backup);
+      if (!result.ok) return result;
+      // Réglages et comptes restaurés : alarmes, compte actif et statut repartent de là.
+      // L'import a réussi : un échec ici ne doit pas être présenté comme un échec d'import.
+      await setupAlarms().catch((err) => console.error(err));
+      await handleSessionChange().catch((err) => console.error(err));
+      return result;
+    },
     async 'update:check'() {
       await checkLatestVersion();
     },
@@ -97,13 +116,16 @@ export default defineBackground(() => {
         await updateStatus();
         return { loggedIn: false };
       }
-      // Enregistre le compte s'il est nouveau et lance son scan de référence.
+      // Enregistre le compte s'il est nouveau (sans rien lancer : l'onboarding attend un choix).
       await handleSessionChange();
-      const account = await ensureActiveAccount();
+      const account = isImporting() ? undefined : await ensureActiveAccount();
       return { loggedIn: true, accountId: session.accountId, handle: account?.handle };
     },
     async 'scan:start'({ full }) {
       return triggerCheck(full ? 'user-full' : 'user');
+    },
+    async 'scan:stop'({ accountId }) {
+      await abandonScan(accountId);
     },
     async 'scan:focus'({ accountId }) {
       await focusScanTab(accountId);
@@ -138,14 +160,14 @@ export default defineBackground(() => {
       await Promise.all([
         deleteAccountEvents(accountId),
         deleteLocalAccountData(accountId),
-        syncKv.remove([keys.ignored(accountId)]),
+        localKv.remove(keys.ignored(accountId)),
         clearAccountAlarms(accountId),
       ]);
       const remaining = Object.keys(await loadAccounts());
       if (remaining[0]) await setSelectedAccountId(remaining[0]);
       await refreshBadge();
     },
-  });
+  }, refuseDuringImport);
 
   // Réveil du service worker : détecte la session et reprend un scan interrompu.
   void handleSessionChange();

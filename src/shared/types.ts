@@ -8,7 +8,6 @@ export interface Settings {
   trackFollowing: boolean;
   badge: boolean;
   notifications: boolean;
-  ignoreSuspended: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -16,7 +15,6 @@ export const DEFAULT_SETTINGS: Settings = {
   trackFollowing: false,
   badge: true,
   notifications: true,
-  ignoreSuspended: true,
 };
 
 export interface TrackedAccount {
@@ -27,7 +25,6 @@ export interface TrackedAccount {
   /** Date du scan initial (référence), en ms. */
   baselineAt?: number;
   lastScanAt?: number;
-  lastScanMachine?: string;
   followersCount?: number;
   /** Filtre « Uniquement les mutuels », propre au compte. */
   mutualsOnly: boolean;
@@ -41,6 +38,12 @@ export interface TrackedAccount {
   lastScan?: ScanCoverage;
   /** Contrôles légers depuis le dernier scan complet de bout en bout (scan de contrôle tous les 10). */
   quickSinceFull?: number;
+  /**
+   * Scans de référence lancés automatiquement (compte ajouté, nouvel ordinateur) sans aboutir :
+   * nombre d'essais et date du dernier. Le suivant attend de plus en plus longtemps, pour ne
+   * jamais rouvrir l'onglet en boucle (onglet fermé par l'utilisateur, compte inaccessible…).
+   */
+  baselineRetry?: { attempts: number; at: number };
   /** Résultat du dernier contrôle léger (affiché dans le tableau de bord). */
   lastQuick?: {
     at: number;
@@ -53,6 +56,8 @@ export interface TrackedAccount {
     total?: number;
     /** Contrôles successifs où le total X semblait en retard (revérification, puis scan complet). */
     staleRuns?: number;
+    /** Début du contrôle appliqué : une analyse rejouée (service worker arrêté) ne recompte rien. */
+    job?: number;
   };
 }
 
@@ -65,6 +70,7 @@ export type ScanReason =
   | 'overflow' // le contrôle léger n'a pu conclure (trop de nouveaux abonnés)
   | 'incomplete' // le dernier scan était incomplet
   | 'safety' // scan de contrôle périodique (tous les N contrôles légers)
+  | 'recheck' // nouvelle vérification d'un résultat suspect
   | 'quick'; // contrôle léger
 
 /** Couverture d'un scan : abonnés annoncés par X face aux abonnés réellement récupérés (§ 4.7). */
@@ -145,11 +151,10 @@ export interface ScanJob {
   status: 'running' | 'paused';
   startedAt: number;
   updatedAt: number;
-  cursor?: string;
   pages: number;
   /** Onglet x.com qui charge la liste des abonnés. */
   tabId?: number;
-  /** Dernière fois que de nouveaux abonnés sont arrivés. */
+  /** Dernière page de la liste reçue (détection d'un chargement bloqué). */
   lastProgressAt?: number;
   /** Dernier clic sur « Réessayer » dans la page. */
   retriedAt?: number;
@@ -178,6 +183,14 @@ export interface ScanJob {
   seeded?: number;
   /** La fin de la liste a été atteinte pendant ce passage. */
   reachedEnd?: boolean;
+  /**
+   * Des pages ont pu être perdues (service worker relancé en plein scan, la page x.com ayant
+   * continué sans lui) : le passage ne peut pas être déclaré complet, ses abonnés sont gardés
+   * pour la reprise (union).
+   */
+  gap?: boolean;
+  /** Nombre de pages relues depuis que l'arrêt anticipé est possible (marge de sécurité). */
+  earlyStopPages?: number;
   pausedReason?: ScanPauseReason;
   resumeAt?: number;
   error?: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assembleOrder, assessQuick, assessScan, diffFollowers, earlyStop, isComplete } from './diff';
+import { assembleOrder, assessQuick, assessScan, diffFollowers, earlyStop, fillUnreadTail, isComplete } from './diff';
 
 describe('diffFollowers', () => {
   it('détecte départs et arrivées par id', () => {
@@ -25,6 +25,22 @@ describe('isComplete (§ 4.7)', () => {
   });
   it('sans total X : complet dès qu’on a des abonnés', () => {
     expect(isComplete({ scanned: 10, detected: 0 })).toBe(true);
+  });
+  it('compte sans abonné : complet une fois la liste vide lue jusqu’au bout', () => {
+    expect(isComplete({ scanned: 0, detected: 0, reachedEnd: true, totalKnown: true })).toBe(true);
+    expect(isComplete({ scanned: 0, detected: 0, totalKnown: true })).toBe(false);
+    // Total jamais lu et première page illisible : surtout pas une référence vide.
+    expect(isComplete({ scanned: 0, detected: 0, reachedEnd: true })).toBe(false);
+  });
+});
+
+describe('fillUnreadTail : scan arrêté avant la fin', () => {
+  it('la partie non relue est reprise telle quelle, pas déclarée partie', () => {
+    // Ancienne liste a..f ; relu a, c, d (b parti), chargement bloqué ensuite.
+    expect(fillUnreadTail(['a', 'b', 'c', 'd', 'e', 'f'], ['n', 'a', 'c', 'd'])).toEqual(['n', 'a', 'c', 'd', 'e', 'f']);
+  });
+  it('rien de relu en commun : seule la partie relue', () => {
+    expect(fillUnreadTail(['a', 'b'], ['x'])).toEqual(['x']);
   });
 });
 

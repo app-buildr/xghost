@@ -2,6 +2,8 @@ import { releaseVeil, showVeil, updateVeil } from '@/features/scan-veil/veil';
 import { watchedOperation } from '@/features/x-api/parse';
 import {
   CHANNEL_PORT,
+  SCAN_MARKER,
+  SCAN_WINDOW_NAME,
   type HookMessage,
   type StepMessage,
   type TabCommand,
@@ -15,13 +17,18 @@ import {
  *   relaie au service worker ;
  * - fait défiler la liste des abonnés pour que x.com charge les pages suivantes.
  *
- * Dans les autres onglets x.com, le script de page ne propose jamais de canal :
- * ce script reste inactif et n'envoie rien.
+ * Dans les autres onglets x.com, il s'arrête dès le chargement : il n'écoute rien et
+ * n'envoie rien.
  */
 export default defineContentScript({
   matches: ['https://x.com/*'],
   runAt: 'document_start',
   main() {
+    // Onglets x.com de l'utilisateur : rien à faire. L'onglet de scan est ouvert avec `#xghost` ;
+    // le script de page lui donne ensuite son nom de fenêtre, qui survit aux navigations.
+    const isScanTab = location.hash === `#${SCAN_MARKER}` || window.name === SCAN_WINDOW_NAME;
+    if (!isScanTab) return;
+
     const emit = (event: TabEvent) => void chrome.runtime.sendMessage(event).catch(() => undefined);
 
     // --- Canal privé avec le script de page (le premier port reçu est le seul accepté) ---

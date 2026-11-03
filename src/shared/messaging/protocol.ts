@@ -1,3 +1,4 @@
+import type { ImportResult } from '@/features/backup/backup';
 import type { FollowEvent, Settings } from '../types';
 
 /**
@@ -14,9 +15,16 @@ export interface Requests {
   'profile:ignore': { req: { accountId: string; profileId: string; ignored: boolean }; res: void };
   /** Affiche l'onglet de scan (quand Chrome le met en pause parce qu'il est caché). */
   'scan:focus': { req: { accountId: string }; res: void };
+  /** Abandonne le scan en cours (onboarding, « Arrêter ») : rien n'est gardé comme référence. */
+  'scan:stop': { req: { accountId: string }; res: void };
   'settings:update': { req: Partial<Settings>; res: void };
   'account:update': { req: { accountId: string; mutualsOnly: boolean }; res: void };
   'account:remove': { req: { accountId: string }; res: void };
+  /**
+   * Restaure une sauvegarde (l'export se fait directement dans la page d'options) : remplace
+   * toutes les données, après validation complète du fichier.
+   */
+  'data:import': { req: { backup: unknown }; res: ImportResult };
   /** Relève la dernière version publiée (à l'ouverture des options). */
   'update:check': { req: void; res: void };
 }
@@ -47,7 +55,6 @@ export type TabEvent =
   | { xgTab: 'tick'; visible: boolean; path: string }
   | { xgTab: 'ready'; path: string };
 
-/** Commandes du service worker vers l'onglet de scan. */
 /** Fragment d'URL (`#xghost`) et nom de fenêtre qui identifient l'onglet de scan dans la page x.com. */
 export const SCAN_MARKER = 'xghost';
 export const SCAN_WINDOW_NAME = 'xghost-scan';
@@ -76,6 +83,8 @@ export interface VeilState {
   resumeAt?: number;
 }
 
-export type TabCommand =
-  | { xgCmd: 'drive-start' | 'drive-stop' | 'retry' }
-  | ({ xgCmd: 'progress' } & VeilState);
+/** Commandes sans données : défilement (début, arrêt) et clic sur « Réessayer » de x.com. */
+export type SimpleTabCommand = 'drive-start' | 'drive-stop' | 'retry';
+
+/** Commandes du service worker vers l'onglet de scan. */
+export type TabCommand = { xgCmd: SimpleTabCommand } | ({ xgCmd: 'progress' } & VeilState);

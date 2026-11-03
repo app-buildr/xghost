@@ -1,3 +1,5 @@
+import { t } from '@/shared/i18n';
+
 /** Estimation du temps restant d'un scan, partagée par l'overlay, l'onboarding et le tableau de bord. */
 
 export interface ScanPace {
@@ -21,7 +23,7 @@ export function remainingLabel(p: ScanPace, now = Date.now()): string | undefine
   const ms = estimateRemainingMs(p, now);
   if (ms === undefined) return undefined;
   const min = Math.round(ms / 60_000);
-  if (min < 1) return 'Moins d’une minute restante';
-  if (min < 60) return `Environ ${min} min restante${min > 1 ? 's' : ''}`;
-  return `Environ ${Math.round(min / 60)} h restantes`;
+  if (min < 1) return t('common.scan.remaining.lessThanMinute');
+  if (min < 60) return t('common.scan.remaining.minutes', { count: min });
+  return t('common.scan.remaining.hours', { count: Math.round(min / 60) });
 }

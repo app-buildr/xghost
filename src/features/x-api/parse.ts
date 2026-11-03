@@ -29,9 +29,10 @@ export function watchedOperation(url: string): string | undefined {
   }
 }
 
-const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
-const ID = /^\d{1,20}$/;
-const AVATAR = /^https:\/\/(pbs|abs)\.twimg\.com\//;
+/** Formats X acceptés (aussi utilisés pour valider une sauvegarde importée). */
+export const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
+export const ID = /^\d{1,20}$/;
+export const AVATAR = /^https:\/\/(pbs|abs)\.twimg\.com\//;
 
 function parseUser(r: Json): (Profile & { followersCount?: number }) | null {
   if (!r || r.__typename !== 'User' || !r.rest_id) return null;
@@ -74,8 +75,9 @@ export function parseFollowersPage(data: Json, previousCursor?: string): Followe
       users.push(profile);
     }
   }
-  const done =
-    users.length === 0 || !nextCursor || nextCursor === previousCursor || /^0\|/.test(nextCursor);
+  // Fin de liste : plus de curseur suivant (ou curseur inchangé, ou « 0|… »). Une page vide qui
+  // annonce encore une suite n'est pas la fin : x.com la saute et charge la suivante.
+  const done = !nextCursor || nextCursor === previousCursor || /^0\|/.test(nextCursor);
   return { users, nextCursor, done };
 }
 

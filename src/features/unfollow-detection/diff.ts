@@ -31,14 +31,24 @@ export interface ScanAssessment {
 const COMPLETE_RATIO = 0.99;
 
 /**
- * Couverture d'un scan. Également complet si la fin de liste est atteinte sans rien
- * ajouter aux abonnés repris du passage précédent : X n'en montrera pas davantage.
+ * Couverture d'un scan. Également complet :
+ * - si la fin de liste est atteinte sans rien ajouter aux abonnés repris du passage précédent
+ *   (X n'en montrera pas davantage) ;
+ * - pour un compte sans abonné : total 0 réellement lu sur le profil (`totalKnown`) et liste,
+ *   vide, lue jusqu'au bout. Un total inconnu (0 par défaut) avec une page illisible ne suffit pas.
  */
-export function isComplete(a: { scanned: number; detected: number; reachedEnd?: boolean; seeded?: number }): boolean {
-  if (a.detected <= 0) return a.scanned > 0;
+export function isComplete(a: {
+  scanned: number;
+  detected: number;
+  reachedEnd?: boolean;
+  seeded?: number;
+  totalKnown?: boolean;
+}): boolean {
+  if (a.detected <= 0) return a.scanned > 0 || (!!a.reachedEnd && !!a.totalKnown);
   if (a.scanned >= a.detected * COMPLETE_RATIO) return true;
   return !!a.reachedEnd && (a.seeded ?? 0) > 0 && a.scanned <= (a.seeded ?? 0);
 }
+
 /** Variation anormale : plus de 20 % de départs d'un coup… */
 const SUSPICIOUS_RATIO = 0.2;
 /** …et au moins ce nombre de départs (évite de bloquer les petits comptes). */
@@ -128,4 +138,18 @@ export function earlyStop(
 export function assembleOrder(previousOrder: readonly string[], currentOrder: readonly string[], matchedIndex: number) {
   const current = new Set(currentOrder);
   return [...currentOrder, ...previousOrder.slice(matchedIndex + 1).filter((id) => !current.has(id))];
+}
+
+/**
+ * Scan arrêté avant la fin de la liste (chargement bloqué, couverture ≥ 99 % malgré tout) :
+ * la partie non relue est considérée comme inchangée au lieu d'être déclarée partie.
+ * L'ancienne liste étant dans l'ordre de x.com, tout ce qui suit le dernier abonné relu
+ * est repris tel quel ; seuls les abonnés qui le précédaient et qu'on n'a pas revus sont partis.
+ */
+export function fillUnreadTail(previousOrder: readonly string[], currentOrder: readonly string[]): string[] {
+  const current = new Set(currentOrder);
+  for (let i = previousOrder.length - 1; i >= 0; i--) {
+    if (current.has(previousOrder[i]!)) return assembleOrder(previousOrder, currentOrder, i);
+  }
+  return [...currentOrder];
 }

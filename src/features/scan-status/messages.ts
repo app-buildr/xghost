@@ -1,29 +1,35 @@
 import type { ScanJob, TrackedAccount } from '@/shared/types';
+import { t } from '@/shared/i18n';
 import { formatTime } from '@/shared/utils/format';
 
 /** Textes d'état du scan, partagés par l'overlay, l'onboarding, la popup et le tableau de bord. */
 
-export const SCAN_TAB_HINT = 'Le scan se fait dans un onglet x.com épinglé : ne le ferme pas, il se fermera tout seul.';
-export const RATE_LIMIT_TITLE = 'Petite pause…';
-export const RATE_LIMIT_TEXT = 'X limite le nombre de requêtes. Le scan reprend tout seul, garde l’onglet ouvert.';
-export const STALL_TEXT = 'Le chargement s’est arrêté dans l’onglet x.com. Affiche-le quelques secondes pour le relancer.';
+export const scanTabHint = () => t('common.scan.tabHint');
+export const rateLimitTitle = () => t('common.scan.rateLimitTitle');
+export const rateLimitText = () => t('common.scan.rateLimitText');
+export const stallText = () => t('common.scan.stallText');
 
-/** Message d'un scan en pause, quelle qu'en soit la raison. */
+/** Message d'un scan en pause, quelle qu'en soit la raison (phrases complètes, avec ou sans heure). */
 export function pauseMessage(
   p: Pick<ScanJob, 'pausedReason' | 'resumeAt' | 'error'>,
   account?: Pick<TrackedAccount, 'handle'>,
 ): string {
-  const at = p.resumeAt ? ` à ${formatTime(p.resumeAt)}` : '';
+  const time = p.resumeAt ? formatTime(p.resumeAt) : undefined;
   switch (p.pausedReason) {
     case 'rate-limit':
-      return `Limite de requêtes X atteinte : reprise automatique${at}.`;
+      return time ? t('common.scan.pause.rateLimitAt', { time }) : t('common.scan.pause.rateLimit');
     case 'needs-focus':
-      return STALL_TEXT;
+      return stallText();
     case 'disconnected':
-      return 'Session X absente : reconnecte-toi à x.com, le scan reprendra.';
+      return t('common.scan.pause.disconnected');
     case 'account-switched':
-      return `Un autre compte est connecté sur x.com : reviens sur @${account?.handle ?? '…'} pour terminer le scan.`;
+      return t('common.scan.pause.accountSwitched', { handle: account?.handle ?? '…' });
     default:
-      return `Erreur${p.error ? ` (${p.error})` : ''}, nouvel essai automatique${at}.`;
+      if (p.error) {
+        return time
+          ? t('common.scan.pause.errorDetailAt', { detail: p.error, time })
+          : t('common.scan.pause.errorDetail', { detail: p.error });
+      }
+      return time ? t('common.scan.pause.errorAt', { time }) : t('common.scan.pause.error');
   }
 }

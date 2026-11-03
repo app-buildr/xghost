@@ -34,7 +34,7 @@ export interface ScanProgress {
   startedAt: number;
   updatedAt: number;
   reason?: ScanJob['reason'];
-  /** Dernière fois que de nouveaux abonnés sont arrivés (détection d'un scan bloqué). */
+  /** Dernière page de la liste reçue (détection d'un scan bloqué). */
   lastProgressAt?: number;
   pausedReason?: ScanJob['pausedReason'];
   resumeAt?: number;

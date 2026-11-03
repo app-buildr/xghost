@@ -1,3 +1,4 @@
+import { t } from '@/shared/i18n';
 import { formatDate, formatDuration } from '@/shared/utils/format';
 import type { FollowDuration } from './selectors';
 
@@ -5,9 +6,9 @@ import type { FollowDuration } from './selectors';
 export function followDurationLabel(d: FollowDuration, now = Date.now()): string | undefined {
   switch (d.kind) {
     case 'during':
-      return `suivi pendant ${formatDuration(d.ms)}`;
+      return t('common.event.followedFor', { duration: formatDuration(d.ms) });
     case 'since-or-before':
-      return `suivi depuis le ${formatDate(d.since, now)} ou avant`;
+      return t('common.event.followedSince', { date: formatDate(d.since, now) });
     default:
       return undefined;
   }

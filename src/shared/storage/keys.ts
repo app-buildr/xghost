@@ -1,22 +1,20 @@
-/** Clés de stockage. Les données de compte sont préfixées par l'id X du compte (§ 5.4). */
+/**
+ * Clés de stockage (tout est dans `storage.local`). Les données de compte sont préfixées
+ * par l'id X du compte (§ 5.4).
+ */
 export const keys = {
-  // --- storage.sync (avec repli local) ---
   settings: 'settings',
   accounts: 'accounts',
-  eventChunkCount: (accountId: string) => `acc:${accountId}:evn`,
-  eventChunk: (accountId: string, n: number) => `acc:${accountId}:ev:${n}`,
-  ignored: (accountId: string) => `acc:${accountId}:ign`,
-
-  // --- storage.local ---
   selectedAccount: 'sel',
-  machineId: 'machine',
   status: 'status',
   scanTab: 'scanTab',
   /** Dernière version publiée sur GitHub (mise à jour maison). */
   latestVersion: 'latestVersion',
+  /** Historique complet (départs et arrivées, format compact). */
+  events: (accountId: string) => `acc:${accountId}:events`,
+  ignored: (accountId: string) => `acc:${accountId}:ign`,
   snapshot: (accountId: string) => `acc:${accountId}:snapshot`,
   profiles: (accountId: string) => `acc:${accountId}:profiles`,
-  archive: (accountId: string) => `acc:${accountId}:archive`,
   scanJob: (accountId: string) => `acc:${accountId}:job`,
   scanProgress: (accountId: string) => `acc:${accountId}:progress`,
   partialScan: (accountId: string) => `acc:${accountId}:partial`,
@@ -25,3 +23,6 @@ export const keys = {
 } as const;
 
 export const isAccountKey = (key: string, accountId: string) => key.startsWith(`acc:${accountId}:`);
+
+/** Id du compte d'une clé `acc:<id>:…`, sinon `undefined`. */
+export const accountIdOfKey = (key: string): string | undefined => /^acc:(\d{1,20}):/.exec(key)?.[1];

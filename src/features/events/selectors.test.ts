@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FollowEvent } from '@/shared/types';
 import { eventId } from './codec';
 import { followDurationLabel } from './labels';
-import { currentArrivals, currentDepartures, followDuration, missingMovements, stats7d, unseenDepartures, type VisibilityContext } from './selectors';
+import { currentArrivals, currentDepartures, dailyBuckets, followDuration, newMovements, missingMovements, stats7d, unseenDepartures, type VisibilityContext } from './selectors';
 
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 9, 12, 10);
@@ -19,7 +19,7 @@ const ev = (type: FollowEvent['type'], profileId: string, at: number, over: Part
   ...over,
 });
 
-const ctx: VisibilityContext = { ignored: new Set(), ignoreSuspended: true, mutualsOnly: false };
+const ctx: VisibilityContext = { ignored: new Set(), mutualsOnly: false };
 
 describe('followDuration (§ 4.5)', () => {
   it('abonné présent à la référence : « depuis le … ou avant »', () => {
@@ -47,12 +47,8 @@ describe('unseenDepartures (badge)', () => {
     const back = ev('arrival', '4', T0 + 2 * DAY);
     expect(unseenDepartures([back, d], ctx)).toHaveLength(0);
   });
-  it('exclut comptes suspendus, ignorés, et non mutuels si filtre actif', () => {
-    const events = [
-      ev('departure', '5', T0, { status: 'suspended' }),
-      ev('departure', '6', T0),
-      ev('departure', '7', T0, { mutual: true }),
-    ];
+  it('exclut comptes ignorés, et non mutuels si filtre actif', () => {
+    const events = [ev('departure', '6', T0), ev('departure', '7', T0, { mutual: true })];
     expect(unseenDepartures(events, ctx).map((e) => e.profileId)).toEqual(['6', '7']);
     expect(unseenDepartures(events, { ...ctx, ignored: new Set(['6']) }).map((e) => e.profileId)).toEqual(['7']);
     expect(unseenDepartures(events, { ...ctx, mutualsOnly: true }).map((e) => e.profileId)).toEqual(['7']);
@@ -60,7 +56,7 @@ describe('unseenDepartures (badge)', () => {
 });
 
 describe('listes à l’état actuel (part puis revient)', () => {
-  const ctx = { ignored: new Set<string>(), ignoreSuspended: false, mutualsOnly: false };
+  const ctx = { ignored: new Set<string>(), mutualsOnly: false };
   const ev = (type: 'departure' | 'arrival', at: number) =>
     ({ id: `${type}-${at}`, type, profileId: 'p', handle: 'p', at, status: 'active', mutual: false, seen: true }) as const;
 
@@ -98,8 +94,9 @@ describe('missingMovements (réparation de l’historique)', () => {
 });
 
 describe('stats7d : bilan par compte', () => {
-  const ctx = { ignored: new Set<string>(), ignoreSuspended: false, mutualsOnly: false };
-  const now = Date.UTC(2026, 10, 3, 12);
+  const ctx = { ignored: new Set<string>(), mutualsOnly: false };
+  // Midi local : les quelques heures autour restent le même jour, quel que soit le fuseau.
+  const now = new Date(2026, 10, 3, 12).getTime();
   const ev = (type: 'departure' | 'arrival', profileId: string, hoursAgo: number) =>
     ({ id: `${type}-${profileId}-${hoursAgo}`, type, profileId, handle: profileId, at: now - hoursAgo * 3600_000, status: 'active', mutual: false, seen: true }) as const;
 
@@ -110,5 +107,31 @@ describe('stats7d : bilan par compte', () => {
 
   it('arrivé puis reparti dans la période : rien', () => {
     expect(stats7d([ev('departure', 'p', 1), ev('arrival', 'p', 2)], ctx, now)).toMatchObject({ departures: 0, arrivals: 0 });
+  });
+
+  it('graphe : même règle par journée, le total du jour concorde avec le bilan', () => {
+    // Le même jour : p part puis revient (ne compte pas), q part, r arrive.
+    const events = [ev('arrival', 'p', 1), ev('departure', 'p', 2), ev('departure', 'q', 3), ev('arrival', 'r', 4)];
+    const today = dailyBuckets(events, ctx, 30, now).at(-1);
+    expect(today).toMatchObject({ arrivals: 1, departures: 1 });
+    expect(stats7d(events, ctx, now)).toMatchObject({ arrivals: 1, departures: 1 });
+  });
+
+  it('graphe : un départ un jour et un retour un autre jour restent visibles', () => {
+    const buckets = dailyBuckets([ev('departure', 'p', 72), ev('arrival', 'p', 1)], ctx, 30, now);
+    expect(buckets.reduce((n, b) => n + b.departures, 0)).toBe(1);
+    expect(buckets.reduce((n, b) => n + b.arrivals, 0)).toBe(1);
+  });
+});
+
+describe('newMovements : pas de mouvement en double (multi-machines)', () => {
+  it('écarte un départ déjà enregistré par un autre ordinateur', () => {
+    const events = [ev('departure', 'a', T0), ev('arrival', 'b', T0)];
+    expect(newMovements('departure', ['a', 'b', 'c'], events)).toEqual(['b', 'c']);
+  });
+  it('garde un nouveau départ après un retour (départ, retour, départ)', () => {
+    const events = [ev('departure', 'a', T0), ev('arrival', 'a', T0 + DAY)];
+    expect(newMovements('departure', ['a'], events)).toEqual(['a']);
+    expect(newMovements('arrival', ['a'], events)).toEqual([]);
   });
 });

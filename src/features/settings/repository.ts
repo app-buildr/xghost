@@ -1,26 +1,31 @@
-import { syncKv } from '@/shared/storage/kv';
+import { localKv } from '@/shared/storage/kv';
+import { isRecord } from '@/shared/utils/guards';
+import { FREQUENCIES } from './model';
 import { keys } from '@/shared/storage/keys';
 import { DEFAULT_SETTINGS, type Frequency, type Settings } from '@/shared/types';
 
+/** Réglages enregistrés, nettoyés : une valeur absente ou invalide reprend sa valeur par défaut. */
 export async function loadSettings(): Promise<Settings> {
-  const stored = await syncKv.get<Partial<Settings>>(keys.settings);
-  return { ...DEFAULT_SETTINGS, ...stored };
+  const stored = await localKv.get<unknown>(keys.settings);
+  return { ...DEFAULT_SETTINGS, ...sanitizeSettings(stored) };
 }
 
-const FREQUENCIES: readonly Frequency[] = [1, 6, 12, 24];
 
-/** Ne garde que les réglages connus, avec le bon type. */
-function sanitize(patch: Partial<Settings>): Partial<Settings> {
+/** Ne garde que les réglages connus, avec le bon type (toute autre valeur est ignorée). */
+export function sanitizeSettings(raw: unknown): Partial<Settings> {
   const clean: Partial<Settings> = {};
-  if (FREQUENCIES.includes(patch.frequencyHours as Frequency)) clean.frequencyHours = patch.frequencyHours;
-  for (const key of ['trackFollowing', 'badge', 'notifications', 'ignoreSuspended'] as const) {
-    if (typeof patch[key] === 'boolean') clean[key] = patch[key];
+  if (!isRecord(raw)) return clean;
+  const patch = raw;
+  if (FREQUENCIES.includes(patch.frequencyHours as Frequency)) clean.frequencyHours = patch.frequencyHours as Frequency;
+  for (const key of ['trackFollowing', 'badge', 'notifications'] as const) {
+    const value = patch[key];
+    if (typeof value === 'boolean') clean[key] = value;
   }
   return clean;
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
-  const next = { ...(await loadSettings()), ...sanitize(patch) };
-  await syncKv.set({ [keys.settings]: next });
+  const next = { ...(await loadSettings()), ...sanitizeSettings(patch) };
+  await localKv.set({ [keys.settings]: next });
   return next;
 }

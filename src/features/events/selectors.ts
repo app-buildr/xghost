@@ -4,7 +4,6 @@ import type { FollowEvent } from '@/shared/types';
 
 export interface VisibilityContext {
   ignored: ReadonlySet<string>;
-  ignoreSuspended: boolean;
   mutualsOnly: boolean;
 }
 
@@ -13,7 +12,6 @@ const DAY = 24 * 3600_000;
 export function isVisible(e: FollowEvent, ctx: VisibilityContext): boolean {
   if (ctx.ignored.has(e.profileId)) return false;
   if (e.type === 'arrival') return true;
-  if (ctx.ignoreSuspended && e.status !== 'active') return false;
   if (ctx.mutualsOnly && !e.mutual) return false;
   return true;
 }
@@ -81,6 +79,16 @@ export interface PeriodStats {
 }
 
 /**
+ * Bilan d'un compte sur une période (ses mouvements dans l'ordre chronologique) : son dernier
+ * mouvement s'il change sa situation, rien s'il est revenu à son état de départ.
+ */
+function netMovement(inPeriod: readonly FollowEvent[]): FollowEvent | undefined {
+  const first = inPeriod[0];
+  const last = inPeriod[inPeriod.length - 1];
+  return first && last && first.type === last.type ? last : undefined;
+}
+
+/**
  * Bilan de la période, compte par compte : on compare la situation de chaque compte avant
  * et après la période. Un compte parti puis revenu (ou arrivé puis reparti) ne compte pas ;
  * plusieurs allers-retours ne comptent qu'une fois.
@@ -90,10 +98,8 @@ function statsSince(events: FollowEvent[], ctx: VisibilityContext, since: number
   let arrivalsCount = 0;
   let unseen = 0;
   for (const list of byProfile(events).values()) {
-    const inPeriod = list.filter((e) => e.at >= since && isVisible(e, ctx));
-    const first = inPeriod[0];
-    const last = inPeriod[inPeriod.length - 1];
-    if (!first || !last || first.type !== last.type) continue; // revenu, ou arrivé puis reparti
+    const last = netMovement(list.filter((e) => e.at >= since && isVisible(e, ctx)));
+    if (!last) continue; // revenu, ou arrivé puis reparti
     if (last.type === 'arrival') arrivalsCount++;
     else {
       departuresCount++;
@@ -112,7 +118,11 @@ export interface DayBucket {
   departures: number;
 }
 
-/** Arrivées et départs par jour (local) sur les `days` derniers jours, du plus ancien au plus récent. */
+/**
+ * Arrivées et départs par jour (local) sur les `days` derniers jours, du plus ancien au plus récent.
+ * Même règle que le bilan sur 7 jours, appliquée à chaque journée : un compte parti puis revenu
+ * le même jour ne compte pas ce jour-là.
+ */
 export function dailyBuckets(events: FollowEvent[], ctx: VisibilityContext, days = 30, now = Date.now()): DayBucket[] {
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
@@ -122,15 +132,25 @@ export function dailyBuckets(events: FollowEvent[], ctx: VisibilityContext, days
     d.setDate(d.getDate() + i);
     return { day: d.getTime(), arrivals: 0, departures: 0 };
   });
-  for (const e of events) {
-    if (e.at < start.getTime() || !isVisible(e, ctx)) continue;
-    const d = new Date(e.at);
+  const dayIndex = (at: number) => {
+    const d = new Date(at);
     d.setHours(0, 0, 0, 0);
-    const index = Math.round((d.getTime() - start.getTime()) / DAY);
-    const bucket = buckets[index];
-    if (!bucket) continue;
-    if (e.type === 'arrival') bucket.arrivals++;
-    else bucket.departures++;
+    return Math.round((d.getTime() - start.getTime()) / DAY);
+  };
+  for (const list of byProfile(events).values()) {
+    const perDay = new Map<number, FollowEvent[]>();
+    for (const e of list) {
+      if (e.at < start.getTime() || !isVisible(e, ctx)) continue;
+      const i = dayIndex(e.at);
+      perDay.set(i, [...(perDay.get(i) ?? []), e]);
+    }
+    for (const [i, dayEvents] of perDay) {
+      const last = netMovement(dayEvents);
+      const bucket = buckets[i];
+      if (!last || !bucket) continue;
+      if (last.type === 'arrival') bucket.arrivals++;
+      else bucket.departures++;
+    }
   }
   return buckets;
 }
@@ -154,8 +174,8 @@ export function followDuration(departure: FollowEvent, events: readonly FollowEv
  * Cohérence entre l'historique et la liste d'abonnés (réparation) : pour chaque compte dont le
  * dernier mouvement contredit la liste actuelle, renvoie le mouvement manquant.
  * Ex. dernier mouvement « arrivée » mais absent de la liste → départ manquant.
- * Seuls les mouvements antérieurs à `before` sont examinés (ceux d'un autre ordinateur,
- * plus récents que notre liste, sont laissés de côté).
+ * Seuls les mouvements antérieurs à `before` (date de la liste) sont examinés : un mouvement
+ * plus récent que la liste, par exemple venu d'une sauvegarde importée, est laissé de côté.
  */
 export function missingMovements(
   events: FollowEvent[],
@@ -171,4 +191,18 @@ export function missingMovements(
     if (e.type === 'departure' && present) out.push({ profileId, type: 'arrival', from: e });
   }
   return out;
+}
+
+/**
+ * Comptes dont le mouvement `type` est nouveau au regard de l'historique : on écarte ceux dont
+ * le dernier mouvement connu est déjà de ce type. Évite d'enregistrer deux fois le même départ
+ * (ou la même arrivée), par exemple après l'import d'une sauvegarde plus ancienne que la liste.
+ */
+export function newMovements(
+  type: FollowEvent['type'],
+  profileIds: readonly string[],
+  events: readonly FollowEvent[],
+): string[] {
+  const index = byProfile(events);
+  return profileIds.filter((id) => index.get(id)?.at(-1)?.type !== type);
 }

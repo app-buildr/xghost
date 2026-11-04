@@ -8,6 +8,7 @@ import { useAppState } from '@/features/app-state/useAppState';
 import { DisplayedContext, useMarkDisplayed } from '@/features/app-state/useSeenOnView';
 import { currentDepartures, statsSince } from '@/features/events/selectors';
 import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
+import { oldestEventAt } from '@/features/stats/selectors';
 import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { joinParts } from '@/features/events/ui/display';
 import { departureMeta } from '@/features/events/ui/DeparturesPanel';
@@ -103,7 +104,7 @@ export function PopupApp() {
   const latest = useMemo(() => list.slice(0, 5), [list]);
   // Bilan sur la période choisie (24 h / 7 j / 30 j / Tout), mémorisée d'une ouverture à l'autre.
   const [period, setPeriod] = useStoredChoice<PopupPeriod>('xg.popupPeriod', POPUP_PERIODS, '7d');
-  const since = periodStart(period, now, account?.baselineAt);
+  const since = periodStart(period, now, account?.baselineAt ?? oldestEventAt(data?.events ?? []));
   const stats = useMemo(() => statsSince(data?.events ?? [], ctx, since), [data?.events, ctx, since]);
   // `list` ne contient déjà que les comptes toujours absents.
   const fresh = useMemo(

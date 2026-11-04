@@ -57,7 +57,7 @@
   "retention": {
     "title": "Rétention des arrivées",
     "sub": "Nouveaux abonnés encore là après…",
-    "days": "{{count}} jours",
+    "days": "{{n}} jours",
     "none": "—",
     "noneHint": "Pas encore assez de recul",
     "value": "{{pct}} encore là après {{days}} jours"

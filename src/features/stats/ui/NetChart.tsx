@@ -35,9 +35,9 @@ export function NetChart({ buckets, unit }: { buckets: readonly Bucket[]; unit: 
               key={b.day}
               className={`xg-net__col${hover !== undefined && hover !== i ? ' is-dim' : ''}`}
               onMouseEnter={() => setHover(i)}
-              aria-label={t('stats.net.aria', { period: label(b), net: formatSigned(v) })}
             >
-              <span className="xg-net__half xg-net__half--up">
+              <span className="xg-sr-only">{t('stats.net.aria', { period: label(b), net: formatSigned(v) })}</span>
+              <span className="xg-net__half xg-net__half--up" aria-hidden="true">
                 {v > 0 && (
                   <>
                     <b className="xg-net__value">{formatSigned(v)}</b>
@@ -46,7 +46,7 @@ export function NetChart({ buckets, unit }: { buckets: readonly Bucket[]; unit: 
                 )}
                 {v === 0 && <b className="xg-net__value">0</b>}
               </span>
-              <span className="xg-net__half xg-net__half--down">
+              <span className="xg-net__half xg-net__half--down" aria-hidden="true">
                 {v < 0 && (
                   <>
                     <i className="xg-net__bar xg-net__bar--down" style={{ height: size }} />

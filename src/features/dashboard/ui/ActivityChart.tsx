@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { DAY } from '@/features/stats/period';
 import type { Bucket } from '@/features/stats/selectors';
 import { LOCALE, t } from '@/shared/i18n';
 import { formatNumber, formatSigned } from '@/shared/utils/format';
 
-const DAY = 86_400_000;
 const dayLabel = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
 
 const shortDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
@@ -20,7 +20,8 @@ function dayTexts(b: Bucket, unit: 'day' | 'week') {
 }
 
 /**
- * Graphique sur 30 jours (§ 3.4) : arrivées vers le haut (teal), départs vers le bas (corail).
+ * Arrivées et départs sur la période (§ 3.4), par jour ou par semaine : arrivées vers le haut
+ * (teal), départs vers le bas (corail).
  * Les deux séries se distinguent aussi par le sens des barres, pas seulement la couleur.
  * Survol d'une journée : infobulle avec la date, les arrivées, les départs et le solde.
  * Jours antérieurs au premier scan (`since`) : l'infobulle indique qu'il n'y a pas de donnée.

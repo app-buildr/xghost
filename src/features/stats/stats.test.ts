@@ -19,10 +19,25 @@ const ev = (type: FollowEvent['type'], profileId: string, at: number): FollowEve
 
 describe('périodes', () => {
   it('commencent à minuit, aujourd’hui compris, jamais avant la référence', () => {
-    expect(periodStart('7d', NOW)).toBe(startOfDay(NOW) - 6 * DAY);
+    // 7 jours, aujourd'hui compris : depuis le jeudi 29 octobre à minuit (jours calendaires).
+    expect(periodStart('7d', NOW)).toBe(new Date(2026, 9, 29).getTime());
     expect(periodStart('24h', NOW)).toBe(NOW - DAY);
     expect(periodStart('30d', NOW, NOW - 3 * DAY)).toBe(NOW - 3 * DAY);
     expect(periodStart('all', NOW, NOW - 100 * DAY)).toBe(NOW - 100 * DAY);
+  });
+
+  it('reste sur minuit malgré un changement d’heure dans la période', () => {
+    const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    const previous = env.TZ;
+    env.TZ = 'Europe/Paris'; // passage à l'heure d'été le 29 mars 2026
+    try {
+      const now = new Date(2026, 3, 2, 12).getTime();
+      const start = periodStart('7d', now);
+      expect(new Date(start).getHours()).toBe(0);
+      expect(bucketStarts('day', start, now)).toHaveLength(7);
+    } finally {
+      env.TZ = previous;
+    }
   });
 
   it('découpe en jours, semaines (lundi) et mois', () => {
@@ -44,16 +59,19 @@ describe('courbe des abonnés', () => {
   it('remonte le temps à partir du total actuel', () => {
     const events = [ev('arrival', 'a', NOW - 3600_000), ev('departure', 'b', NOW - DAY), ev('arrival', 'c', NOW - DAY)];
     const series = followerSeries(events, [], 100, NOW - 2 * DAY, NOW);
-    expect(series.map((p) => p.total)).toEqual([99, 99, 100]);
+    expect(series.points.map((p) => p.total)).toEqual([99, 99, 100]);
+    expect(series.start).toBe(99); // le premier jour n'a aucun mouvement
   });
 
   it('un total relevé fait foi', () => {
     const series = followerSeries([], [[NOW - DAY, 90]], 100, NOW - 2 * DAY, NOW);
-    expect(series.map((p) => p.total)).toEqual([90, 90, 100]);
+    expect(series.points.map((p) => p.total)).toEqual([90, 90, 100]);
+    // Aujourd'hui, le total actuel l'emporte sur un relevé du jour.
+    expect(followerSeries([], [[NOW, 80]], 100, NOW - DAY, NOW).points.at(-1)?.total).toBe(100);
   });
 
   it('sans total actuel, pas de courbe', () => {
-    expect(followerSeries([], [], undefined, NOW - DAY, NOW)).toEqual([]);
+    expect(followerSeries([], [], undefined, NOW - DAY, NOW).points).toEqual([]);
   });
 });
 
@@ -64,6 +82,8 @@ describe('départs par durée de suivi', () => {
       ev('arrival', 'a', NOW - 10 * DAY),
       ev('departure', 'a', NOW - 2 * DAY), // suivi 8 jours
       ev('departure', 'b', NOW - DAY), // déjà là au premier scan
+      ev('departure', 'c', NOW - 5 * DAY), // parti puis revenu : ne compte pas
+      ev('arrival', 'c', NOW - 3 * DAY),
     ];
     const buckets = departuresByDuration(events, ctx, baseline, NOW, baseline);
     expect(buckets).toEqual([

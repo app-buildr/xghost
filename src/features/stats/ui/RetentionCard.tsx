@@ -19,13 +19,16 @@ export function RetentionCard({ values }: { values: Record<(typeof RETENTION_DAY
           const v = values[days];
           const pct = v === null ? undefined : formatPercent(Math.round(v * 100));
           return (
-            <li
-              key={days}
-              className="xg-retention__tile"
-              aria-label={pct ? t('stats.retention.value', { pct, days }) : t('stats.retention.noneHint')}
-            >
-              <span className="xg-retention__days">{t('stats.retention.days', { count: days })}</span>
-              <strong className="xg-retention__value">{pct ?? t('stats.retention.none')}</strong>
+            <li key={days} className="xg-retention__tile">
+              <span className="xg-sr-only">
+                {pct ? t('stats.retention.value', { pct, days }) : t('stats.retention.noneHint')}
+              </span>
+              <span className="xg-retention__days" aria-hidden="true">
+                {t('stats.retention.days', { n: days })}
+              </span>
+              <strong className="xg-retention__value" aria-hidden="true">
+                {pct ?? t('stats.retention.none')}
+              </strong>
               <span className="xg-retention__track" aria-hidden="true">
                 <i className="xg-retention__bar" style={{ width: `${(v ?? 0) * 100}%` }} />
               </span>

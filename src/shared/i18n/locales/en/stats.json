@@ -57,7 +57,7 @@
   "retention": {
     "title": "New follower retention",
     "sub": "New followers still there after…",
-    "days": "{{count}} days",
+    "days": "{{n}} days",
     "none": "—",
     "noneHint": "Not enough history yet",
     "value": "{{pct}} still there after {{days}} days"

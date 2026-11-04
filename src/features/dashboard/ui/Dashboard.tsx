@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { AccountData } from '@/features/app-state/useAccountData';
 import { statsSince, type VisibilityContext } from '@/features/events/selectors';
-import { activityUnit, DASHBOARD_PERIODS, netUnit, periodStart, type DashboardPeriod } from '@/features/stats/period';
+import { activityUnit, DASHBOARD_PERIODS, netUnit, periodStart, startOfDay, type DashboardPeriod } from '@/features/stats/period';
+import { oldestEventAt } from '@/features/stats/selectors';
 import { departuresByDuration, followerSeries, movementBuckets, retention } from '@/features/stats/selectors';
 import { DurationChart } from '@/features/stats/ui/DurationChart';
 import { FollowersChart } from '@/features/stats/ui/FollowersChart';
@@ -37,18 +38,24 @@ interface Props {
 export function Dashboard({ account, data, ctx, status, now, onShowAllDepartures, onShowAllArrivals }: Props) {
   const [period, setPeriod] = useStoredChoice<DashboardPeriod>('xg.dashboardPeriod', DASHBOARD_PERIODS, '30d');
   const baselineAt = account.baselineAt;
-  const from = periodStart(period, now, baselineAt);
-  const unit = activityUnit(period);
+  // Sans date de référence (cas rare), « Tout » part du plus ancien mouvement connu.
+  const floor = baselineAt ?? oldestEventAt(data.events);
+  const from = periodStart(period, now, floor);
+  const unit = activityUnit(from, now);
+  const net = netUnit(from, now);
+  // Recalcul quand les données, la période ou le jour changent (pas à chaque tic de l'horloge).
+  const today = startOfDay(now);
   const charts = useMemo(
     () => ({
       stats: statsSince(data.events, ctx, from),
       activity: movementBuckets(data.events, ctx, unit, from, now),
-      net: movementBuckets(data.events, ctx, netUnit(period), from, now),
+      net: movementBuckets(data.events, ctx, net, from, now),
       followers: followerSeries(data.events, data.totals, account.followersCount, from, now),
       durations: departuresByDuration(data.events, ctx, from, now, baselineAt),
       retention: retention(data.events, ctx, from, now),
     }),
-    [data.events, data.totals, ctx, from, unit, period, now, account.followersCount, baselineAt],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` suit `today` (voir ci-dessus)
+    [data.events, data.totals, ctx, from, unit, net, today, account.followersCount, baselineAt],
   );
   const stats = charts.stats;
 
@@ -80,7 +87,7 @@ export function Dashboard({ account, data, ctx, status, now, onShowAllDepartures
 
       <div className="xg-stats__row xg-stats__row--wide">
         <section className="xg-card">
-          <FollowersChart points={charts.followers} all={period === 'all'} />
+          <FollowersChart series={charts.followers} all={period === 'all'} />
         </section>
         <section className="xg-card">
           <ActivityChart
@@ -94,7 +101,7 @@ export function Dashboard({ account, data, ctx, status, now, onShowAllDepartures
       </div>
       <div className="xg-stats__row">
         <section className="xg-card">
-          <NetChart buckets={charts.net} unit={netUnit(period)} />
+          <NetChart buckets={charts.net} unit={net} />
         </section>
         <section className="xg-card">
           <DurationChart buckets={charts.durations} baselineAt={baselineAt} />

@@ -7,7 +7,6 @@ export interface VisibilityContext {
   mutualsOnly: boolean;
 }
 
-
 export function isVisible(e: FollowEvent, ctx: VisibilityContext): boolean {
   if (ctx.ignored.has(e.profileId)) return false;
   if (e.type === 'arrival') return true;
@@ -107,7 +106,6 @@ export function statsSince(events: FollowEvent[], ctx: VisibilityContext, since:
   }
   return { departures: departuresCount, unseen, arrivals: arrivalsCount, net: arrivalsCount - departuresCount };
 }
-
 
 /**
  * Durée du suivi (§ 4.5). Jamais estimée :

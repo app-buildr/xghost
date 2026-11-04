@@ -171,14 +171,6 @@ let ghost: ImageBitmap | undefined;
 let favicon: string | undefined;
 let headObserver: MutationObserver | undefined;
 
-function tabTitle(): string | undefined {
-  if (!last) return undefined;
-  const paused = last.state === 'rate-limit';
-  if (last.expected <= 0) return paused ? t('common.veil.tabTitlePaused') : t('common.veil.tabTitleScanning');
-  const pct = formatPercent(percent(last));
-  return paused ? t('common.veil.tabTitlePausedPct', { pct }) : t('common.veil.tabTitleScanningPct', { pct });
-}
-
 async function loadGhost(): Promise<void> {
   if (ghost) return;
   try {
@@ -219,10 +211,11 @@ function drawFavicon(pct: number, paused: boolean): string {
   return canvas.toDataURL('image/png');
 }
 
-/** Rétablit le titre et l'icône de l'onglet de scan (x.com les réécrit en naviguant). */
+/**
+ * Rétablit l'icône de l'onglet de scan (x.com la réécrit en naviguant). Le titre, lui, reste
+ * celui de x.com : aucun texte de l'extension n'est lisible par la page.
+ */
 function reapplyIdentity(): void {
-  const title = tabTitle();
-  if (title && document.title !== title) document.title = title;
   document.head?.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]').forEach((link) => {
     if (favicon && link.href !== favicon) link.href = favicon;
   });
@@ -238,10 +231,10 @@ function applyTabIdentity(): void {
     document.head.append(link);
   }
   reapplyIdentity();
-  // x.com réécrit le titre et l'icône à chaque navigation interne : on les rétablit.
+  // x.com réécrit l'icône à chaque navigation interne : on la rétablit.
   if (!headObserver) {
     headObserver = new MutationObserver(reapplyIdentity);
-    headObserver.observe(document.head, { subtree: true, childList: true, characterData: true, attributes: true });
+    headObserver.observe(document.head, { subtree: true, childList: true, attributes: true });
   }
 }
 

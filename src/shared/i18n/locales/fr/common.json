@@ -26,11 +26,7 @@
     "title": "Synchronisation des abonnés…",
     "text": "Ne ferme pas cet onglet. Tu peux utiliser les autres, celui-ci se fermera tout seul à la fin.",
     "resume": "Reprise {{countdown}}",
-    "computing": "Calcul du temps restant…",
-    "tabTitleScanning": "xGhost, scan en cours",
-    "tabTitlePaused": "xGhost, petite pause",
-    "tabTitleScanningPct": "({{pct}}) xGhost, scan en cours",
-    "tabTitlePausedPct": "({{pct}}) xGhost, petite pause"
+    "computing": "Calcul du temps restant…"
   },
   "event": {
     "detectedAt": "Détecté le {{date}}",

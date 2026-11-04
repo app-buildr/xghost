@@ -26,11 +26,7 @@
     "title": "Syncing followers…",
     "text": "Don’t close this tab. You can use the others, this one will close by itself when done.",
     "resume": "Resuming {{countdown}}",
-    "computing": "Estimating time left…",
-    "tabTitleScanning": "xGhost, scanning",
-    "tabTitlePaused": "xGhost, short break",
-    "tabTitleScanningPct": "({{pct}}) xGhost, scanning",
-    "tabTitlePausedPct": "({{pct}}) xGhost, short break"
+    "computing": "Estimating time left…"
   },
   "event": {
     "detectedAt": "Detected on {{date}}",

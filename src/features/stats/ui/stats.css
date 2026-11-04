@@ -1,0 +1,222 @@
+/* Cartes de statistiques du tableau de bord (§ 3.4). */
+.xg-stat {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.xg-stat__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.xg-stat__head--row {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.xg-stat__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--xg-ink);
+}
+.xg-stat__head--row .xg-stat__title {
+  display: inline;
+  margin-right: 12px;
+}
+.xg-stat__sub {
+  font-size: 13px;
+  color: var(--xg-text-muted);
+}
+.xg-stat__delta {
+  flex: none;
+  font-family: var(--xg-font-display);
+  font-size: 22px;
+  color: var(--xg-primary);
+}
+.xg-stat__delta.is-down {
+  color: var(--xg-danger-text);
+}
+.xg-stat__empty {
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--xg-text-muted);
+}
+.xg-stat__plot {
+  position: relative;
+}
+.xg-stat__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--xg-text-muted);
+}
+
+/* Courbe des abonnés */
+.xg-followers__svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+.xg-followers__area {
+  fill: var(--xg-primary-soft);
+  opacity: 0.55;
+}
+.xg-followers__line {
+  fill: none;
+  stroke: var(--xg-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.xg-followers__cursor {
+  stroke: var(--xg-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.xg-followers__cursor.is-visible {
+  opacity: 0.6;
+}
+
+/* Solde net */
+.xg-net {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  height: 150px;
+}
+.xg-net__col {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 1fr 0fr auto;
+  transition: opacity 0.2s ease;
+}
+.xg-net.has-negative .xg-net__col {
+  grid-template-rows: 1fr 1fr auto;
+}
+.xg-net__col.is-dim {
+  opacity: 0.4;
+}
+.xg-net__half {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  min-height: 0;
+}
+.xg-net__half--down {
+  justify-content: flex-start;
+}
+.xg-net__bar {
+  display: block;
+  min-height: 3px;
+  border-radius: 4px 4px 0 0;
+  background: var(--xg-primary);
+}
+.xg-net__bar--down {
+  border-radius: 0 0 4px 4px;
+  background: var(--xg-chart-departure);
+}
+.xg-net__value {
+  padding: 2px 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--xg-primary);
+}
+.xg-net__value.is-down {
+  color: var(--xg-danger-text);
+}
+.xg-net__label {
+  padding-top: 8px;
+  overflow: hidden;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--xg-text-muted);
+}
+
+/* Départs par durée de suivi */
+.xg-duration {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.xg-duration__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  font-size: 14px;
+}
+.xg-duration__count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.xg-duration__track,
+.xg-retention__track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--xg-surface-muted);
+  overflow: hidden;
+}
+.xg-duration__bar,
+.xg-retention__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--xg-chart-departure);
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Rétention des arrivées */
+.xg-retention {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.xg-retention__tile {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: var(--xg-background);
+}
+.xg-retention__days {
+  font-size: 13px;
+  color: var(--xg-text-muted);
+}
+.xg-retention__value {
+  font-family: var(--xg-font-display);
+  font-size: 22px;
+  white-space: nowrap;
+  color: var(--xg-primary);
+}
+.xg-retention__bar {
+  background: var(--xg-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xg-followers__cursor,
+  .xg-net__col,
+  .xg-duration__bar,
+  .xg-retention__bar {
+    transition: none;
+  }
+}

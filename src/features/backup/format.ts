@@ -174,6 +174,7 @@ const ACCOUNT_KEYS: Record<string, (v: unknown) => unknown> = {
   profiles,
   partial,
   suspicious: (v) => (count(v) <= 100 ? v : fail()),
+  totals: (v) => list(v, (p) => (Array.isArray(p) && p.length === 2 ? [finite(p[0]), count(p[1])] : fail()), 10_000),
   visit: finite,
 };
 

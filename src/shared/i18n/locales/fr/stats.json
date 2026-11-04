@@ -1,0 +1,65 @@
+{
+  "period": {
+    "label": "Période",
+    "24h": "24 h",
+    "7d": "7 j",
+    "30d": "30 j",
+    "90d": "90 j",
+    "all": "Tout"
+  },
+  "kpi": {
+    "departures": {
+      "7d": "Départs, 7 jours",
+      "30d": "Départs, 30 jours",
+      "90d": "Départs, 90 jours",
+      "all": "Départs, depuis le début"
+    },
+    "arrivals": {
+      "7d": "Arrivées, 7 jours",
+      "30d": "Arrivées, 30 jours",
+      "90d": "Arrivées, 90 jours",
+      "all": "Arrivées, depuis le début"
+    }
+  },
+  "followers": {
+    "title": "Abonnés",
+    "range": "de {{from}} à {{to}}, depuis le {{date}}",
+    "rangeAll": "de {{from}} à {{to}}, depuis le début du suivi ({{date}})",
+    "empty": "La courbe apparaîtra après la première vérification.",
+    "tip_one": "{{n}} abonné",
+    "tip_other": "{{n}} abonnés",
+    "aria": "Courbe du nombre d’abonnés, de {{from}} à {{to}}"
+  },
+  "activity": {
+    "title": "Arrivées et départs",
+    "byDay": "Par jour",
+    "byWeek": "Par semaine",
+    "weekOf": "Semaine du {{date}}",
+    "netDay": "Solde du jour : {{net}}",
+    "netWeek": "Solde de la semaine : {{net}}"
+  },
+  "net": {
+    "titleWeek": "Solde net par semaine",
+    "titleMonth": "Solde net par mois",
+    "sub": "Arrivées moins départs",
+    "aria": "{{period}} : solde {{net}}"
+  },
+  "duration": {
+    "title": "Départs par durée de suivi",
+    "sub": "Combien de temps ils sont restés",
+    "lt1w": "Moins d’une semaine",
+    "w1to3": "1 à 3 semaines",
+    "m1to3": "1 à 3 mois",
+    "gt3m": "Plus de 3 mois",
+    "before": "Depuis le {{date}} ou avant",
+    "empty": "Aucun départ sur la période."
+  },
+  "retention": {
+    "title": "Rétention des arrivées",
+    "sub": "Nouveaux abonnés encore là après…",
+    "days": "{{count}} jours",
+    "none": "—",
+    "noneHint": "Pas encore assez de recul",
+    "value": "{{pct}} encore là après {{days}} jours"
+  }
+}

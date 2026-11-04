@@ -18,6 +18,8 @@ export const keys = {
   partialScan: (accountId: string) => `acc:${accountId}:partial`,
   suspicious: (accountId: string) => `acc:${accountId}:suspicious`,
   lastVisit: (accountId: string) => `acc:${accountId}:visit`,
+  /** Total d'abonnés annoncé par X, un point par jour (courbe des abonnés). */
+  totals: (accountId: string) => `acc:${accountId}:totals`,
 } as const;
 
 export const isAccountKey = (key: string, accountId: string) => key.startsWith(`acc:${accountId}:`);

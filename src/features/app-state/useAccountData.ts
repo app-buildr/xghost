@@ -2,7 +2,13 @@ import { useMemo } from 'react';
 import { loadIgnored } from '@/features/accounts/repository';
 import { loadEvents } from '@/features/events/repository';
 import type { VisibilityContext } from '@/features/events/selectors';
-import { loadProfiles, type ProfileCache, type ScanProgress } from '@/features/followers-sync/repository';
+import {
+  loadProfiles,
+  loadTotals,
+  type ProfileCache,
+  type ScanProgress,
+  type TotalPoint,
+} from '@/features/followers-sync/repository';
 import { useStorageQuery } from '@/shared/hooks/useStorageQuery';
 import { localKv } from '@/shared/storage/kv';
 import { isAccountKey, keys } from '@/shared/storage/keys';
@@ -13,6 +19,8 @@ export interface AccountData {
   events: FollowEvent[];
   ignored: ReadonlySet<string>;
   profiles: ProfileCache;
+  /** Totaux d'abonnés relevés par jour (courbe des abonnés). */
+  totals: TotalPoint[];
   progress?: ScanProgress;
 }
 
@@ -32,12 +40,13 @@ export function useAccountData(accountId: string | undefined, options: { seenOnV
   const { data: stored, loading } = useStorageQuery<Omit<AccountData, 'progress'> | undefined>(
     async () => {
       if (!accountId) return undefined;
-      const [events, ignored, profiles] = await Promise.all([
+      const [events, ignored, profiles, totals] = await Promise.all([
         loadEvents(accountId),
         loadIgnored(accountId),
         loadProfiles(accountId),
+        loadTotals(accountId),
       ]);
-      return { events, ignored, profiles };
+      return { events, ignored, profiles, totals };
     },
     (k) => !!accountId && isAccountKey(k, accountId) && !SCAN_STATE_KEYS.some((suffix) => k.endsWith(suffix)),
     [accountId],

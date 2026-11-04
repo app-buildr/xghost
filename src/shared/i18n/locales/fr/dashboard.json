@@ -22,10 +22,8 @@
     "noChange": "aucun changement."
   },
   "kpi": {
-    "departures": "Départs, 7 jours",
     "new_one": "dont {{n}} nouveau",
     "new_other": "dont {{n}} nouveaux",
-    "arrivals": "Arrivées, 7 jours",
     "net": "Solde net {{net}}"
   },
   "latestDepartures": "Derniers départs",
@@ -45,10 +43,9 @@
     "quickStarted": "Vérification lancée"
   },
   "chart": {
-    "title": "30 derniers jours",
     "arrivals": "Arrivées",
     "departures": "Départs",
-    "aria": "30 derniers jours : {{arrivals}}, {{departures}}",
+    "aria": "{{title}} : {{arrivals}}, {{departures}}",
     "tipArrivals_one": "{{n}} arrivée",
     "tipArrivals_other": "{{n}} arrivées",
     "tipDepartures_one": "{{n}} départ",

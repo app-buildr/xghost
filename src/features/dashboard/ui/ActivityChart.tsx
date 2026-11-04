@@ -1,18 +1,21 @@
 import { useState } from 'react';
-import type { DayBucket } from '@/features/events/selectors';
+import type { Bucket } from '@/features/stats/selectors';
 import { LOCALE, t } from '@/shared/i18n';
 import { formatNumber, formatSigned } from '@/shared/utils/format';
 
 const DAY = 86_400_000;
 const dayLabel = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
 
-/** Textes d'une journée, partagés par l'infobulle et le tableau pour lecteurs d'écran. */
-function dayTexts(b: DayBucket) {
+const shortDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
+
+/** Textes d'une tranche (jour ou semaine), partagés par l'infobulle et le tableau pour lecteurs d'écran. */
+function dayTexts(b: Bucket, unit: 'day' | 'week') {
+  const net = formatSigned(b.arrivals - b.departures);
   return {
-    date: dayLabel.format(b.day),
+    date: unit === 'day' ? dayLabel.format(b.day) : t('stats.activity.weekOf', { date: shortDate.format(b.day) }),
     arrivals: t('dashboard.chart.tipArrivals', { count: b.arrivals, n: formatNumber(b.arrivals) }),
     departures: t('dashboard.chart.tipDepartures', { count: b.departures, n: formatNumber(b.departures) }),
-    net: t('dashboard.chart.tipNet', { net: formatSigned(b.arrivals - b.departures) }),
+    net: unit === 'day' ? t('stats.activity.netDay', { net }) : t('stats.activity.netWeek', { net }),
   };
 }
 
@@ -23,7 +26,21 @@ function dayTexts(b: DayBucket) {
  * Jours antérieurs au premier scan (`since`) : l'infobulle indique qu'il n'y a pas de donnée.
  * Les mêmes informations sont lisibles au clavier et au lecteur d'écran dans un tableau masqué.
  */
-export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?: number }) {
+export function ActivityChart({
+  buckets,
+  since,
+  title,
+  unit = 'day',
+  footnote,
+}: {
+  buckets: Bucket[];
+  since?: number;
+  title: string;
+  /** Une barre par jour, ou par semaine (longues périodes). */
+  unit?: 'day' | 'week';
+  /** Mention sous le graphique (« Par jour »). */
+  footnote?: string;
+}) {
   const [hover, setHover] = useState<number>();
   // Dernier jour survolé : l'infobulle garde son contenu le temps de disparaître en fondu.
   const [last, setLast] = useState<number>();
@@ -43,15 +60,16 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
   const totalD = buckets.reduce((s, b) => s + b.departures, 0);
   const active = shown === undefined ? undefined : buckets[shown];
   // Journée entièrement antérieure au premier scan : xGhost ne suivait pas encore le compte.
-  const noData = (b: DayBucket) => since === undefined || b.day + DAY <= since;
+  const span = unit === 'week' ? 7 * DAY : DAY;
+  const noData = (b: Bucket) => since === undefined || b.day + span <= since;
   // Infobulle centrée sur la barre, calée à gauche ou à droite près des bords.
   const align = shown === undefined ? 'center' : shown < 3 ? 'start' : shown > buckets.length - 4 ? 'end' : 'center';
-  const tip = active ? dayTexts(active) : undefined;
+  const tip = active ? dayTexts(active, unit) : undefined;
 
   return (
     <figure className="xg-chart">
       <figcaption className="xg-chart__head">
-        <span>{t('dashboard.chart.title')}</span>
+        <span>{title}</span>
         <span className="xg-chart__legend" aria-hidden="true">
           <span>
             <i className="xg-chart__swatch xg-chart__swatch--arrival" /> {t('dashboard.chart.arrivals')}
@@ -68,6 +86,7 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
           className="xg-chart__svg"
           role="img"
           aria-label={t('dashboard.chart.aria', {
+            title,
             arrivals: t('dashboard.chart.tipArrivals', { count: totalA, n: formatNumber(totalA) }),
             departures: t('dashboard.chart.tipDepartures', { count: totalD, n: formatNumber(totalD) }),
           })}
@@ -131,10 +150,10 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
         )}
       </div>
       <table className="xg-sr-only">
-        <caption>{t('dashboard.chart.title')}</caption>
+        <caption>{title}</caption>
         <tbody>
           {buckets.map((b) => {
-            const texts = dayTexts(b);
+            const texts = dayTexts(b, unit);
             return (
               <tr key={b.day}>
                 <th scope="row">{texts.date}</th>
@@ -152,6 +171,7 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
           })}
         </tbody>
       </table>
+      {footnote && <p className="xg-chart__foot">{footnote}</p>}
     </figure>
   );
 }

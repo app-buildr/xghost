@@ -1,0 +1,65 @@
+{
+  "period": {
+    "label": "Period",
+    "24h": "24h",
+    "7d": "7d",
+    "30d": "30d",
+    "90d": "90d",
+    "all": "All"
+  },
+  "kpi": {
+    "departures": {
+      "7d": "Unfollows, 7 days",
+      "30d": "Unfollows, 30 days",
+      "90d": "Unfollows, 90 days",
+      "all": "Unfollows, all time"
+    },
+    "arrivals": {
+      "7d": "New followers, 7 days",
+      "30d": "New followers, 30 days",
+      "90d": "New followers, 90 days",
+      "all": "New followers, all time"
+    }
+  },
+  "followers": {
+    "title": "Followers",
+    "range": "from {{from}} to {{to}}, since {{date}}",
+    "rangeAll": "from {{from}} to {{to}}, since tracking started ({{date}})",
+    "empty": "The curve will appear after the first check.",
+    "tip_one": "{{n}} follower",
+    "tip_other": "{{n}} followers",
+    "aria": "Follower count curve, from {{from}} to {{to}}"
+  },
+  "activity": {
+    "title": "New followers and unfollows",
+    "byDay": "Per day",
+    "byWeek": "Per week",
+    "weekOf": "Week of {{date}}",
+    "netDay": "Net for the day: {{net}}",
+    "netWeek": "Net for the week: {{net}}"
+  },
+  "net": {
+    "titleWeek": "Net change per week",
+    "titleMonth": "Net change per month",
+    "sub": "New followers minus unfollows",
+    "aria": "{{period}}: net {{net}}"
+  },
+  "duration": {
+    "title": "Unfollows by follow duration",
+    "sub": "How long they stayed",
+    "lt1w": "Less than a week",
+    "w1to3": "1 to 3 weeks",
+    "m1to3": "1 to 3 months",
+    "gt3m": "More than 3 months",
+    "before": "Since {{date}} or earlier",
+    "empty": "No unfollows in this period."
+  },
+  "retention": {
+    "title": "New follower retention",
+    "sub": "New followers still there after…",
+    "days": "{{count}} days",
+    "none": "—",
+    "noneHint": "Not enough history yet",
+    "value": "{{pct}} still there after {{days}} days"
+  }
+}

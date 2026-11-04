@@ -3,7 +3,9 @@ import { joinParts } from '@/features/events/ui/display';
 import type { ScanProgress } from '@/features/followers-sync/repository';
 import { ALARM_CHECK } from '@/features/scheduler/alarms';
 import { t } from '@/shared/i18n';
+import { DASHBOARD_PERIODS, type DashboardPeriod } from '@/features/stats/period';
 import type { TrackedAccount } from '@/shared/types';
+import { Segmented } from '@/shared/ui/primitives';
 import { formatAgo, formatIn } from '@/shared/utils/format';
 import { CheckNowButton } from './CheckNowButton';
 import { quickSummary } from './quickSummary';
@@ -26,10 +28,13 @@ export function DashboardHeader({
   account,
   progress,
   now,
+  period,
 }: {
   account: TrackedAccount;
   progress?: ScanProgress;
   now: number;
+  /** Tableau de bord : sélecteur de période des chiffres et des graphes (§ 3.4). */
+  period?: { value: DashboardPeriod; onChange: (p: DashboardPeriod) => void };
 }) {
   const next = useNextCheck();
   const summary = quickSummary(account);
@@ -47,7 +52,17 @@ export function DashboardHeader({
         </p>
         {summary && <p className="xg-dash__result">{t('dashboard.header.lastQuick', { summary })}</p>}
       </div>
-      <CheckNowButton account={account} progress={progress} />
+      <div className="xg-dash__actions">
+        {period && (
+          <Segmented<DashboardPeriod>
+            label={t('stats.period.label')}
+            value={period.value}
+            onChange={period.onChange}
+            options={DASHBOARD_PERIODS.map((p) => ({ value: p, label: t(`stats.period.${p}`) }))}
+          />
+        )}
+        <CheckNowButton account={account} progress={progress} />
+      </div>
     </header>
   );
 }

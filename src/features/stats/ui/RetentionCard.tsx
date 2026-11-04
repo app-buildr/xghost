@@ -1,0 +1,38 @@
+import { RETENTION_DAYS } from '@/features/stats/selectors';
+import { t } from '@/shared/i18n';
+import { formatPercent } from '@/shared/utils/format';
+import './stats.css';
+
+/**
+ * Rétention des arrivées (§ 3.4) : part des nouveaux abonnés encore là après 7, 14 et 30 jours.
+ * Sans arrivée assez ancienne pour être jugée, la tuile affiche « — ».
+ */
+export function RetentionCard({ values }: { values: Record<(typeof RETENTION_DAYS)[number], number | null> }) {
+  return (
+    <figure className="xg-stat">
+      <figcaption className="xg-stat__head">
+        <h2 className="xg-stat__title">{t('stats.retention.title')}</h2>
+        <span className="xg-stat__sub">{t('stats.retention.sub')}</span>
+      </figcaption>
+      <ul className="xg-retention">
+        {RETENTION_DAYS.map((days) => {
+          const v = values[days];
+          const pct = v === null ? undefined : formatPercent(Math.round(v * 100));
+          return (
+            <li
+              key={days}
+              className="xg-retention__tile"
+              aria-label={pct ? t('stats.retention.value', { pct, days }) : t('stats.retention.noneHint')}
+            >
+              <span className="xg-retention__days">{t('stats.retention.days', { count: days })}</span>
+              <strong className="xg-retention__value">{pct ?? t('stats.retention.none')}</strong>
+              <span className="xg-retention__track" aria-hidden="true">
+                <i className="xg-retention__bar" style={{ width: `${(v ?? 0) * 100}%` }} />
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </figure>
+  );
+}

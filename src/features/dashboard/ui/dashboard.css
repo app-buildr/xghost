@@ -17,6 +17,29 @@
 .xg-dash__header .xg-check {
   flex: none;
 }
+/* Période et « Vérifier maintenant », côte à côte à droite du titre. */
+.xg-dash__actions {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* Graphes : courbe des abonnés + arrivées/départs, puis trois cartes. */
+.xg-stats__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  align-items: stretch;
+}
+.xg-stats__row--wide {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.xg-chart__foot {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--xg-text-muted);
+}
 .xg-dash__header h1 {
   font-size: 40px;
   line-height: 1.1;
@@ -38,15 +61,25 @@
 }
 .xg-chart__head {
   display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  gap: 6px 16px;
   margin-bottom: 16px;
   font-size: 14px;
   color: var(--xg-text-muted);
 }
+/* Titre comme celui des autres cartes de statistiques. */
+.xg-chart__head > span:first-child {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--xg-ink);
+}
 .xg-chart__legend {
   display: flex;
-  gap: 16px;
+  gap: 12px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .xg-chart__legend i {
   display: inline-block;
@@ -161,6 +194,10 @@
   }
 }
 @media (max-width: 1100px) {
+  .xg-stats__row,
+  .xg-stats__row--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .xg-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

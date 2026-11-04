@@ -20,6 +20,7 @@ const data = () => ({
   'acc:42:partial': { kind: 'check', at: 1, expectedTotal: 5, collected: {} },
   'acc:42:suspicious': 1,
   'acc:42:visit': 1,
+  'acc:42:totals': [[1, 10], [2, 12]],
 });
 const valid = () => ({ app: 'xghost', format: 2, version: '1.0.0', exportedAt: 1, data: data() as Record<string, unknown> });
 

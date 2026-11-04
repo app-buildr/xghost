@@ -22,10 +22,8 @@
     "noChange": "no change."
   },
   "kpi": {
-    "departures": "Unfollows, 7 days",
     "new_one": "{{n}} new",
     "new_other": "{{n}} new",
-    "arrivals": "New followers, 7 days",
     "net": "Net {{net}}"
   },
   "latestDepartures": "Latest unfollows",
@@ -45,10 +43,9 @@
     "quickStarted": "Check started"
   },
   "chart": {
-    "title": "Last 30 days",
     "arrivals": "New followers",
     "departures": "Unfollows",
-    "aria": "Last 30 days: {{arrivals}}, {{departures}}",
+    "aria": "{{title}}: {{arrivals}}, {{departures}}",
     "tipArrivals_one": "{{n}} new follower",
     "tipArrivals_other": "{{n}} new followers",
     "tipDepartures_one": "{{n}} unfollow",

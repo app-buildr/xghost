@@ -16,6 +16,31 @@ export async function loadProfiles(accountId: string): Promise<ProfileCache> {
 export const saveProfiles = (accountId: string, profiles: ProfileCache) =>
   localKv.set({ [keys.profiles(accountId)]: profiles });
 
+/** Total d'abonnés relevé par jour : `[date, total]`, du plus ancien au plus récent. */
+export type TotalPoint = [number, number];
+/** Environ trois ans de points quotidiens. */
+const MAX_TOTALS = 1100;
+
+export async function loadTotals(accountId: string): Promise<TotalPoint[]> {
+  const raw = await localKv.get<unknown>(keys.totals(accountId));
+  return Array.isArray(raw)
+    ? raw.filter(
+        (p): p is TotalPoint =>
+          Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isSafeInteger(p[1]) && p[1] >= 0,
+      )
+    : [];
+}
+
+/** Retient le total annoncé par X pour le jour de `at` (le dernier relevé du jour l'emporte). */
+export async function recordTotal(accountId: string, total: number, at: number): Promise<void> {
+  if (!Number.isSafeInteger(total) || total < 0) return;
+  const day = new Date(at).toDateString();
+  const points = (await loadTotals(accountId)).filter(([t]) => new Date(t).toDateString() !== day);
+  points.push([at, total]);
+  points.sort((a, b) => a[0] - b[0]);
+  await localKv.set({ [keys.totals(accountId)]: points.slice(-MAX_TOTALS) });
+}
+
 export const loadJob = (accountId: string) => localKv.get<ScanJob>(keys.scanJob(accountId));
 
 export const loadPartial = (accountId: string) => localKv.get<PartialScan>(keys.partialScan(accountId));
@@ -71,5 +96,6 @@ export async function deleteLocalAccountData(accountId: string): Promise<void> {
     keys.partialScan(accountId),
     keys.suspicious(accountId),
     keys.lastVisit(accountId),
+    keys.totals(accountId),
   ]);
 }

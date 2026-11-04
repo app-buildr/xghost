@@ -10,7 +10,7 @@ import { SCAN_MARKER, type SimpleTabCommand, type TabCommand, type TabEvent } fr
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
 import type { ScanJob, ScanKind, ScanReason, TrackedAccount } from '@/shared/types';
-import { clearJob, loadJob, loadPartial, loadSnapshot, saveJob, saveProgressOnly, type ScanProgress } from './repository';
+import { clearJob, GIVE_UP_MS, loadJob, loadPartial, loadSnapshot, saveJob, saveProgressOnly, type ScanProgress } from './repository';
 
 /**
  * Moteur de scan par onglet (§ 4.6).
@@ -42,6 +42,9 @@ const STALL_MS = 20_000;
 const HIDDEN_STALL_MS = 60_000;
 /** Bloqué alors que l'onglet est visible, après un « Réessayer » : fin de liste probable. */
 const END_MS = 60_000;
+/** Réponses en erreur d'affilée pour la liste : x.com refuse de la charger (limite non annoncée). */
+const MAX_FAILED_PAGES = 3;
+
 /** Contrôle léger : seule la première page compte. */
 const QUICK_TOP_SIZE = 100;
 /** La liste complète n'est écrite en stockage que toutes les N pages (l'état léger, à chaque page). */
@@ -126,6 +129,8 @@ const clearPause = (job: ScanJob) => {
   job.pausedReason = undefined;
   job.resumeAt = undefined;
   job.error = undefined;
+  job.failedPages = undefined;
+  job.xError = undefined;
 };
 
 // ---------------------------------------------------------------------------
@@ -355,7 +360,7 @@ export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
       }
       await routeTab(job, account, tabId, event.path);
       if (event.xgTab === 'ready') await sendVeil(job, account);
-      else await checkStall(job, event.visible);
+      else await checkStall(job, account, event.visible);
       return;
     }
 
@@ -400,7 +405,14 @@ async function onFollowersPage(
 ): Promise<void> {
   if (variablesOf(event.url).userId !== job.accountId) return;
   if (isRateLimited(event.status, event.body)) return pauseForRateLimit(job, account, event.rateReset);
-  if (event.status >= 400) return; // x.com réessaiera ; le contrôle de blocage prend le relais
+  if (event.status >= 400) {
+    // Erreur ponctuelle : x.com réessaiera (le contrôle de blocage prend le relais). Plusieurs
+    // d'affilée : x.com refuse la liste, comme pour une limite (pause, puis reprise).
+    job.failedPages = (job.failedPages ?? 0) + 1;
+    if (job.kind !== 'quick' && job.failedPages >= MAX_FAILED_PAGES) return pauseForRateLimit(job, account, event.rateReset);
+    await putJob(job, false);
+    return;
+  }
   const page = parseJson(event.body, (data) => parseFollowersPage(data, variablesOf(event.url).cursor));
   if (!page) return;
 
@@ -423,6 +435,8 @@ async function onFollowersPage(
   job.updatedAt = Date.now();
   // Toute page reçue est un progrès, même sans nouvel abonné (reprise qui relit la zone déjà lue).
   job.lastProgressAt = Date.now();
+  job.failedPages = undefined;
+  job.xError = undefined;
   // Page reçue : une pause « chargement arrêté » est levée. La pause pour la limite de X, elle,
   // dure jusqu'à l'échéance (le défilement est arrêté) : une page arrivée en retard ne la lève pas.
   if (job.status === 'paused' && job.pausedReason !== 'rate-limit') {
@@ -494,20 +508,27 @@ async function routeTab(job: ScanJob, account: TrackedAccount, tabId: number, pa
   }
 }
 
-async function checkStall(job: ScanJob, visible: boolean): Promise<void> {
+async function checkStall(job: ScanJob, account: TrackedAccount, visible: boolean): Promise<void> {
   if (job.status === 'paused' && job.pausedReason === 'rate-limit') return;
   const idle = Date.now() - (job.lastProgressAt ?? job.startedAt);
   if (idle < STALL_MS) return;
 
+  // Chargement arrêté : un essai sur le bouton « Réessayer » de x.com, onglet visible ou non.
+  // S'il est là, x.com a refusé une page (erreur ou limite non annoncée).
+  if (!job.retriedAt || job.retriedAt < (job.lastProgressAt ?? 0)) {
+    job.retriedAt = Date.now();
+    const res = (await send(job.tabId!, 'retry')) as { clicked?: boolean } | undefined;
+    if (res?.clicked) job.xError = true;
+    await putJob(job, false);
+    return;
+  }
+  // Toujours refusé après l'essai : comme une limite de X, pause puis reprise automatique
+  // (au lieu d'attendre qu'on affiche l'onglet, ce qui n'y changerait rien).
+  if (job.xError && idle >= HIDDEN_STALL_MS) return pauseForRateLimit(job, account);
+
   if (!visible) {
     // Le rendu simulé fait normalement avancer la page cachée ; sinon, on demande à l'afficher.
     if (idle >= HIDDEN_STALL_MS && job.pausedReason !== 'needs-focus') await pause(job, 'needs-focus');
-    return;
-  }
-  if (!job.retriedAt || job.retriedAt < (job.lastProgressAt ?? 0)) {
-    job.retriedAt = Date.now();
-    await putJob(job, false);
-    await send(job.tabId!, 'retry');
     return;
   }
   // Toujours rien, onglet visible, après un nouvel essai : on considère la liste terminée.
@@ -609,6 +630,39 @@ export function handleTabRemoved(tabId: number): Promise<void> {
     await hooks?.onInterrupted(job);
     await dropJob(job.accountId);
     await hooks?.onStateChange();
+  });
+}
+
+/** Arrête un scan en le gardant comme incomplet : ses abonnés serviront à « Continuer le scan ». */
+async function interrupt(job: ScanJob): Promise<void> {
+  if (job.kind === 'quick') return discardQuick(job);
+  await closeTab(job);
+  await hooks?.onInterrupted(job);
+  await dropJob(job.accountId);
+  await hooks?.onStateChange();
+}
+
+/** « Arrêter le scan » (scan bloqué) : arrêt immédiat, gardé comme incomplet. */
+export function interruptScan(accountId: string): Promise<void> {
+  return serial(async () => {
+    const job = await getJob(accountId);
+    if (job && !job.finishing) await interrupt(job);
+  });
+}
+
+/**
+ * Chien de garde : scan sans aucune page depuis `GIVE_UP_MS` (chargement bloqué, onglet caché qui
+ * n'avance plus, page x.com déconnectée de l'extension…) hors limite de X annoncée : arrêté
+ * d'office et gardé comme incomplet. Renvoie vrai si le scan a été arrêté.
+ */
+export function giveUpIfStalled(accountId: string): Promise<boolean> {
+  return serial(async () => {
+    const job = await getJob(accountId);
+    if (!job || job.finishing || job.kind === 'quick') return false;
+    if (job.status === 'paused' && job.pausedReason !== 'needs-focus') return false;
+    if (Date.now() - (job.lastProgressAt ?? job.startedAt) < GIVE_UP_MS) return false;
+    await interrupt(job);
+    return true;
   });
 }
 

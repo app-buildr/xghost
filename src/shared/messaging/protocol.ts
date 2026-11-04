@@ -17,6 +17,8 @@ export interface Requests {
   'scan:focus': { req: { accountId: string }; res: void };
   /** Abandonne le scan en cours (onboarding, « Arrêter ») : rien n'est gardé comme référence. */
   'scan:stop': { req: { accountId: string }; res: void };
+  /** Arrête le scan en cours (bloqué) en le gardant comme incomplet, pour « Continuer le scan ». */
+  'scan:interrupt': { req: { accountId: string }; res: void };
   'settings:update': { req: Partial<Settings>; res: void };
   'account:update': { req: { accountId: string; mutualsOnly: boolean }; res: void };
   'account:remove': { req: { accountId: string }; res: void };

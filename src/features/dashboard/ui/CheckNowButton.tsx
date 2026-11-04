@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ScanProgress } from '@/features/followers-sync/repository';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { t } from '@/shared/i18n';
@@ -12,6 +12,8 @@ import { quickSummary } from './quickSummary';
 const RESULT_TIMEOUT_MS = 3 * 60_000;
 /** Contrôle si rapide qu'il s'est terminé avant d'être vu tourner. */
 const FAST_RESULT_MS = 30_000;
+/** Démarrage demandé sans scan visible au bout de ce délai : l'icône arrête de tourner. */
+const START_GRACE_MS = 15_000;
 
 /**
  * « Vérifier maintenant » : contrôle léger (total + abonnés les plus récents, quelques secondes).
@@ -27,6 +29,17 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
   const quickRunning = progress?.kind === 'quick';
   const fullRunning = !!progress && progress.kind !== 'quick';
   const quickAt = account.lastQuick?.at;
+  // L'icône tourne tant qu'une vérification tourne (contrôle léger, scan complet enchaîné ou lancé
+  // ailleurs), et entre le clic et l'apparition du scan, pour ne pas s'arrêter entre les deux.
+  const running = progress?.status === 'running';
+  const [starting, setStarting] = useState(false);
+  useEffect(() => {
+    if (!starting) return;
+    if (running) return setStarting(false);
+    const timer = setTimeout(() => setStarting(false), START_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [starting, running, quickAt]);
+  useEffect(() => setStarting(false), [quickAt]);
 
   // Résultat du contrôle léger lancé ici : arrivées, départs récents, écart (même texte que l'en-tête).
   useEffect(() => {
@@ -56,7 +69,8 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
   const check = async () => {
     // Noté avant l'envoi : le résultat peut être enregistré avant la réponse du service worker.
     pending.current = { since: Date.now() - 1000, seen: false };
-    if (!(await start())) pending.current = undefined;
+    if (await start()) setStarting(true);
+    else pending.current = undefined;
   };
 
   return (
@@ -67,7 +81,7 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
         disabled={busy || quickRunning || fullRunning}
         onClick={() => void check()}
       >
-        <RefreshCw size={18} className={busy || quickRunning ? 'xg-spin' : undefined} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
+        <RefreshCw size={18} className={busy || starting || running ? 'xg-spin' : undefined} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
       </button>
       <Tooltip label={t('dashboard.check.fullScanTitle')} side="bottom" align="end">
         <button type="button" className="xg-link" disabled={busy || fullRunning} onClick={() => void start({ full: true })}>

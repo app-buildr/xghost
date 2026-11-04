@@ -1,10 +1,11 @@
 import { joinParts } from '@/features/events/ui/display';
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import type { ScanProgress } from '@/features/followers-sync/repository';
+import { GIVE_UP_MS, type ScanProgress } from '@/features/followers-sync/repository';
 import { pauseMessage, rateLimitText, scanTabHint, stallText } from '@/features/scan-status/messages';
 import { scanCoverage } from '@/features/scan-status/progress';
 import { ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
 import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
+import { StopScanButton } from '@/features/scan-status/ui/StopScanButton';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
@@ -17,6 +18,7 @@ import {
   formatNumber,
   formatPercent,
   formatProgressCount,
+  formatTime,
 } from '@/shared/utils/format';
 
 /** Pourquoi le scan complet en cours a été lancé (témoin pour l'utilisateur). */
@@ -160,11 +162,17 @@ export function ScanCoverageCard({
               <>
                 <strong>{t('dashboard.coverage.stuckSince', { elapsed: formatElapsedShort(state.since, tick) })}</strong>
                 <span>{stallText()}</span>
+                <span>{t('dashboard.coverage.autoStop', { time: formatTime(state.since + GIVE_UP_MS) })}</span>
               </>
             )}
             {state.kind === 'interrupted' && <span>{state.text}</span>}
           </div>
-          {state.kind === 'stuck' && <ShowScanTabButton accountId={account.id} />}
+          {state.kind === 'stuck' && (
+            <div className="xg-coverage__actions">
+              <ShowScanTabButton accountId={account.id} />
+              <StopScanButton accountId={account.id} />
+            </div>
+          )}
         </div>
       ) : !live && last && !complete ? (
         <div className="xg-coverage__foot">

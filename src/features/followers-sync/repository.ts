@@ -18,8 +18,8 @@ export const saveProfiles = (accountId: string, profiles: ProfileCache) =>
 
 /** Total d'abonnés relevé par jour : `[date, total]`, du plus ancien au plus récent. */
 export type TotalPoint = [number, number];
-/** Environ trois ans de points quotidiens. */
-const MAX_TOTALS = 1100;
+/** Environ trois ans de points quotidiens (limite aussi appliquée à l'import d'une sauvegarde). */
+export const MAX_TOTALS = 1100;
 
 export async function loadTotals(accountId: string): Promise<TotalPoint[]> {
   const raw = await localKv.get<unknown>(keys.totals(accountId));
@@ -40,6 +40,12 @@ export async function recordTotal(accountId: string, total: number, at: number):
   points.sort((a, b) => a[0] - b[0]);
   await localKv.set({ [keys.totals(accountId)]: points.slice(-MAX_TOTALS) });
 }
+
+/**
+ * Scan sans aucune page depuis ce délai (hors limite de X annoncée) : arrêté d'office, onglet
+ * fermé, et gardé comme incomplet (« Continuer le scan »). Jamais de blocage sans fin.
+ */
+export const GIVE_UP_MS = 5 * 60_000;
 
 export const loadJob = (accountId: string) => localKv.get<ScanJob>(keys.scanJob(accountId));
 

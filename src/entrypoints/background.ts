@@ -15,6 +15,7 @@ import {
   handleSessionChange,
   setupAlarms,
   abandonScan,
+  stopScan,
   triggerCheck,
   updateStatus,
 } from '@/features/scheduler/orchestrator';
@@ -36,6 +37,7 @@ const WRITES = new Set<RequestType>([
   'account:update',
   'account:remove',
   'scan:stop',
+  'scan:interrupt',
 ]);
 /** Identifiant de compte X d'une requête : refusé s'il n'a pas la forme attendue (défense en profondeur). */
 const accountIdOf = (id: string): string => {
@@ -126,6 +128,10 @@ export default defineBackground(() => {
     async 'scan:stop'({ accountId }) {
       accountId = accountIdOf(accountId);
       await abandonScan(accountId);
+    },
+    async 'scan:interrupt'({ accountId }) {
+      accountId = accountIdOf(accountId);
+      await stopScan(accountId);
     },
     async 'scan:focus'({ accountId }) {
       accountId = accountIdOf(accountId);

@@ -115,6 +115,13 @@ describe('validateBackup', () => {
     expect(refused('acc:42:profiles', profile({ avatar: 'javascript:alert(1)' })).ok).toBe(false);
   });
 
+  it('garde les graphiques masqués du tableau de bord', () => {
+    const b = valid();
+    b.data.settings = { frequencyHours: 6, hiddenCharts: ['net', 'retention'] };
+    const res = validateBackup(b, '1.0.0');
+    expect(res.ok && res.backup.data.settings).toEqual({ frequencyHours: 6, hiddenCharts: ['net', 'retention'] });
+  });
+
   it('nettoie les réglages au lieu de les recopier (§3)', () => {
     const b = valid();
     b.data.settings = { frequencyHours: 0.001, badge: 'x', extra: 1 };

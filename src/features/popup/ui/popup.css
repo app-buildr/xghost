@@ -68,6 +68,53 @@ body {
   font-size: 16px;
   font-weight: 600;
 }
+.xg-popup__alert:not(.xg-popup__alert--link) {
+  position: relative;
+  padding-right: 44px;
+}
+/* Croix de fermeture, en haut à droite de l'alerte. */
+.xg-popup__alert-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+.xg-popup__alert-close:hover,
+.xg-popup__alert-close:focus-visible {
+  opacity: 1;
+  background: rgba(143, 36, 20, 0.08);
+}
+/* Fermeture : l'alerte s'efface et se replie, le contenu dessous remonte en douceur
+   (marge négative pour absorber l'écart de la colonne). */
+.xg-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease,
+    margin-bottom 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.xg-collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.xg-collapse.is-closing {
+  grid-template-rows: 0fr;
+  margin-bottom: -16px;
+  opacity: 0;
+  transform: scale(0.98);
+}
 .xg-popup__alert--link {
   width: 100%;
   border: 0;
@@ -119,4 +166,9 @@ body {
 }
 .xg-popup .xg-banner {
   font-size: 13px;
+}
+
+/* Derniers départs : trois lignes visibles, la suite en défilant (voir .xg-scroll). */
+.xg-popup__latest {
+  position: relative;
 }

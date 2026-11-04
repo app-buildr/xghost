@@ -119,6 +119,15 @@
   padding: 0;
   container-type: inline-size;
 }
+/* Hauteur imposée par le conteneur : en-tête et pied fixes, la liste défile entre les deux. */
+.xg-dep-panel--fill {
+  display: flex;
+  flex-direction: column;
+}
+.xg-dep-panel--fill > .xg-dep-list {
+  flex: 1;
+  min-height: 0;
+}
 .xg-dep__date--inline {
   display: none;
 }

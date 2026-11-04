@@ -172,6 +172,8 @@ export interface ScanJob {
   failedPages?: number;
   /** x.com affiche son bouton « Réessayer » (chargement refusé) depuis la dernière page reçue. */
   xError?: boolean;
+  /** Passage par le profil pour lire le total annoncé par X (une seule fois) : heure du départ. */
+  totalLookupAt?: number;
   /** Échecs de l'analyse de fin de scan (nouvel essai sur la liste déjà lue, sans relire). */
   analysisFailures?: number;
   /** Scan terminé : analyse en cours (l'onglet est déjà fermé). */

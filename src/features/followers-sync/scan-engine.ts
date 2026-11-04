@@ -53,6 +53,8 @@ const RETRY_AFTER_ERROR_MS = 15 * MINUTE;
 const MAX_ANALYSIS_FAILURES = 3;
 /** Réponses en erreur d'affilée pour la liste : x.com refuse de la charger (limite non annoncée). */
 const MAX_FAILED_PAGES = 3;
+/** Attente du total annoncé par X sur la page de profil, avant de revenir à la liste. */
+const TOTAL_LOOKUP_MS = 10 * SECOND;
 
 /** Contrôle léger : seule la première page compte. */
 const QUICK_TOP_SIZE = 100;
@@ -567,12 +569,32 @@ async function routeTab(job: ScanJob, account: TrackedAccount, tabId: number, pa
     if (job.kind === 'quick') return;
     // Limite de X : le défilement reste arrêté jusqu'à la reprise (chaque page serait refusée).
     if (job.status === 'paused' && job.pausedReason === 'rate-limit') return sendVeil(job, account);
+    // Total annoncé par X inconnu (pas de profil reçu) : un passage par le profil pour le lire,
+    // une seule fois, avant de faire défiler (sinon la progression n'a pas de total).
+    if (!job.totalSeen && !job.expectedTotal && !job.totalLookupAt && job.pages === 0) {
+      job.totalLookupAt = Date.now();
+      await putJob(job, false);
+      await chrome.tabs.update(tabId, { url: profileScanUrl(account) }).catch(() => undefined);
+      // Sans réponse du profil, retour à la liste quand même (le scan avance sans total).
+      setTimeout(() => void serial(() => returnFromLookup(job.accountId, tabId)), TOTAL_LOOKUP_MS);
+      return;
+    }
     await send(tabId, 'drive-start');
     await sendVeil(job, account);
   } else {
+    // Sur le profil pour lire le total : on y reste le temps qu'il arrive (onProfile nous ramène).
+    if (job.totalLookupAt && !job.totalSeen && Date.now() - job.totalLookupAt < TOTAL_LOOKUP_MS) return;
     // Autre page (dont `/i/user/<id>` une fois le @handle connu) : direction la liste des abonnés.
     await chrome.tabs.update(tabId, { url: followersUrl(account) }).catch(() => undefined);
   }
+}
+
+/** Fin de l'attente du total sur le profil : retour à la liste des abonnés. */
+async function returnFromLookup(accountId: string, tabId: number): Promise<void> {
+  const job = await getJob(accountId);
+  const account = (await loadAccounts())[accountId];
+  if (!job || !account || job.finishing || job.tabId !== tabId || job.totalSeen) return;
+  await routeTab(job, account, tabId);
 }
 
 async function checkStall(job: ScanJob, account: TrackedAccount, visible: boolean): Promise<void> {

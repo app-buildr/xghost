@@ -295,11 +295,13 @@ export async function abandonScan(accountId: string): Promise<void> {
   await clearPartial(accountId);
   if (!hadBaseline) {
     await localKv.remove([keys.snapshot(accountId), keys.profiles(accountId)]);
+    // Le total annoncé par X (`followersCount`) est gardé : c'est une info du profil, pas un
+    // résultat du scan, et le prochain scan en a besoin pour sa progression (X ne renvoie pas
+    // forcément le profil une seconde fois).
     await patchAccount(accountId, {
       baselineAt: undefined,
       lastScan: undefined,
       lastScanAt: undefined,
-      followersCount: undefined,
       baselineRetry: undefined,
     });
   } else {

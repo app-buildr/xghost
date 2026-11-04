@@ -169,7 +169,7 @@ réponses que la page reçoit elle-même.
   page (monde MAIN) y lit les réponses `Followers`, `UserByScreenName` et `UserByRestId`, et les
   transmet au script isolé par un `MessageChannel` privé, échangé avant tout code de x.com. Les autres
   onglets x.com ne sont pas touchés.
-- **Contrôle léger** (« Vérifier maintenant », alarmes) : onglet caché, sans défilement. Total annoncé
+- **Contrôle léger** (« Vérifier maintenant », alarmes) : onglet épinglé en arrière-plan, sans défilement. Total annoncé
   + 50 premiers abonnés → arrivées, départs récents (comparés à l'ordre enregistré), écart restant.
   Total X en retard : nouvelle vérification 10 min plus tard.
 - **Scan complet** (écart inexpliqué, « Scan complet », référence, contrôle tous les 10 contrôles

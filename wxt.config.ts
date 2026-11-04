@@ -15,7 +15,6 @@ export default defineConfig({
       'storage',
       'unlimitedStorage',
       'alarms',
-      'tabGroups',
       'notifications',
       'cookies',
     ],

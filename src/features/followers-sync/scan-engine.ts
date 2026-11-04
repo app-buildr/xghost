@@ -22,7 +22,7 @@ import { clearJob, loadJob, loadPartial, loadSnapshot, saveJob, saveProgressOnly
  * - Scan complet : onglet x.com épinglé en arrière-plan, recouvert d'un overlay, qui
  *   fait défiler la liste jusqu'au bout (ou jusqu'aux départs annoncés) puis se ferme.
  *   Le rendu de l'onglet caché est simulé (voir hidden-render).
- * - Contrôle léger : onglet caché, rangé dans un groupe replié, sans défilement ;
+ * - Contrôle léger : onglet épinglé en arrière-plan lui aussi, sans défilement ;
  *   seuls le total annoncé et la première page (les plus récents) sont lus.
  */
 
@@ -178,31 +178,16 @@ const getScanTab = () => localKv.get<ScanTab>(keys.scanTab);
 
 async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
   const url = followersUrl(account);
-  let tab: chrome.tabs.Tab;
-  if (job.visible) {
-    // Scan complet (§ 4.6) : onglet épinglé, en arrière-plan, difficile à fermer par erreur.
-    const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => undefined);
-    tab = await chrome.tabs.create({ url, pinned: true, active: false, windowId: win?.id });
-  } else {
-    tab = await chrome.tabs.create({ url, active: false });
-  }
+  // Scan complet comme contrôle léger (§ 4.6) : onglet épinglé, en arrière-plan. Il tient dans une
+  // petite pastille à gauche, est difficile à fermer par erreur et se ferme tout seul à la fin.
+  const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => undefined);
+  const tab = await chrome.tabs.create({ url, pinned: true, active: false, windowId: win?.id });
   if (tab.id === undefined) throw new Error(t('common.scan.tabOpenFailed'));
   await chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(() => undefined);
-  if (!job.visible) await hideInCollapsedGroup(tab.id);
   job.tabId = tab.id;
   job.lastProgressAt = Date.now();
   job.retriedAt = undefined;
   await localKv.set({ [keys.scanTab]: { tabId: tab.id, accountId: job.accountId } satisfies ScanTab });
-}
-
-/** Contrôle léger : onglet rangé dans un groupe « xGhost » replié (une simple pastille). */
-async function hideInCollapsedGroup(tabId: number): Promise<void> {
-  try {
-    const groupId = await chrome.tabs.group({ tabIds: tabId });
-    await chrome.tabGroups.update(groupId, { title: t('common.appName'), color: 'grey', collapsed: true });
-  } catch {
-    // Groupes indisponibles (fenêtre spéciale…) : l'onglet reste simplement en arrière-plan.
-  }
 }
 
 async function closeTab(job: ScanJob): Promise<void> {

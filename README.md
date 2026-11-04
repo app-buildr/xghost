@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://app-buildr.github.io/xghost/"><strong>Site et guide d'utilisation</strong></a> ·
-  <a href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip">Télécharger</a>
+  <a href="https://chromewebstore.google.com/">Ajouter à Chrome</a>
 </p>
 
 <p align="center">
@@ -24,8 +24,8 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension :
 **[app-buildr.github.io/xghost](https://app-buildr.github.io/xghost/)**
 
 - [Présentation](https://app-buildr.github.io/xghost/) : à quoi sert l'extension, en images
-- [Installation](https://app-buildr.github.io/xghost/#installation) : le tutoriel pas à pas
-- [Mise à jour](https://app-buildr.github.io/xghost/#mise-a-jour) : installer une nouvelle version
+- [Installation](https://app-buildr.github.io/xghost/#installation) : depuis le Chrome Web Store
+- [Mise à jour](https://app-buildr.github.io/xghost/#mise-a-jour) : automatique
 
 ## Fonctionnalités
 
@@ -45,8 +45,7 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension :
 - **Français et anglais**, selon la langue de ton navigateur.
 - **Aucune requête envoyée à X** : xGhost ouvre x.com dans un onglet et lit simplement ce que la
   page reçoit. Tes autres onglets x.com ne sont pas touchés, et rien ne quitte ton navigateur.
-- **Mises à jour** : une flèche ↑ sur l'icône et un bandeau préviennent quand une nouvelle version
-  est disponible.
+- **Mises à jour automatiques**, par le Chrome Web Store.
 
 | Popup | Pendant un scan complet |
 | :---: | :---: |
@@ -54,46 +53,18 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension :
 
 ## Installation
 
-xGhost ne passe pas par le Chrome Web Store : on le charge en **mode développeur**, une option
-standard de Chrome. Compte deux minutes.
-
-1. [**Télécharge xGhost (.zip)**](https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip),
-   puis décompresse l'archive. Range le dossier `xGhost` dans un endroit où il restera, par exemple
-   `Documents` : le navigateur en a besoin en permanence.
-2. Ouvre `chrome://extensions` (`brave://extensions` ou `edge://extensions` selon ton navigateur),
-   ou menu **⋮** → **Extensions** → **Gérer les extensions**.
-
-   <img src="docs/assets/images/installation/etape-3-menu-extensions.png" width="416" alt="Menu ⋮ de Chrome ouvert sur Extensions, une flèche verte désigne « Gérer les extensions »." />
-3. Active le **Mode développeur**, en haut à droite.
-
-   <img src="docs/assets/images/installation/etape-4-mode-developpeur.png" width="257" alt="Interrupteur « Mode développeur » activé." />
-4. Clique sur **Charger l'extension non empaquetée**, puis choisis le dossier `xGhost` (celui qui
-   contient `manifest.json`).
-
-   <img src="docs/assets/images/installation/etape-5a-charger-extension.png" width="416" alt="Une flèche verte désigne le bouton « Charger l'extension non empaquetée »." />
-   <img src="docs/assets/images/installation/etape-5b-choisir-dossier.png" width="353" alt="Sélecteur de dossier, le dossier xGhost est sélectionné." />
-5. Épingle l'icône : pièce de puzzle à droite de la barre d'adresse, puis l'épingle à côté de xGhost.
-6. Connecte-toi à [x.com](https://x.com/login) si ce n'est pas déjà fait, puis suis l'accueil de
-   l'extension : le premier scan enregistre tes abonnés actuels.
+1. Ouvre la [fiche xGhost sur le Chrome Web Store](https://chromewebstore.google.com/) et clique sur **Ajouter à Chrome**,
+   puis confirme avec **Ajouter l'extension**. Fonctionne aussi sur Brave, Edge et les navigateurs
+   basés sur Chromium, sur ordinateur.
+2. Épingle l'icône : pièce de puzzle à droite de la barre d'adresse, puis l'épingle à côté de xGhost.
+3. La page de démarrage s'ouvre. Connecte-toi à [x.com](https://x.com/login) si ce n'est pas déjà
+   fait, puis choisis une **nouvelle synchronisation** ou **importe ta sauvegarde**.
 
 ## Mise à jour
 
-Chargé en mode développeur, xGhost n'est pas mis à jour par Chrome. Il vérifie donc lui-même,
-plusieurs fois par jour, si une nouvelle version est publiée : une **flèche ↑** apparaît sur son
-icône et un bandeau s'affiche en haut des options et de la popup. Pas besoin de tout réinstaller :
-tes comptes, ton historique et tes réglages sont conservés. Par précaution, tu peux d'abord
-exporter une sauvegarde (Réglages → Sauvegarde).
-
-1. [**Télécharge la nouvelle version (.zip)**](https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip),
-   puis décompresse-la.
-2. Remplace l'ancien dossier `xGhost` par le nouveau, **au même endroit et sous le même nom** : le
-   navigateur retrouve l'extension, et tes données, grâce à l'emplacement du dossier.
-
-   <img src="docs/assets/images/mise-a-jour/etape-2-dossier.png" width="353" alt="Dossier Documents contenant le dossier xGhost, sélectionné." />
-3. Ouvre `chrome://extensions` et clique sur la flèche circulaire de la carte xGhost. Le numéro de
-   version change et la flèche ↑ disparaît.
-
-   <img src="docs/assets/images/mise-a-jour/etape-3-recharger.png" width="449" alt="Carte de l'extension xGhost, une flèche verte désigne le bouton de rechargement." />
+Comme toutes les extensions du Chrome Web Store, xGhost se met à jour tout seul. Ton historique, tes
+comptes et tes réglages sont conservés d'une version à l'autre. Pour être tranquille, exporte une
+sauvegarde depuis les réglages (Réglages → Sauvegarde).
 
 ## Confidentialité
 
@@ -102,7 +73,7 @@ exporter une sauvegarde (Réglages → Sauvegarde).
 - Toutes les données restent sur ton ordinateur (stockage local de l'extension). Rien n'est
   synchronisé : pour les garder ou les transférer, utilise l'export de sauvegarde. Le fichier
   contient la liste de tes abonnés, garde-le pour toi.
-- Seule autre connexion : la lecture du numéro de la dernière version publiée sur GitHub.
+- Aucune autre connexion : xGhost ne parle qu'à x.com.
 
 xGhost est un outil non officiel, sans lien avec X Corp.
 
@@ -127,7 +98,7 @@ pnpm dev        # Chrome avec l'extension chargée et rechargement à chaud
 | `pnpm dev`       | mode dev (WXT), rechargement à chaud                       |
 | `pnpm build`     | build de production dans `dist/`                           |
 | `pnpm package`   | build puis archive `xghost.zip` (dossier `xGhost`)         |
-| `pnpm release`   | publie une release GitHub (script local `release.sh`)      |
+| `pnpm release`   | archive `release/xghost.zip` (script local `release.sh`)   |
 | `pnpm test`      | tests unitaires (Vitest)                                   |
 | `pnpm typecheck` | vérifie les types                                          |
 | `pnpm icons`     | régénère les icônes PNG (normale, scan, déconnecté)        |
@@ -141,16 +112,14 @@ Le site (`docs/`) est publié par GitHub Pages (branche principale, dossier `/do
 
 1. Monte la version dans `package.json` (elle devient celle du manifeste), par exemple `1.0.1`,
    puis committe et pousse sur `main`.
-2. `pnpm release` (ou `pnpm release "Notes de version"`) : vérifie les types et les tests, produit
-   `release/xghost.zip` (dossier `xGhost/`) et, après confirmation, publie la release `v1.0.1` avec
-   l'archive jointe. `pnpm release --dry-run` prépare le zip sans rien publier.
+2. `pnpm release --dry-run` : vérifie les types et les tests, puis produit `release/xghost.zip`
+   (dossier `xGhost/`). `release.sh` est un script local, ignoré par git.
+3. Envoie l'archive dans la [console développeur du Chrome Web Store](https://chrome.google.com/webstore/devconsole)
+   et soumets la nouvelle version à la validation. Chrome met ensuite les extensions installées à
+   jour tout seul.
 
-Le nom de l'archive doit rester `xghost.zip` : c'est lui que pointent les liens « Télécharger ».
-`release.sh` est un script local, ignoré par git (il utilise `gh`, connecté au compte qui publie).
-
-Les extensions installées relèvent la release `latest` (API GitHub) au démarrage, toutes les
-6 heures et à l'ouverture des options (`features/updates`). Pour tester l'alerte sans publier :
-`FAKE_LATEST_VERSION=9.9.9 pnpm build`.
+La mise à jour maison (installation en mode développeur, vérification des releases GitHub, flèche ↑
+sur l'icône) est conservée sur la branche `feature/self-update`, au cas où.
 
 ## Architecture (par fonctionnalité)
 
@@ -171,7 +140,6 @@ src/
 │   ├── backup/            # sauvegarde : export, validation stricte, import atomique, verrou
 │   ├── app-state/         # hooks React d'accès aux données (état global, compte, « vu à l'affichage »)
 │   ├── scan-status/       # textes et composants d'état du scan partagés
-│   ├── updates/           # vérification des nouvelles versions (releases GitHub) + bandeau
 │   └── dashboard/ popup/ options/ onboarding/   # écrans
 └── shared/                # stockage local (+ conversion des sauvegardes 1.0), i18n, messagerie typée, composants, utilitaires
 ```

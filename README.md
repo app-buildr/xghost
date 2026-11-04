@@ -29,6 +29,10 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension :
 
 ## Fonctionnalités
 
+> **À savoir :** xGhost ne peut pas faire de statistiques rétroactives. Il compte les départs et les
+> arrivées à partir de son installation (le scan initial sert de référence) ; les unfollows
+> antérieurs ne sont pas visibles.
+
 - **Départs** : la liste des comptes qui ont arrêté de te suivre, avec la date. Un départ garde
   l'étiquette « Nouveau » jusqu'à ce que tu quittes la page.
 - **Nouveaux abonnés** : les arrivées, dans un panneau à part. Les deux listes se filtrent sur les

@@ -110,6 +110,10 @@ h2 { max-width: 620px; font: 800 36px/1.1 var(--display); letter-spacing: -0.02e
 .how h3 { font: 800 19px var(--display); }
 .how p { font-size: 15px; line-height: 1.55; color: var(--text-muted); }
 .how img { width: 100%; }
+.note-ref { margin-left: 1px; color: var(--primary); font-weight: 700; text-decoration: none; }
+.note { margin-top: 20px; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+.note > span { margin-right: 4px; color: var(--primary); font-weight: 700; }
+.note strong { color: var(--ink); font-weight: 600; }
 
 /* Aperçu */
 .cards--preview { gap: 20px; }

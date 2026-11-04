@@ -78,14 +78,14 @@
     <section class="section section--surface" id="fonctionnement">
       <div class="container">
         <p class="eyebrow">Fonctionnement</p>
-        <h2>xGhost compare régulièrement la liste de tes abonnés.</h2>
+        <h2>xGhost synchronise tes abonnés automatiquement.</h2>
         <div class="cards cards--how">
           <article class="how">
             <div class="how__head">
               <span class="how__num">1</span>
               <h3>Scan initial</h3>
             </div>
-            <p>À l'installation, xGhost récupère la liste de tes abonnés. C'est la référence de départ.</p>
+            <p>À l'installation, xGhost récupère la liste de tes abonnés. C'est la référence de départ<a class="note-ref" href="#note-retroactif" aria-describedby="note-retroactif">*</a>.</p>
           </article>
           <article class="how">
             <div class="how__head">
@@ -103,6 +103,7 @@
             <img src="assets/images/fonctionnement-icone-alerte.png" width="315" height="47" alt="Barre d'adresse de Chrome, l'icône xGhost porte un badge rouge.">
           </article>
         </div>
+        <p class="note" id="note-retroactif"><span aria-hidden="true">*</span> xGhost ne voit pas le passé : il compte les départs et les arrivées <strong>à partir de son installation</strong>. Les unfollows qui ont eu lieu avant n'apparaîtront jamais.</p>
       </div>
     </section>
 
@@ -235,6 +236,10 @@
           <details>
             <summary>Est-ce que je risque quelque chose avec mon compte X ?</summary>
             <p>xGhost se contente de faire défiler ta liste d'abonnés, comme tu le ferais toi-même, en respectant les pauses imposées par X. Le risque est faible, mais aucune extension non officielle ne peut le garantir nul.</p>
+          </details>
+          <details>
+            <summary>Est-ce que xGhost voit les unfollows d'avant son installation ?</summary>
+            <p>Non. X ne garde aucun historique de qui t'a suivi puis quitté. xGhost part de ta liste d'abonnés au moment du scan initial : les statistiques ne commencent qu'à partir de là, impossible de remonter dans le temps.</p>
           </details>
           <details>
             <summary>Pourquoi le scan n'atteint pas 100 % ?</summary>

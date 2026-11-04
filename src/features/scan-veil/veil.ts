@@ -97,12 +97,17 @@ function create(): Veil | undefined {
   style.textContent = STYLE;
 
   const overlay = el('div', 'veil');
-  // L'utilisateur ne peut pas interagir avec la page pendant le scan (§ 4.6).
-  for (const type of ['click', 'mousedown', 'pointerdown', 'contextmenu', 'keydown'] as const) {
-    overlay.addEventListener(type, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    });
+  // L'utilisateur ne peut pas interagir avec la page pendant le scan (§ 4.6), ni la faire défiler
+  // (molette, pavé tactile, écran tactile) : seul le défilement automatique de xGhost la fait avancer.
+  for (const type of ['click', 'mousedown', 'pointerdown', 'contextmenu', 'keydown', 'wheel', 'touchmove'] as const) {
+    overlay.addEventListener(
+      type,
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      { passive: false },
+    );
   }
 
   const card = el('div', 'card');
@@ -245,9 +250,19 @@ const confirmLeave = (e: BeforeUnloadEvent) => {
   e.returnValue = '';
 };
 
+/** Touches qui feraient défiler la page (le focus reste dans la page, sous l'overlay). */
+const SCROLL_KEYS = new Set([' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']);
+const blockScrollKeys = (e: KeyboardEvent) => {
+  if (SCROLL_KEYS.has(e.key)) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+};
+
 export function showVeil(): void {
   if (!veil || !veilHost?.isConnected) veil = create();
   window.addEventListener('beforeunload', confirmLeave);
+  window.addEventListener('keydown', blockScrollKeys, { capture: true });
   void loadGhost().then(applyTabIdentity);
   render();
 }
@@ -255,6 +270,7 @@ export function showVeil(): void {
 /** Fin du défilement (avant fermeture ou navigation de l'onglet par xGhost). */
 export function releaseVeil(): void {
   window.removeEventListener('beforeunload', confirmLeave);
+  window.removeEventListener('keydown', blockScrollKeys, { capture: true });
 }
 
 export function updateVeil(state: VeilState): void {

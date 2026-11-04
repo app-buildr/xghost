@@ -17,15 +17,8 @@ const ev = (type: FollowEvent['type'], profileId: string, at: number): FollowEve
   seen: true,
 });
 
-describe('périodes', () => {
-  it('commencent à minuit, aujourd’hui compris, jamais avant la référence', () => {
-    // 7 jours, aujourd'hui compris : depuis le jeudi 29 octobre à minuit (jours calendaires).
-    expect(periodStart('7d', NOW)).toBe(new Date(2026, 9, 29).getTime());
-    expect(periodStart('24h', NOW)).toBe(NOW - DAY);
-    expect(periodStart('30d', NOW, NOW - 3 * DAY)).toBe(NOW - 3 * DAY);
-    expect(periodStart('all', NOW, NOW - 100 * DAY)).toBe(NOW - 100 * DAY);
-  });
-
+// Début des périodes : voir period.test.ts.
+describe('périodes et tranches', () => {
   it('reste sur minuit malgré un changement d’heure dans la période', () => {
     const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
     const previous = env.TZ;
@@ -76,7 +69,7 @@ describe('courbe des abonnés', () => {
 });
 
 describe('départs par durée de suivi', () => {
-  it('classe les départs, masque les tranches impossibles', () => {
+  it('classe les départs, met en attente les tranches impossibles', () => {
     const baseline = NOW - 30 * DAY;
     const events = [
       ev('arrival', 'a', NOW - 10 * DAY),
@@ -87,10 +80,11 @@ describe('départs par durée de suivi', () => {
     ];
     const buckets = departuresByDuration(events, ctx, baseline, NOW, baseline);
     expect(buckets).toEqual([
-      { bucket: 'lt1w', count: 0 },
-      { bucket: 'w1to3', count: 1 },
-      { bucket: 'm1to3', count: 0 },
-      { bucket: 'before', count: 1 },
+      { bucket: 'lt1w', count: 0, available: true },
+      { bucket: 'w1to3', count: 1, available: true },
+      { bucket: 'm1to3', count: 0, available: true },
+      { bucket: 'gt3m', count: 0, available: false },
+      { bucket: 'before', count: 1, available: true },
     ]);
   });
 });

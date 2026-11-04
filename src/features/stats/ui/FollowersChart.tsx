@@ -1,40 +1,40 @@
-import { useState } from 'react';
-import type { FollowerPoint, FollowerSeries } from '@/features/stats/selectors';
-import { LOCALE, t } from '@/shared/i18n';
+import { bucketStarts, type FollowerSeries } from '@/features/stats/selectors';
+import { t } from '@/shared/i18n';
 import { formatNumber, formatSigned } from '@/shared/utils/format';
-import './stats.css';
-
-const shortDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
-const longDate = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+import { ChartHits, ChartTip, longDate, shortDate, StatHead, useChartHover } from './chart';
 
 /** Repères de dates sous la courbe : début, fin, et deux intermédiaires. */
-const ticks = (points: readonly FollowerPoint[]): readonly FollowerPoint[] =>
-  points.length < 2
-    ? points
-    : [...new Set([0, Math.round((points.length - 1) / 3), Math.round(((points.length - 1) * 2) / 3), points.length - 1])].map(
-        (i) => points[i]!,
+const ticks = (days: readonly number[]): readonly number[] =>
+  days.length < 2
+    ? days
+    : [...new Set([0, Math.round((days.length - 1) / 3), Math.round(((days.length - 1) * 2) / 3), days.length - 1])].map(
+        (i) => days[i]!,
       );
 
 /**
  * Courbe du nombre d'abonnés (§ 3.4) : un point par jour, avec la variation sur la période.
- * Survol : date et nombre d'abonnés du jour (infobulle en fondu, comme les autres graphes).
+ * L'axe couvre toute la période choisie (`axisFrom`) : les jours antérieurs au début du suivi
+ * restent visibles, en pointillés gris. Survol : date et nombre d'abonnés du jour (infobulle en
+ * fondu, comme les autres graphes).
  */
-export function FollowersChart({ series, all }: { series: FollowerSeries; all: boolean }) {
+export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeries; all: boolean; axisFrom?: number }) {
   const { points, start } = series;
-  const [hover, setHover] = useState<number>();
-  const [last, setLast] = useState<number>();
+  const { hover, shown, enter, leave } = useChartHover();
   const first = points[0];
   const end = points.at(-1);
   if (!first || !end) {
     return (
       <figure className="xg-stat">
-        <figcaption className="xg-stat__head">
-          <h2 className="xg-stat__title">{t('stats.followers.title')}</h2>
-        </figcaption>
+        <StatHead title={t('stats.followers.title')} />
         <p className="xg-stat__empty">{t('stats.followers.empty')}</p>
       </figure>
     );
   }
+
+  // Jours de l'axe : ceux d'avant le suivi (sans donnée), puis ceux de la courbe.
+  const before = axisFrom === undefined || axisFrom >= first.day ? [] : bucketStarts('day', axisFrom, first.day - 1);
+  const days = [...before, ...points.map((p) => p.day)];
+  const offset = before.length;
 
   const width = 600;
   const height = 150;
@@ -45,18 +45,19 @@ export function FollowersChart({ series, all }: { series: FollowerSeries; all: b
   const pad = Math.max(1, (max - min) * 0.15);
   const lo = min - pad;
   const hi = max + pad;
-  const x = (i: number) => (points.length === 1 ? width / 2 : (i / (points.length - 1)) * width);
+  const x = (j: number) => (days.length === 1 ? width / 2 : (j / (days.length - 1)) * width);
   const y = (v: number) => height - ((v - lo) / (hi - lo)) * height;
-  // Un seul jour : segment horizontal sur toute la largeur (pas de triangle).
+  // Un seul jour : segment horizontal sur la largeur restante (pas de triangle).
   const line =
     points.length === 1
-      ? `M0,${y(first.total).toFixed(1)} L${width},${y(first.total).toFixed(1)}`
-      : points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.total).toFixed(1)}`).join(' ');
-  const area = `${line} L${width},${height} L0,${height} Z`;
+      ? `M${offset ? x(offset) : 0},${y(first.total).toFixed(1)} L${width},${y(first.total).toFixed(1)}`
+      : points.map((p, i) => `${i ? 'L' : 'M'}${x(offset + i).toFixed(1)},${y(p.total).toFixed(1)}`).join(' ');
+  const left = points.length === 1 && !offset ? 0 : x(offset);
+  const area = `${line} L${width},${height} L${left.toFixed(1)},${height} Z`;
+  const placeholder = offset ? `M0,${y(start).toFixed(1)} L${x(offset).toFixed(1)},${y(start).toFixed(1)}` : undefined;
   // Variation sur toute la période, mouvements du premier jour compris (comme les chiffres).
   const variation = end.total - start;
-  const shown = hover ?? last;
-  const active = shown === undefined ? undefined : points[shown];
+  const active = shown === undefined ? undefined : points[shown - offset];
   const range = t(all ? 'stats.followers.rangeAll' : 'stats.followers.range', {
     from: formatNumber(start),
     to: formatNumber(end.total),
@@ -65,14 +66,12 @@ export function FollowersChart({ series, all }: { series: FollowerSeries; all: b
 
   return (
     <figure className="xg-stat">
-      <figcaption className="xg-stat__head xg-stat__head--row">
-        <span>
-          <h2 className="xg-stat__title">{t('stats.followers.title')}</h2>
-          <span className="xg-stat__sub">{range}</span>
-        </span>
-        <strong className={`xg-stat__delta${variation < 0 ? ' is-down' : ''}`}>{formatSigned(variation)}</strong>
-      </figcaption>
-      <div className="xg-stat__plot" onMouseLeave={() => setHover(undefined)}>
+      <StatHead
+        title={t('stats.followers.title')}
+        sub={range}
+        aside={<strong className={`xg-stat__delta${variation < 0 ? ' is-down' : ''}`}>{formatSigned(variation)}</strong>}
+      />
+      <div className="xg-stat__plot" onMouseLeave={leave}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
           preserveAspectRatio="none"
@@ -80,9 +79,10 @@ export function FollowersChart({ series, all }: { series: FollowerSeries; all: b
           role="img"
           aria-label={t('stats.followers.aria', { from: formatNumber(start), to: formatNumber(end.total) })}
         >
+          {placeholder && <path d={placeholder} className="xg-followers__placeholder" vectorEffect="non-scaling-stroke" />}
           <path d={area} className="xg-followers__area" />
           <path d={line} className="xg-followers__line" vectorEffect="non-scaling-stroke" />
-          {active && shown !== undefined && (
+          {shown !== undefined && (
             <line
               x1={x(shown)}
               x2={x(shown)}
@@ -93,31 +93,21 @@ export function FollowersChart({ series, all }: { series: FollowerSeries; all: b
             />
           )}
         </svg>
-        <div className="xg-chart__hits" aria-hidden="true">
-          {points.map((p, i) => (
-            <span
-              key={p.day}
-              onMouseEnter={() => {
-                setHover(i);
-                setLast(i);
-              }}
-            />
-          ))}
-        </div>
-        {active && shown !== undefined && (
-          <div
-            className={`xg-chart__tip xg-chart__tip--${shown < points.length / 6 ? 'start' : shown > (points.length * 5) / 6 ? 'end' : 'center'}${hover === undefined ? '' : ' is-visible'}`}
-            style={{ left: `${(x(shown) / width) * 100}%` }}
-            aria-hidden="true"
-          >
-            <strong>{longDate.format(active.day)}</strong>
-            <span>{t('stats.followers.tip', { count: active.total, n: formatNumber(active.total) })}</span>
-          </div>
+        <ChartHits count={days.length} onEnter={enter} />
+        {shown !== undefined && days[shown] !== undefined && (
+          <ChartTip index={shown} count={days.length} left={(x(shown) / width) * 100} visible={hover !== undefined}>
+            <strong>{longDate.format(days[shown])}</strong>
+            <span>
+              {active
+                ? t('stats.followers.tip', { count: active.total, n: formatNumber(active.total) })
+                : t('stats.followers.noData')}
+            </span>
+          </ChartTip>
         )}
       </div>
       <div className="xg-stat__axis" aria-hidden="true">
-        {ticks(points).map((p) => (
-          <span key={p.day}>{shortDate.format(p.day)}</span>
+        {ticks(days).map((day) => (
+          <span key={day}>{shortDate.format(day)}</span>
         ))}
       </div>
     </figure>

@@ -140,6 +140,7 @@ export function OptionsApp() {
                   ctx={ctx}
                   status={app.status}
                   now={now}
+                  hiddenCharts={app.settings.hiddenCharts}
                   onShowAllDepartures={() => go('departures')}
                   onShowAllArrivals={() => go('arrivals')}
                 />

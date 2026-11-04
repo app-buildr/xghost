@@ -28,7 +28,8 @@
     "empty": "The curve will appear after the first check.",
     "tip_one": "{{n}} follower",
     "tip_other": "{{n}} followers",
-    "aria": "Follower count curve, from {{from}} to {{to}}"
+    "aria": "Follower count curve, from {{from}} to {{to}}",
+    "noData": "Before tracking started"
   },
   "activity": {
     "title": "New followers and unfollows",
@@ -36,13 +37,22 @@
     "byWeek": "Per week",
     "weekOf": "Week of {{date}}",
     "netDay": "Net for the day: {{net}}",
-    "netWeek": "Net for the week: {{net}}"
+    "netWeek": "Net for the week: {{net}}",
+    "arrivals": "New followers",
+    "departures": "Unfollows",
+    "aria": "{{title}}: {{arrivals}}, {{departures}}",
+    "tipArrivals_one": "{{n}} new follower",
+    "tipArrivals_other": "{{n}} new followers",
+    "tipDepartures_one": "{{n}} unfollow",
+    "tipDepartures_other": "{{n}} unfollows",
+    "noData": "No data: xGhost wasn’t tracking this account yet."
   },
   "net": {
     "titleWeek": "Net change per week",
     "titleMonth": "Net change per month",
     "sub": "New followers minus unfollows",
-    "aria": "{{period}}: net {{net}}"
+    "aria": "{{period}}: net {{net}}",
+    "noData": "{{period}}: no data, xGhost wasn't tracking this account yet."
   },
   "duration": {
     "title": "Unfollows by follow duration",
@@ -52,14 +62,17 @@
     "m1to3": "1 to 3 months",
     "gt3m": "More than 3 months",
     "before": "Since {{date}} or earlier",
-    "empty": "No unfollows in this period."
+    "empty": "No unfollows in this period.",
+    "tooEarly": "Not enough history yet"
   },
   "retention": {
     "title": "New follower retention",
     "sub": "New followers still there after…",
     "days": "{{n}} days",
-    "none": "—",
     "noneHint": "Not enough history yet",
     "value": "{{pct}} still there after {{days}} days"
-  }
+  },
+  "none": "—",
+  "hide": "Hide this item",
+  "hidden": "Chart hidden. You can show it again in settings."
 }

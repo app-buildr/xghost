@@ -142,9 +142,16 @@ const BUCKET_MIN: Record<Exclude<DurationBucket, 'before'>, number> = {
 const bucketOf = (ms: number): Exclude<DurationBucket, 'before'> =>
   ms < 7 * DAY ? 'lt1w' : ms < 21 * DAY ? 'w1to3' : ms < 90 * DAY ? 'm1to3' : 'gt3m';
 
+export interface DurationRow {
+  bucket: DurationBucket;
+  count: number;
+  /** `false` : le suivi est encore trop court pour cette tranche. */
+  available: boolean;
+}
+
 /**
- * Départs de la période classés par durée de suivi. Tranches impossibles (plus longues que le
- * suivi depuis la référence) masquées ; « avant la référence » affichée seulement si non vide.
+ * Départs de la période classés par durée de suivi. Toutes les tranches sont renvoyées ; celles
+ * qui dépassent la durée du suivi depuis la référence sont marquées indisponibles (grisées).
  */
 export function departuresByDuration(
   events: readonly FollowEvent[],
@@ -152,7 +159,7 @@ export function departuresByDuration(
   from: number,
   now: number,
   baselineAt?: number,
-): { bucket: DurationBucket; count: number }[] {
+): DurationRow[] {
   const counts: Record<DurationBucket, number> = { lt1w: 0, w1to3: 0, m1to3: 0, gt3m: 0, before: 0 };
   // Un départ par compte encore parti à la fin de la période : parti puis revenu ne compte pas,
   // parti deux fois compte une fois, arrivé puis reparti compte (sa durée de suivi est connue).
@@ -162,10 +169,13 @@ export function departuresByDuration(
     const d = followDuration(last, events, baselineAt);
     counts[d.kind === 'during' ? bucketOf(d.ms) : 'before']++;
   }
+  // Tranche plus longue que le suivi : gardée en attente (grisée), elle ne peut encore rien contenir.
   const tracked = baselineAt === undefined ? 0 : now - baselineAt;
-  return DURATION_BUCKETS.filter((b) => (b === 'before' ? counts.before > 0 : BUCKET_MIN[b] <= tracked)).map(
-    (bucket) => ({ bucket, count: counts[bucket] }),
-  );
+  return DURATION_BUCKETS.map((bucket) => ({
+    bucket,
+    count: counts[bucket],
+    available: bucket === 'before' || BUCKET_MIN[bucket] <= tracked,
+  }));
 }
 
 export const RETENTION_DAYS = [7, 14, 30] as const;

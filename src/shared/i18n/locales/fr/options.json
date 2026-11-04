@@ -28,7 +28,20 @@
     "notificationsHint": "Une notif Chrome à chaque vérification avec départs",
     "mutualsOnly": "Uniquement les follow back",
     "mutualsOnlyHint": "Alerter seulement si je le suivais",
-    "mutualsOnlyHintAccount": "Alerter seulement si je le suivais (@{{handle}})"
+    "mutualsOnlyHintAccount": "Alerter seulement si je le suivais (@{{handle}})",
+    "charts": "Graphiques du tableau de bord",
+    "chart": {
+      "followers": "Abonnés",
+      "followersHint": "Courbe du nombre d’abonnés",
+      "activity": "Arrivées et départs",
+      "activityHint": "Barres par jour ou par semaine",
+      "net": "Solde net",
+      "netHint": "Arrivées moins départs, par semaine ou par mois",
+      "duration": "Départs par durée de suivi",
+      "durationHint": "Combien de temps ils sont restés",
+      "retention": "Rétention des arrivées",
+      "retentionHint": "Nouveaux abonnés encore là après 7, 14 et 30 jours"
+    }
   },
   "account": {
     "ignoredTitle": "Comptes ignorés",

@@ -42,6 +42,7 @@ export function DeparturesPanel({
   now,
   limit,
   onShowAll,
+  fill,
 }: {
   title: string;
   account: TrackedAccount;
@@ -50,6 +51,8 @@ export function DeparturesPanel({
   now: number;
   limit?: number;
   onShowAll?: () => void;
+  /** Prend la hauteur de son conteneur ; la liste défile à l'intérieur. */
+  fill?: boolean;
 }) {
   const actions = useEventActions(account.id);
   const items = useMemo(() => currentDepartures(data.events, ctx), [data.events, ctx]);
@@ -66,6 +69,7 @@ export function DeparturesPanel({
       emptyFiltered={t('dashboard.departures.emptyFilter')}
       limit={limit}
       onShowAll={onShowAll}
+      fill={fill}
       showAllLabel={(count) => t('dashboard.departures.showAll', { count, n: formatNumber(count) })}
       renderRow={(event) => (
         <EventRow

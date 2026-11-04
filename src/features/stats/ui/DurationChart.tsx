@@ -1,16 +1,17 @@
-import type { DurationBucket } from '@/features/stats/selectors';
-import { LOCALE, t } from '@/shared/i18n';
+import type { DurationBucket, DurationRow } from '@/features/stats/selectors';
+import { t } from '@/shared/i18n';
 import { formatNumber } from '@/shared/utils/format';
-import './stats.css';
+import { shortDate, StatHead } from './chart';
 
-const shortDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
-
-/** Départs de la période par durée de suivi (§ 3.4, § 4.5) : une barre par tranche. */
+/**
+ * Départs de la période par durée de suivi (§ 3.4, § 4.5) : une barre par tranche. Toutes les
+ * tranches restent affichées : celles que le suivi ne couvre pas encore sont grisées (« — »).
+ */
 export function DurationChart({
   buckets,
   baselineAt,
 }: {
-  buckets: readonly { bucket: DurationBucket; count: number }[];
+  buckets: readonly DurationRow[];
   baselineAt?: number;
 }) {
   const max = Math.max(1, ...buckets.map((b) => b.count));
@@ -22,25 +23,28 @@ export function DurationChart({
 
   return (
     <figure className="xg-stat">
-      <figcaption className="xg-stat__head">
-        <h2 className="xg-stat__title">{t('stats.duration.title')}</h2>
-        <span className="xg-stat__sub">{t('stats.duration.sub')}</span>
-      </figcaption>
-      {total === 0 ? (
-        <p className="xg-stat__empty">{t('stats.duration.empty')}</p>
-      ) : (
-        <ul className="xg-duration">
-          {buckets.map(({ bucket, count }) => (
-            <li key={bucket} className="xg-duration__row">
-              <span className="xg-duration__label">{label(bucket)}</span>
-              <span className="xg-duration__count">{formatNumber(count)}</span>
-              <span className="xg-duration__track" aria-hidden="true">
-                <i className="xg-duration__bar" style={{ width: `${(count / max) * 100}%` }} />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <StatHead title={t('stats.duration.title')} sub={t('stats.duration.sub')} />
+      <ul className="xg-duration">
+        {buckets.map(({ bucket, count, available }) => (
+          <li key={bucket} className={`xg-duration__row${available ? '' : ' is-pending'}`}>
+            <span className="xg-duration__label">{label(bucket)}</span>
+            <span className="xg-duration__count">
+              {available ? (
+                formatNumber(count)
+              ) : (
+                <>
+                  <span aria-hidden="true">{t('stats.none')}</span>
+                  <span className="xg-sr-only">{t('stats.duration.tooEarly')}</span>
+                </>
+              )}
+            </span>
+            <span className="xg-duration__track" aria-hidden="true">
+              <i className="xg-duration__bar" style={{ width: `${(count / max) * 100}%` }} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      {total === 0 && <p className="xg-stat__empty">{t('stats.duration.empty')}</p>}
     </figure>
   );
 }

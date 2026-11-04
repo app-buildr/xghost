@@ -1,22 +1,17 @@
 import { useMemo } from 'react';
 import type { AccountData } from '@/features/app-state/useAccountData';
 import { statsSince, type VisibilityContext } from '@/features/events/selectors';
-import { activityUnit, DASHBOARD_PERIODS, netUnit, periodStart, startOfDay, type DashboardPeriod } from '@/features/stats/period';
+import { DASHBOARD_PERIODS, periodStart, type DashboardPeriod } from '@/features/stats/period';
 import { oldestEventAt } from '@/features/stats/selectors';
-import { departuresByDuration, followerSeries, movementBuckets, retention } from '@/features/stats/selectors';
-import { DurationChart } from '@/features/stats/ui/DurationChart';
-import { FollowersChart } from '@/features/stats/ui/FollowersChart';
-import { NetChart } from '@/features/stats/ui/NetChart';
-import { RetentionCard } from '@/features/stats/ui/RetentionCard';
+import { useChartCards } from '@/features/stats/ui/useChartCards';
 import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { ArrivalsPanel } from '@/features/events/ui/ArrivalsPanel';
 import { DeparturesPanel } from '@/features/events/ui/DeparturesPanel';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { t } from '@/shared/i18n';
-import type { GlobalStatus, TrackedAccount } from '@/shared/types';
+import type { DashboardChart, GlobalStatus, TrackedAccount } from '@/shared/types';
 import { StatTile } from '@/shared/ui/primitives';
 import { formatNumber, formatSigned } from '@/shared/utils/format';
-import { ActivityChart } from './ActivityChart';
 import { DashboardHeader } from './DashboardHeader';
 import { ScanCoverageCard } from './ScanCoverageCard';
 import './dashboard.css';
@@ -27,37 +22,31 @@ interface Props {
   ctx: VisibilityContext;
   status?: GlobalStatus;
   now: number;
+  /** Graphiques masqués dans les réglages. */
+  hiddenCharts?: readonly DashboardChart[];
   onShowAllDepartures: () => void;
   onShowAllArrivals: () => void;
 }
 
 /**
- * Tableau de bord (§ 3.4) : état, dernier scan, chiffres et graphes sur la période choisie
- * (7 j / 30 j / 90 j / Tout, mémorisée), listes des derniers départs et nouveaux abonnés.
+ * Tableau de bord (§ 3.4), sur la période choisie (7 j / 30 j / 90 j / Tout, mémorisée) :
+ * - en haut, dernier scan et chiffres de la période ;
+ * - les derniers départs, en grand à gauche ; à droite, arrivées et départs, départs par durée
+ *   de suivi et rétention, empilés ;
+ * - dessous, la courbe des abonnés et le solde net côte à côte ;
+ * - enfin, les nouveaux abonnés.
+ * Un graphique masqué dans les réglages libère sa place.
  */
-export function Dashboard({ account, data, ctx, status, now, onShowAllDepartures, onShowAllArrivals }: Props) {
+export function Dashboard({ account, data, ctx, status, now, hiddenCharts = [], onShowAllDepartures, onShowAllArrivals }: Props) {
   const [period, setPeriod] = useStoredChoice<DashboardPeriod>('xg.dashboardPeriod', DASHBOARD_PERIODS, '30d');
-  const baselineAt = account.baselineAt;
   // Sans date de référence (cas rare), « Tout » part du plus ancien mouvement connu.
-  const floor = baselineAt ?? oldestEventAt(data.events);
+  const floor = account.baselineAt ?? oldestEventAt(data.events);
   const from = periodStart(period, now, floor);
-  const unit = activityUnit(from, now);
-  const net = netUnit(from, now);
-  // Recalcul quand les données, la période ou le jour changent (pas à chaque tic de l'horloge).
-  const today = startOfDay(now);
-  const charts = useMemo(
-    () => ({
-      stats: statsSince(data.events, ctx, from),
-      activity: movementBuckets(data.events, ctx, unit, from, now),
-      net: movementBuckets(data.events, ctx, net, from, now),
-      followers: followerSeries(data.events, data.totals, account.followersCount, from, now),
-      durations: departuresByDuration(data.events, ctx, from, now, baselineAt),
-      retention: retention(data.events, ctx, from, now),
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` suit `today` (voir ci-dessus)
-    [data.events, data.totals, ctx, from, unit, net, today, account.followersCount, baselineAt],
-  );
-  const stats = charts.stats;
+  const stats = useMemo(() => statsSince(data.events, ctx, from), [data.events, ctx, from]);
+
+  const cards = useChartCards({ account, data, ctx, period, from, floor, now, hidden: hiddenCharts });
+  const side = [cards.activity, cards.duration, cards.retention].filter(Boolean);
+  const bottom = [cards.followers, cards.net].filter(Boolean);
 
   return (
     <>
@@ -85,44 +74,26 @@ export function Dashboard({ account, data, ctx, status, now, onShowAllDepartures
         />
       </div>
 
-      <div className="xg-stats__row xg-stats__row--wide">
-        <section className="xg-card">
-          <FollowersChart series={charts.followers} all={period === 'all'} />
-        </section>
-        <section className="xg-card">
-          <ActivityChart
-            buckets={charts.activity}
-            since={baselineAt}
-            unit={unit}
-            title={t('stats.activity.title')}
-            footnote={t(unit === 'day' ? 'stats.activity.byDay' : 'stats.activity.byWeek')}
+      {/* Avec la colonne de droite, les derniers départs en prennent la hauteur et défilent. */}
+      <div className={`xg-dash__main${side.length ? '' : ' xg-dash__main--full'}`}>
+        <div className="xg-dash__departures">
+          <DeparturesPanel
+            title={t('dashboard.latestDepartures')}
+            account={account}
+            data={data}
+            ctx={ctx}
+            now={now}
+            limit={side.length ? 20 : 8}
+            fill={side.length > 0}
+            onShowAll={onShowAllDepartures}
           />
-        </section>
-      </div>
-      <div className="xg-stats__row">
-        <section className="xg-card">
-          <NetChart buckets={charts.net} unit={net} />
-        </section>
-        <section className="xg-card">
-          <DurationChart buckets={charts.durations} baselineAt={baselineAt} />
-        </section>
-        <section className="xg-card">
-          <RetentionCard values={charts.retention} />
-        </section>
+        </div>
+        {side.length > 0 && <div className="xg-dash__side">{side}</div>}
       </div>
 
-      <div className="xg-dash__split">
-        <DeparturesPanel
-          title={t('dashboard.latestDepartures')}
-          account={account}
-          data={data}
-          ctx={ctx}
-          now={now}
-          limit={6}
-          onShowAll={onShowAllDepartures}
-        />
-        <ArrivalsPanel data={data} ctx={ctx} now={now} limit={6} onShowAll={onShowAllArrivals} />
-      </div>
+      {bottom.length > 0 && <div className={`xg-stats__row xg-stats__row--${bottom.length}`}>{bottom}</div>}
+
+      <ArrivalsPanel data={data} ctx={ctx} now={now} limit={6} onShowAll={onShowAllArrivals} />
     </>
   );
 }

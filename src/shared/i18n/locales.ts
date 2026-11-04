@@ -10,6 +10,7 @@ import frFormat from './locales/fr/format.json';
 import frOnboarding from './locales/fr/onboarding.json';
 import frOptions from './locales/fr/options.json';
 import frPopup from './locales/fr/popup.json';
+import frStats from './locales/fr/stats.json';
 import enBackup from './locales/en/backup.json';
 import enCommon from './locales/en/common.json';
 import enDashboard from './locales/en/dashboard.json';
@@ -18,6 +19,7 @@ import enFormat from './locales/en/format.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enOptions from './locales/en/options.json';
 import enPopup from './locales/en/popup.json';
+import enStats from './locales/en/stats.json';
 
 export const fr = {
   backup: frBackup,
@@ -28,6 +30,7 @@ export const fr = {
   onboarding: frOnboarding,
   options: frOptions,
   popup: frPopup,
+  stats: frStats,
 };
 
 export const en: typeof fr = {
@@ -39,4 +42,5 @@ export const en: typeof fr = {
   onboarding: enOnboarding,
   options: enOptions,
   popup: enPopup,
+  stats: enStats,
 };

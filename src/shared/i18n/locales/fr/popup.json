@@ -11,11 +11,12 @@
   "incomplete": "Scan incomplet ({{pct}})",
   "incompleteHint": "ouvre le tableau de bord pour le terminer",
   "latest": "Derniers unfollows",
-  "departures7d": "Départs, 7 j",
-  "arrivals7d": "Arrivées, 7 j",
   "net": "Solde",
   "noAccount": "Ouvre x.com et connecte-toi : xGhost détectera ton compte.",
   "recheckTitle": "Relancer une vérification",
   "checking": "Vérification en cours…",
-  "openDashboard": "Tableau de bord"
+  "openDashboard": "Tableau de bord",
+  "departures": "Départs",
+  "arrivals": "Arrivées",
+  "summary": "Bilan"
 }

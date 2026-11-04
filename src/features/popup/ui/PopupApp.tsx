@@ -6,7 +6,10 @@ import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
 import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
 import { useAppState } from '@/features/app-state/useAppState';
 import { DisplayedContext, useMarkDisplayed } from '@/features/app-state/useSeenOnView';
-import { currentDepartures, stats7d } from '@/features/events/selectors';
+import { currentDepartures, statsSince } from '@/features/events/selectors';
+import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
+import { oldestEventAt } from '@/features/stats/selectors';
+import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { joinParts } from '@/features/events/ui/display';
 import { departureMeta } from '@/features/events/ui/DeparturesPanel';
 import { EventRow } from '@/features/events/ui/EventRow';
@@ -21,7 +24,7 @@ import { keys } from '@/shared/storage/keys';
 import type { FollowEvent } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
 import { ChevronDown, RefreshCw, Settings } from 'lucide-react';
-import { Logo, StatTile } from '@/shared/ui/primitives';
+import { Logo, StatTile, Segmented } from '@/shared/ui/primitives';
 import { formatAgo, formatNumber, formatPercent, formatSigned } from '@/shared/utils/format';
 import './popup.css';
 
@@ -99,7 +102,10 @@ export function PopupApp() {
 
   const list = useMemo(() => (data ? currentDepartures(data.events, ctx) : []), [data, ctx]);
   const latest = useMemo(() => list.slice(0, 5), [list]);
-  const stats = useMemo(() => stats7d(data?.events ?? [], ctx, now), [data?.events, ctx, now]);
+  // Bilan sur la période choisie (24 h / 7 j / 30 j / Tout), mémorisée d'une ouverture à l'autre.
+  const [period, setPeriod] = useStoredChoice<PopupPeriod>('xg.popupPeriod', POPUP_PERIODS, '7d');
+  const since = periodStart(period, now, account?.baselineAt ?? oldestEventAt(data?.events ?? []));
+  const stats = useMemo(() => statsSince(data?.events ?? [], ctx, since), [data?.events, ctx, since]);
   // `list` ne contient déjà que les comptes toujours absents.
   const fresh = useMemo(
     () => list.filter((e) => !e.seen && (previousVisit == null || e.at > previousVisit)).length,
@@ -212,11 +218,19 @@ export function PopupApp() {
         )}
 
         {account && (
-          <div className="xg-popup__stats">
-            <StatTile size="sm" label={t('popup.departures7d')} value={formatSigned(-stats.departures)} tone="danger" />
-            <StatTile size="sm" label={t('popup.arrivals7d')} value={formatSigned(stats.arrivals)} tone="primary" />
-            <StatTile size="sm" label={t('popup.net')} value={formatSigned(stats.net)} />
-          </div>
+          <section className="xg-popup__summary" aria-label={t('popup.summary')}>
+            <Segmented<PopupPeriod>
+              label={t('stats.period.label')}
+              value={period}
+              onChange={setPeriod}
+              options={POPUP_PERIODS.map((p) => ({ value: p, label: t(`stats.period.${p}`) }))}
+            />
+            <div className="xg-popup__stats">
+              <StatTile size="sm" label={t('popup.departures')} value={formatSigned(-stats.departures)} tone="danger" />
+              <StatTile size="sm" label={t('popup.arrivals')} value={formatSigned(stats.arrivals)} tone="primary" />
+              <StatTile size="sm" label={t('popup.net')} value={formatSigned(stats.net)} />
+            </div>
+          </section>
         )}
 
         {!account && app.status?.session !== 'disconnected' && <p className="xg-popup__empty">{t('popup.noAccount')}</p>}

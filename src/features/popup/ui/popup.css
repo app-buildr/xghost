@@ -89,6 +89,15 @@ body {
   color: var(--xg-text-muted);
 }
 
+.xg-popup__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.xg-popup__summary .xg-segmented button {
+  min-height: 32px;
+  font-size: 13px;
+}
 .xg-popup__stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

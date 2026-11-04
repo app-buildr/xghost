@@ -11,11 +11,12 @@
   "incomplete": "Incomplete scan ({{pct}})",
   "incompleteHint": "open the dashboard to finish it",
   "latest": "Latest unfollows",
-  "departures7d": "Unfollows, 7 d",
-  "arrivals7d": "Followers, 7 d",
   "net": "Net",
   "noAccount": "Open x.com and log in: xGhost will detect your account.",
   "recheckTitle": "Run a new check",
   "checking": "Checking…",
-  "openDashboard": "Dashboard"
+  "openDashboard": "Dashboard",
+  "departures": "Unfollows",
+  "arrivals": "New followers",
+  "summary": "Summary"
 }

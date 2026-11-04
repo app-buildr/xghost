@@ -151,5 +151,6 @@ details p { padding-bottom: 18px; font-size: 14px; line-height: 1.6; color: var(
   .section { padding: 56px 0; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-.footer__links a:not(.btn-share) { text-decoration: none; font-weight: 500; }
+.footer__links a { color: var(--primary); text-decoration: none; font-weight: 500; }
+.footer__links a:hover { color: var(--primary-hover); text-decoration: underline; }
 .hero__text, .how, .preview, .split__intro, .steps, .privacy { min-width: 0; }

@@ -2,8 +2,6 @@ import { releaseVeil, showVeil, updateVeil } from '@/features/scan-veil/veil';
 import { watchedOperation } from '@/features/x-api/parse';
 import {
   CHANNEL_PORT,
-  SCAN_MARKER,
-  SCAN_WINDOW_NAME,
   type HookMessage,
   type StepMessage,
   type TabCommand,
@@ -24,10 +22,8 @@ export default defineContentScript({
   matches: ['https://x.com/*'],
   runAt: 'document_start',
   main() {
-    // Onglets x.com de l'utilisateur : rien à faire. L'onglet de scan est ouvert avec `#xghost` ;
-    // le script de page lui donne ensuite son nom de fenêtre, qui survit aux navigations.
-    const isScanTab = location.hash === `#${SCAN_MARKER}` || window.name === SCAN_WINDOW_NAME;
-    if (!isScanTab) return;
+    // Seul l'onglet de scan reçoit le canal du script de page (qui n'agit que là) : sans canal,
+    // ce script ne fait rien, n'écoute rien et n'envoie rien.
 
     const emit = (event: TabEvent) => void chrome.runtime.sendMessage(event).catch(() => undefined);
 
@@ -43,10 +39,20 @@ export default defineContentScript({
           if (!op || !url || typeof status !== 'number' || watchedOperation(url) !== op) return;
           emit({ xgTab: 'response', op, url, status, body: body ?? '', rateReset, rateRemaining });
         };
+        listenCommands();
         emit({ xgTab: 'ready', path: location.pathname });
       }
     };
     window.addEventListener('message', onWindowMessage);
+    // Le script de page poste son canal avant tout code de x.com : sans canal une fois le document
+    // chargé, ce n'est pas l'onglet de scan, on n'écoute plus rien.
+    document.addEventListener(
+      'DOMContentLoaded',
+      () => {
+        if (!port) window.removeEventListener('message', onWindowMessage);
+      },
+      { once: true },
+    );
 
     let driving = false;
 
@@ -94,26 +100,26 @@ export default defineContentScript({
       return true;
     }
 
-    chrome.runtime.onMessage.addListener((cmd: Partial<TabCommand>, sender, sendResponse) => {
-      if (sender.id !== chrome.runtime.id || !cmd?.xgCmd || !port) return false;
-      if (cmd.xgCmd === 'drive-start') {
-        showVeil();
-        if (!driving) {
-          driving = true;
-          void drive();
+    const listenCommands = () =>
+      chrome.runtime.onMessage.addListener((cmd: Partial<TabCommand>, sender, sendResponse) => {
+        if (sender.id !== chrome.runtime.id || !cmd?.xgCmd || !port) return false;
+        if (cmd.xgCmd === 'drive-start') {
+          showVeil();
+          if (!driving) {
+            driving = true;
+            void drive();
+          }
+        } else if (cmd.xgCmd === 'drive-stop') {
+          driving = false; // le voile reste jusqu'à la fermeture de l'onglet
+          releaseVeil();
+        } else if (cmd.xgCmd === 'progress') {
+          updateVeil(cmd as VeilState);
+        } else if (cmd.xgCmd === 'retry') {
+          sendResponse({ clicked: clickRetry() });
+          return false;
         }
-      } else if (cmd.xgCmd === 'drive-stop') {
-        driving = false; // le voile reste jusqu'à la fermeture de l'onglet
-        releaseVeil();
-      } else if (cmd.xgCmd === 'progress') {
-        updateVeil(cmd as VeilState);
-      } else if (cmd.xgCmd === 'retry') {
-        sendResponse({ clicked: clickRetry() });
+        sendResponse({ ok: true });
         return false;
-      }
-      sendResponse({ ok: true });
-      return false;
-    });
-
+      });
   },
 });

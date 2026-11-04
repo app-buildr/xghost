@@ -156,6 +156,9 @@ const followersUrl = (account: TrackedAccount) =>
     ? `https://x.com/${account.handle}/followers#${SCAN_MARKER}`
     : `https://x.com/i/user/${account.id}#${SCAN_MARKER}`;
 
+/** Profil du compte (contrôle léger : lecture du total), dans l'onglet de scan. */
+const profileScanUrl = (account: TrackedAccount) => `https://x.com/${account.handle}#${SCAN_MARKER}`;
+
 const isFollowersPath = (path: string, handle: string) => path.toLowerCase() === `/${handle.toLowerCase()}/followers`;
 
 /** x.com a redirigé l'onglet de scan vers la connexion : session absente (§ 4.6). */
@@ -511,7 +514,7 @@ async function onFollowersPage(
     if (job.totalSeen) await finish(job);
     // Total pas encore lu : la page profil le charge à coup sûr.
     else if (hasKnownHandle(account)) {
-      await chrome.tabs.update(tabId, { url: `https://x.com/${account.handle}` }).catch(() => undefined);
+      await chrome.tabs.update(tabId, { url: profileScanUrl(account) }).catch(() => undefined);
     }
     return;
   }
@@ -691,6 +694,38 @@ export function suspendForeignScan(sessionAccountId: string): Promise<void> {
     if (job.kind === 'quick') return discardQuick(job);
     await closeTab(job);
     await pause(job, 'account-switched');
+  });
+}
+
+/** Rechargements d'affilée de l'onglet de scan sans que le script de page se mette en place. */
+const MAX_REHOOKS = 3;
+const rehooks = new Map<number, number>();
+
+/**
+ * Page de l'onglet de scan chargée : si le script de page n'y est pas (page rechargée sans le
+ * fragment d'ouverture, par x.com ou à la restauration de Chrome), elle est rouverte avec. Le
+ * service worker reconnaît l'onglet par son id : rien dans la page ne le désigne.
+ */
+export function handleTabLoaded(tabId: number, url: string | undefined): Promise<void> {
+  return serial(async () => {
+    const scanTab = await getScanTab();
+    if (!scanTab || scanTab.tabId !== tabId) return;
+    if (await send(tabId, 'ping')) return void rehooks.delete(tabId); // script de page en place
+    const job = await getJob(scanTab.accountId);
+    const account = (await loadAccounts())[scanTab.accountId];
+    if (!job || !account || job.finishing || job.tabId !== tabId) return;
+    const path = url ? new URL(url).pathname : undefined;
+    if (path && isLoginPath(path)) {
+      await closeTab(job);
+      await pause(job, 'disconnected');
+      return;
+    }
+    const tries = (rehooks.get(tabId) ?? 0) + 1;
+    rehooks.set(tabId, tries);
+    // Au-delà : le chien de garde arrêtera le scan (gardé comme incomplet).
+    // Contrôle léger dont la première page est lue : il attend le total, sur le profil.
+    const target = job.kind === 'quick' && job.pages > 0 && hasKnownHandle(account) ? profileScanUrl(account) : followersUrl(account);
+    if (tries <= MAX_REHOOKS) await chrome.tabs.update(tabId, { url: target }).catch(() => undefined);
   });
 }
 

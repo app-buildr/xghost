@@ -15,7 +15,14 @@ import { onNotificationClick } from '@/features/alerts/notifications';
 import { deleteEvent, markSeen, restoreEvent } from '@/features/events/commands';
 import { deleteAccountEvents } from '@/features/events/repository';
 import { deleteLocalAccountData } from '@/features/followers-sync/repository';
-import { cancelScan, focusScanTab, handleTabEvent, handleTabRemoved, settleAnalyses } from '@/features/followers-sync/scan-engine';
+import {
+  cancelScan,
+  focusScanTab,
+  handleTabEvent,
+  handleTabLoaded,
+  handleTabRemoved,
+  settleAnalyses,
+} from '@/features/followers-sync/scan-engine';
 import {
   ensureActiveAccount,
   handleAlarm,
@@ -108,6 +115,10 @@ export default defineBackground(() => {
     return false;
   });
   chrome.tabs.onRemoved.addListener((tabId) => void handleTabRemoved(tabId));
+  // Onglet de scan rechargé sans son fragment (rechargement par x.com, restauration) : relancé.
+  chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+    if (info.status === 'complete') void handleTabLoaded(tabId, tab.url);
+  });
 
   registerHandlers({
     async 'data:import'({ backup }) {

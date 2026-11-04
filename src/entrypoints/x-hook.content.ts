@@ -4,9 +4,10 @@
  * Il ne fait aucune requête : il lit les réponses que x.com reçoit lui-même (liste
  * d'abonnés, profils) et les transmet au script isolé de l'extension.
  *
- * Il n'agit que dans l'onglet de scan xGhost (repéré par le fragment `#xghost` de l'URL
- * d'ouverture, puis par le nom de la fenêtre, qui survit aux navigations) : les onglets
- * x.com de l'utilisateur ne sont pas touchés.
+ * Il n'agit que dans l'onglet de scan xGhost, ouvert avec un fragment d'URL qu'il efface
+ * aussitôt, avant tout code de x.com (la page ne voit aucun marqueur) : les onglets x.com de
+ * l'utilisateur ne sont pas touchés. Après un rechargement sans ce fragment, le service worker
+ * rouvre la page avec (il connaît l'onglet de scan par son id).
  *
  * Les réponses passent par un `MessageChannel` privé, échangé avant tout code de x.com :
  * un script de la page ne peut ni lire ce canal ni y injecter de fausses réponses. Les
@@ -19,7 +20,6 @@ import { watchedOperation } from '@/features/x-api/parse';
 import {
   CHANNEL_PORT,
   SCAN_MARKER,
-  SCAN_WINDOW_NAME,
   type HookMessage,
   type StepMessage,
 } from '@/shared/messaging/protocol';
@@ -29,9 +29,9 @@ export default defineContentScript({
   world: 'MAIN',
   runAt: 'document_start',
   main() {
-    const isScanTab = location.hash === `#${SCAN_MARKER}` || window.name === SCAN_WINDOW_NAME;
-    if (!isScanTab) return;
-    window.name = SCAN_WINDOW_NAME;
+    if (location.hash !== `#${SCAN_MARKER}`) return;
+    // Fragment effacé avant tout code de x.com : l'URL vue par la page est l'URL normale.
+    history.replaceState(history.state, '', location.pathname + location.search);
 
     // Originaux capturés avant tout code de x.com : un script de la page qui remplacerait
     // ces méthodes plus tard ne peut ni lire ni falsifier ce qui part vers l'extension.

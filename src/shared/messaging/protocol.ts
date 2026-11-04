@@ -56,16 +56,20 @@ export type TabEvent =
   | { xgTab: 'tick'; visible: boolean; path: string }
   | { xgTab: 'ready'; path: string };
 
-/** Fragment d'URL (`#xghost`) et nom de fenêtre qui identifient l'onglet de scan dans la page x.com. */
-export const SCAN_MARKER = 'xghost';
-export const SCAN_WINDOW_NAME = 'xghost-scan';
+/**
+ * Fragment posé sur l'URL d'ouverture de l'onglet de scan (chargement complet de la page). Le
+ * script de page le lit puis l'efface aussitôt, avant tout code de x.com : la page ne le voit
+ * jamais. Valeur neutre, sans le nom de l'extension. Ensuite, seul le service worker sait quel
+ * onglet scanne (par son id) : rien dans la page ne le signale.
+ */
+export const SCAN_MARKER = 'k3v9q';
 
 /**
  * Canal privé entre le script de page (MAIN) et le script isolé de l'onglet de scan.
  * Les deux scripts s'exécutent avant tout code de x.com : le premier port reçu est le
- * bon, et les messages postés plus tard par la page ne peuvent pas s'y glisser.
+ * bon, et les messages postés plus tard par la page ne peuvent pas s'y glisser. Clé neutre.
  */
-export const CHANNEL_PORT = '__xgPort';
+export const CHANNEL_PORT = 'k3v9p';
 /** Message du script isolé vers le script de page : faire avancer le rendu simulé. */
 export interface StepMessage {
   step: 1;
@@ -84,8 +88,11 @@ export interface VeilState {
   resumeAt?: number;
 }
 
-/** Commandes sans données : défilement (début, arrêt) et clic sur « Réessayer » de x.com. */
-export type SimpleTabCommand = 'drive-start' | 'drive-stop' | 'retry';
+/**
+ * Commandes sans données : défilement (début, arrêt), clic sur « Réessayer » de x.com, et `ping`
+ * (l'onglet de scan ne répond que si le script de page est en place, canal reçu).
+ */
+export type SimpleTabCommand = 'drive-start' | 'drive-stop' | 'retry' | 'ping';
 
 /** Commandes du service worker vers l'onglet de scan. */
 export type TabCommand = { xgCmd: SimpleTabCommand } | ({ xgCmd: 'progress' } & VeilState);

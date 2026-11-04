@@ -43,8 +43,8 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension :
 - **Sauvegarde** : exporte toutes tes données dans un fichier, et réimporte-les après une
   réinstallation ou sur un autre ordinateur (Réglages → Sauvegarde).
 - **Français et anglais**, selon la langue de ton navigateur.
-- **Aucune requête envoyée à X** : xGhost ouvre x.com dans un onglet et lit simplement ce que la
-  page reçoit. Tes autres onglets x.com ne sont pas touchés, et rien ne quitte ton navigateur.
+- **Sans API ni serveur tiers** : xGhost lit ce que x.com affiche dans un onglet, avec ta propre
+  session. Tes autres onglets x.com ne sont pas touchés, et rien ne quitte ton navigateur.
 - **Mises à jour automatiques**, par le Chrome Web Store.
 
 | Popup | Pendant un scan complet |
@@ -73,7 +73,8 @@ sauvegarde depuis les réglages (Réglages → Sauvegarde).
 - Toutes les données restent sur ton ordinateur (stockage local de l'extension). Rien n'est
   synchronisé : pour les garder ou les transférer, utilise l'export de sauvegarde. Le fichier
   contient la liste de tes abonnés, garde-le pour toi.
-- Aucune autre connexion : xGhost ne parle qu'à x.com.
+- Aucune autre connexion : xGhost ne parle qu'à X (x.com, et son serveur d'images pour les photos
+  de profil).
 
 xGhost est un outil non officiel, sans lien avec X Corp.
 
@@ -162,7 +163,7 @@ dans le code. Nom et description de l'extension : `public/_locales`.
 
 ## Récupération des abonnés
 
-xGhost n'envoie **aucune requête** à X (pas de forge d'en-tête anti-bot). Il ouvre x.com et lit les
+xGhost ne fabrique **aucune requête** vers X (pas d'API, pas de forge d'en-tête anti-bot). Il ouvre x.com et lit les
 réponses que la page reçoit elle-même.
 
 - **Onglet de scan** ouvert avec le fragment `#xghost` : seul cet onglet est instrumenté. Le script de

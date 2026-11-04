@@ -64,7 +64,9 @@ export function movementBuckets(
   for (const list of byProfile(events).values()) {
     const perBucket = new Map<number, FollowEvent[]>();
     for (const e of list) {
-      if (e.at < from || e.at > to || !isVisible(e, ctx)) continue;
+      // Pas de borne haute : `to` vient d'une horloge à tics, plus vieille que les mouvements
+      // d'une vérification qui vient de finir. Après la dernière tranche, `indexOf` les écarte.
+      if (e.at < from || !isVisible(e, ctx)) continue;
       const i = indexOf.get(startOf(unit, e.at));
       if (i === undefined) continue;
       const list = perBucket.get(i);
@@ -168,7 +170,9 @@ export function departuresByDuration(
   // Un départ par compte encore parti à la fin de la période : parti puis revenu ne compte pas,
   // parti deux fois compte une fois, arrivé puis reparti compte (sa durée de suivi est connue).
   for (const list of byProfile(events).values()) {
-    const last = list.filter((e) => e.at >= from && e.at <= now && isVisible(e, ctx)).at(-1);
+    // Pas de borne `<= now` : `now` (horloge à tics) est plus vieux que les mouvements d'une
+    // vérification qui vient de finir, qui seraient oubliés jusqu'au rechargement.
+    const last = list.filter((e) => e.at >= from && isVisible(e, ctx)).at(-1);
     if (last?.type !== 'departure') continue;
     const d = followDuration(last, events, baselineAt);
     counts[d.kind === 'during' ? bucketOf(d.ms) : 'before']++;

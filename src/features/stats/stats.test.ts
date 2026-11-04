@@ -47,6 +47,16 @@ describe('arrivées et départs par tranche', () => {
     const [today] = movementBuckets(events, ctx, 'day', startOfDay(NOW), NOW);
     expect(today).toMatchObject({ arrivals: 1, departures: 0 });
   });
+
+  it('compte les mouvements plus récents que l’horloge affichée (vérification qui vient de finir)', () => {
+    // L'horloge de l'interface avance par tics : une vérification finie entre deux tics date
+    // ses mouvements après `now`. Ils doivent compter sans attendre un rechargement.
+    const events = [ev('arrival', 'a', NOW + 10_000), ev('departure', 'b', NOW + 10_000)];
+    const [today] = movementBuckets(events, ctx, 'day', startOfDay(NOW), NOW);
+    expect(today).toMatchObject({ arrivals: 1, departures: 1 });
+    const before = departuresByDuration(events, ctx, startOfDay(NOW), NOW, NOW - DAY).find((r) => r.bucket === 'before');
+    expect(before?.count).toBe(1);
+  });
 });
 
 describe('courbe des abonnés', () => {

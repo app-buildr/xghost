@@ -165,6 +165,30 @@
   color: var(--xg-text-muted);
 }
 
+/* Limite d'abonnés (§ 4.9) : alerte, synchronisation barrée, désinstallation à gauche. */
+.xg-onb__limit {
+  margin: 24px 0;
+}
+.xg-step.is-blocked {
+  background: var(--xg-surface-muted);
+}
+.xg-step.is-blocked .xg-step__num {
+  background: var(--xg-danger-tint);
+  color: var(--xg-danger-text);
+}
+.xg-step.is-blocked .xg-step__title {
+  color: var(--xg-text-subtle);
+}
+.xg-onb__cta--limit {
+  align-items: flex-start;
+  text-align: left;
+}
+.xg-onb__cta--limit .xg-btn--lg {
+  min-height: 52px;
+  padding: 0 24px;
+  font-size: 17px;
+}
+
 @media (max-width: 700px) {
   .xg-onb {
     padding-top: 24px;

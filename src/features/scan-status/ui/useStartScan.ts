@@ -4,10 +4,11 @@ import { send } from '@/shared/messaging/client';
 import { useToast } from '@/shared/ui/toast';
 
 /** Raisons pour lesquelles le service worker refuse de lancer une vérification. */
-type ScanRefusal = 'disconnected' | 'already-running' | 'rate-limit';
+type ScanRefusal = 'disconnected' | 'already-running' | 'rate-limit' | 'follower-limit';
 
 const REFUSALS: Record<ScanRefusal, () => string> = {
   disconnected: () => t('dashboard.check.reasons.disconnected'),
+  'follower-limit': () => t('dashboard.check.reasons.followerLimit'),
   'already-running': () => t('dashboard.check.reasons.alreadyRunning'),
   'rate-limit': () => t('dashboard.check.reasons.rateLimit'),
 };

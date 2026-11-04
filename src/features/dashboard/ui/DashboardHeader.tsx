@@ -47,7 +47,11 @@ export function DashboardHeader({
             account.lastScanAt
               ? t('dashboard.header.lastCheck', { ago: formatAgo(account.lastScanAt, now) })
               : t('dashboard.header.neverChecked'),
-            next && next > now ? t('dashboard.header.nextCheck', { in: formatIn(next, now) }) : undefined,
+            account.limit
+              ? t('dashboard.header.stopped')
+              : next && next > now
+                ? t('dashboard.header.nextCheck', { in: formatIn(next, now) })
+                : undefined,
           ])}
         </p>
         {summary && <p className="xg-dash__result">{t('dashboard.header.lastQuick', { summary })}</p>}

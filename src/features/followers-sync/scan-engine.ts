@@ -1,4 +1,5 @@
 import { createSerialQueue } from '@/shared/utils/serial';
+import { exceedsFollowerLimit } from '@/features/accounts/limit';
 import { hasKnownHandle } from '@/features/accounts/model';
 import { loadAccounts, patchAccount } from '@/features/accounts/repository';
 import { importEpoch, isImporting } from '@/shared/storage/import-lock';
@@ -37,6 +38,10 @@ export interface ScanHooks {
   onInterrupted: (job: ScanJob) => Promise<void>;
   onStateChange: () => Promise<void>;
   scheduleResume: (accountId: string, at: number) => Promise<void>;
+  /** Total annoncé par X au-delà de la limite (§ 4.9) : scan arrêté, onglet fermé. */
+  onFollowerLimit: (job: ScanJob, count: number) => Promise<void>;
+  /** Total revenu sous la limite d'un compte qui l'avait dépassée : le scan continue. */
+  onFollowerLimitCleared: (accountId: string) => Promise<void>;
 }
 
 /** Sans nouvel abonné depuis ce délai, on considère le chargement bloqué. */
@@ -449,12 +454,27 @@ async function onProfile(job: ScanJob, account: TrackedAccount, tabId: number, b
     await patchAccount(job.accountId, { handle: profile.handle, name: profile.name, avatar, followersCount });
   }
   if (profile.followersCount !== undefined) {
+    // Limite d'abonnés (§ 4.9) : testée sur le total annoncé, avant de faire défiler la liste.
+    if (exceedsFollowerLimit(account, profile.followersCount)) return stopForLimit(job, profile.followersCount);
+    if (account.limit) await hooks?.onFollowerLimitCleared(job.accountId);
     job.expectedTotal = profile.followersCount;
     job.totalSeen = true;
   }
   await putJob(job, false);
   if (job.kind === 'quick' && job.totalSeen && job.pages > 0) return finish(job);
   await routeTab(job, { ...account, handle: profile.handle }, tabId);
+}
+
+/**
+ * Limite d'abonnés dépassée : le scan s'arrête sans rien garder (aucune liste à continuer),
+ * onglet fermé. L'orchestrateur marque le compte et coupe ses vérifications.
+ */
+async function stopForLimit(job: ScanJob, count: number): Promise<void> {
+  await chrome.alarms.clear(`${ALARM_QUICK_TIMEOUT_PREFIX}${job.accountId}`);
+  await closeTab(job);
+  await dropJob(job.accountId);
+  await hooks?.onFollowerLimit(job, count);
+  await hooks?.onStateChange();
 }
 
 /** Page de la liste des abonnés. */

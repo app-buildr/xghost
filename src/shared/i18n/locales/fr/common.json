@@ -47,7 +47,8 @@
     "scanning": "vérification en cours",
     "unseen_one": "{{count}} départ non vu",
     "unseen_other": "{{count}} départs non vus",
-    "title": "xGhost : {{parts}}"
+    "title": "xGhost : {{parts}}",
+    "followerLimit": "xGhost : limite d’abonnés dépassée"
   },
   "scanStatus": {
     "noSession": "Aucune session X trouvée. Connecte-toi à X pour reprendre la vérification.",
@@ -99,5 +100,10 @@
   "continueScan": "Continuer le scan",
   "openX": "Ouvrir x.com",
   "departuresEmpty": "Aucun départ pour l’instant. xGhost veille.",
-  "checkNow": "Vérifier maintenant"
+  "checkNow": "Vérifier maintenant",
+  "limit": {
+    "title": "Limite d’abonnés dépassée",
+    "text": "@{{handle}} a dépassé {{limit}} abonnés ({{count}}). À partir de maintenant, xGhost ne peut plus le scanner : les vérifications sont arrêtées. Ton historique jusqu’au {{date}} reste consultable.",
+    "short": "Plus de {{limit}} abonnés : xGhost ne peut plus scanner ce compte. Ton historique reste consultable."
+  }
 }

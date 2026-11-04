@@ -4,7 +4,8 @@
     "lastCheck": "Last checked {{ago}}",
     "neverChecked": "Not checked yet",
     "nextCheck": "next {{in}}",
-    "lastQuick": "Last quick check: {{summary}}"
+    "lastQuick": "Last quick check: {{summary}}",
+    "stopped": "checks stopped"
   },
   "quick": {
     "arrivals_one": "{{n}} new follower",
@@ -31,7 +32,8 @@
     "reasons": {
       "disconnected": "Log in to X to run a check",
       "alreadyRunning": "A check is already running",
-      "rateLimit": "X limit reached, the check will resume automatically"
+      "rateLimit": "X limit reached, the check will resume automatically",
+      "followerLimit": "Follower limit exceeded: checks are stopped"
     },
     "impossible": "Can’t check right now",
     "fullStarted": "Full scan started in the pinned x.com tab",

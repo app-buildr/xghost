@@ -19,5 +19,6 @@
   "arrivals": "Arrivées",
   "summary": "Bilan",
   "notSeenYet_one": "que tu n’as pas encore vu",
-  "notSeenYet_other": "que tu n’as pas encore vus"
+  "notSeenYet_other": "que tu n’as pas encore vus",
+  "stopped": "Vérifications arrêtées"
 }

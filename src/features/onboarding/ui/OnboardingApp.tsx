@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { ENTRY_FOLLOWER_LIMIT } from '@/features/accounts/limit';
 import { hasKnownHandle } from '@/features/accounts/model';
+import '@/features/accounts/ui/accounts.css';
 import { useBackupImport } from '@/features/backup/ui/useBackupImport';
 import { useAccountData } from '@/features/app-state/useAccountData';
 import { useAppState } from '@/features/app-state/useAppState';
@@ -14,9 +16,9 @@ import { frequencyOptions } from '@/features/settings/model';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
-import type { Frequency } from '@/shared/types';
+import type { Frequency, TrackedAccount } from '@/shared/types';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
-import { Check, RefreshCw, Upload } from 'lucide-react';
+import { Check, RefreshCw, TriangleAlert, Upload, X } from 'lucide-react';
 import { Logo, Segmented } from '@/shared/ui/primitives';
 import { formatNumber, formatPercent, formatProgressCount } from '@/shared/utils/format';
 import { X_LOGIN_URL } from '@/shared/x-urls';
@@ -49,6 +51,65 @@ function scanHint(progress: ScanProgress, now: number): string {
   if (progress.status === 'paused') return pauseMessage(progress);
   const remaining = remainingLabel(progress, now);
   return remaining ? t('common.scanStatus.hintWithRemaining', { hint: scanTabHint(), remaining }) : scanTabHint();
+}
+
+/**
+ * Écran de la limite d'abonnés (§ 4.9) : le compte connecté dépasse la limite avant toute
+ * synchronisation. Ni choix de démarrage, ni fréquence : la session est détectée, la
+ * synchronisation barrée, et l'utilisateur peut désinstaller xGhost ou se connecter à un autre compte.
+ */
+function FollowerLimitScreen({ account, handle }: { account: TrackedAccount; handle?: string }) {
+  const limit = formatNumber(ENTRY_FOLLOWER_LIMIT);
+  const count = account.limit?.count ?? account.followersCount ?? 0;
+  return (
+    <main className="xg-onb">
+      <div className="xg-brand">
+        <Logo size={56} />
+        <span>{t('common.appName')}</span>
+      </div>
+      <h1>{t('onboarding.limit.title')}</h1>
+
+      <div className="xg-limit xg-onb__limit" role="alert">
+        <strong className="xg-limit__title">
+          <TriangleAlert size={22} aria-hidden="true" />
+          {t('onboarding.limit.alertTitle', { handle, n: formatNumber(count) })}
+        </strong>
+        <p>{t('onboarding.limit.alertText', { limit })}</p>
+      </div>
+
+      <ol className="xg-boxlist xg-onb__steps">
+        <li className="xg-step is-done">
+          <span className="xg-step__num">
+            <Check size={18} />
+          </span>
+          <div>
+            <div className="xg-step__title">{t('onboarding.session.detected')}</div>
+            <div className="xg-step__hint">{t('onboarding.session.loggedInAs', { handle })}</div>
+          </div>
+        </li>
+        <li className="xg-step is-blocked">
+          <span className="xg-step__num">
+            <X size={18} />
+          </span>
+          <div>
+            <div className="xg-step__title">{t('onboarding.scan.title')}</div>
+            <div className="xg-step__hint">{t('onboarding.limit.unavailable', { limit })}</div>
+          </div>
+        </li>
+      </ol>
+
+      <div className="xg-onb__cta xg-onb__cta--limit">
+        <button
+          type="button"
+          className="xg-btn xg-btn--danger xg-btn--lg"
+          onClick={() => void chrome.management.uninstallSelf({ showConfirmDialog: true }).catch(() => undefined)}
+        >
+          {t('onboarding.limit.uninstall')}
+        </button>
+        <p>{t('onboarding.limit.otherAccount', { limit })}</p>
+      </div>
+    </main>
+  );
 }
 
 /** Délai avant la redirection vers le tableau de bord, le temps de lire « terminé ». */
@@ -103,6 +164,11 @@ export function OnboardingApp() {
       setStopping(false);
     }
   };
+
+  // Compte au-delà de la limite d'abonnés (§ 4.9) : aucune synchronisation possible.
+  if (account?.limit && !account.baselineAt) {
+    return <FollowerLimitScreen account={account} handle={handle} />;
+  }
 
   const step2Title = done
     ? t('onboarding.scan.doneTitle')

@@ -7,6 +7,7 @@ import {
   ALARM_RETRY_PREFIX,
   ALARM_WATCHDOG,
 } from './alarms';
+import { exceedsFollowerLimit } from '@/features/accounts/limit';
 import { isOnboarded } from '@/features/accounts/model';
 import {
   getSelectedAccountId,
@@ -106,7 +107,38 @@ setScanHooks({
   async scheduleResume(accountId, at) {
     await chrome.alarms.create(`${ALARM_RESUME_PREFIX}${accountId}`, { when: at });
   },
+  async onFollowerLimit(job, count) {
+    await markFollowerLimit(job.accountId, count);
+  },
+  async onFollowerLimitCleared(accountId) {
+    await patchAccount(accountId, { limit: undefined });
+  },
 });
+
+/**
+ * Limite d'abonnés dépassée (§ 4.9) : le compte est marqué, et tout ce qui relancerait un scan
+ * (départs en attente, nouvel essai, revérification, reprise) est effacé. La date du premier
+ * dépassement est gardée ; le total, lui, est mis à jour.
+ */
+async function markFollowerLimit(accountId: string, count: number): Promise<void> {
+  await updateAccounts((all) => {
+    const a = all[accountId];
+    if (!a) return;
+    all[accountId] = {
+      ...a,
+      followersCount: count,
+      limit: { count, at: a.limit?.at ?? Date.now() },
+      pending: undefined,
+      baselineRetry: undefined,
+    };
+  });
+  await clearPartial(accountId);
+  await Promise.all(
+    [ALARM_RETRY_PREFIX, ALARM_RECHECK_PREFIX, ALARM_RESUME_PREFIX, ALARM_QUICK_TIMEOUT_PREFIX].map((prefix) =>
+      chrome.alarms.clear(`${prefix}${accountId}`),
+    ),
+  );
+}
 
 export async function setupAlarms(): Promise<void> {
   const { frequencyHours } = await loadSettings();
@@ -201,6 +233,21 @@ export async function triggerCheck(
   const user = origin === 'user' || origin === 'user-full';
 
   const existing = await loadJob(account.id);
+
+  // Limite d'abonnés (§ 4.9), d'après le dernier total connu (le moteur la teste aussi dès qu'il
+  // lit le profil). Compte jamais synchronisé : rien n'est lancé. Compte suivi : seules les
+  // vérifications automatiques continuent, en contrôle léger (total relu, aucun défilement) ;
+  // si le total repasse sous la limite, le moteur lève le blocage et tout reprend.
+  if (account.limit || exceedsFollowerLimit(account, account.followersCount)) {
+    if (!account.limit) await markFollowerLimit(account.id, account.followersCount!);
+    if (existing && existing.kind !== 'quick' && !existing.finishing) await cancelScan(account.id);
+    const probe = !!account.baselineAt && (origin === 'schedule' || origin === 'auto');
+    if (!probe) return { started: false, reason: 'follower-limit' };
+    if (existing?.kind === 'quick' || existing?.finishing) return { started: false, reason: 'already-running' };
+    await startScan(account, 'quick', 'quick');
+    await chrome.alarms.create(`${ALARM_QUICK_TIMEOUT_PREFIX}${account.id}`, { when: Date.now() + QUICK_TIMEOUT_MS });
+    return { started: true };
+  }
   // Analyse de fin de scan en cours (ou interrompue par l'arrêt du service worker, reprise ici).
   if (existing?.finishing) {
     await recoverFinishing(account.id);
@@ -347,8 +394,8 @@ export async function handleAlarm(name: string): Promise<void> {
 async function checkAccount(origin: CheckOrigin, accountId: string, alarm: string): Promise<void> {
   const res = await triggerCheck(origin, accountId);
   if (res.started) return void deferrals.delete(alarm);
-  // Choix de démarrage pas encore fait : rien à vérifier, l'alarme n'a plus d'objet.
-  if (res.reason === 'awaiting-choice') return void deferrals.delete(alarm);
+  // Choix de démarrage pas encore fait, ou limite d'abonnés : rien à vérifier, l'alarme n'a plus d'objet.
+  if (res.reason === 'awaiting-choice' || res.reason === 'follower-limit') return void deferrals.delete(alarm);
   // Vérification refusée pour l'instant (autre compte connecté, scan déjà en cours, import,
   // pause…) : reportée plutôt que perdue, avec une attente qui double à chaque refus (un compte
   // qui ne se reconnecte plus ne réveille pas le service worker toutes les 30 min indéfiniment).

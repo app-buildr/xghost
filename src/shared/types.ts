@@ -54,6 +54,11 @@ export interface TrackedAccount {
    * jamais rouvrir l'onglet en boucle (onglet fermé par l'utilisateur, compte inaccessible…).
    */
   baselineRetry?: { attempts: number; at: number };
+  /**
+   * Limite d'abonnés dépassée (§ 4.9, voir `accounts/limit.ts`) : total annoncé par X à la dernière
+   * lecture, et date du dépassement. Plus aucun scan ; seul le contrôle léger relit le total.
+   */
+  limit?: { count: number; at: number };
   /** Résultat du dernier contrôle léger (affiché dans le tableau de bord). */
   lastQuick?: {
     at: number;

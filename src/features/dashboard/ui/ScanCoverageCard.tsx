@@ -182,14 +182,17 @@ export function ScanCoverageCard({
             </strong>
             <span>{t('dashboard.coverage.departuresAfterComplete')}</span>
           </div>
-          <button
-            type="button"
-            className="xg-btn xg-btn--primary"
-            disabled={busy}
-            onClick={() => void start({ full: true, announce: false })}
-          >
-            {t('common.continueScan')}
-          </button>
+          {/* Limite d'abonnés dépassée (§ 4.9) : le scan ne peut plus être continué. */}
+          {!account.limit && (
+            <button
+              type="button"
+              className="xg-btn xg-btn--primary"
+              disabled={busy}
+              onClick={() => void start({ full: true, announce: false })}
+            >
+              {t('common.continueScan')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="xg-coverage__foot">

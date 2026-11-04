@@ -19,5 +19,6 @@
   "arrivals": "New followers",
   "summary": "Summary",
   "notSeenYet_one": "you haven’t seen yet",
-  "notSeenYet_other": "you haven’t seen yet"
+  "notSeenYet_other": "you haven’t seen yet",
+  "stopped": "Checks stopped"
 }

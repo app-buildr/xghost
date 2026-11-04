@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FollowerLimitAlert } from '@/features/accounts/ui/FollowerLimitAlert';
 import type { AccountData } from '@/features/app-state/useAccountData';
 import { statsSince, type VisibilityContext } from '@/features/events/selectors';
 import { DASHBOARD_PERIODS, periodStart, type DashboardPeriod } from '@/features/stats/period';
@@ -56,6 +57,7 @@ export function Dashboard({ account, data, ctx, status, now, hiddenCharts = [], 
         now={now}
         period={{ value: period, onChange: setPeriod }}
       />
+      <FollowerLimitAlert account={account} now={now} />
       <ScanStatusBanner account={account} progress={data.progress} status={status} now={now} />
 
       <div className="xg-kpis xg-kpis--coverage">

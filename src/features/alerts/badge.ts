@@ -47,13 +47,15 @@ async function applyBadge(): Promise<void> {
     loadStatus(),
   ]);
   const disconnected = status?.session === 'disconnected';
+  // Compte connecté au-delà de la limite d'abonnés (§ 4.9) : même icône que sans session.
+  const limited = !disconnected && !!status?.activeAccountId && !!accounts[status.activeAccountId]?.limit;
 
-  if (disconnected) {
+  if (disconnected || limited) {
     await chrome.action.setIcon({ path: iconSet('icon-off') });
     await chrome.action.setBadgeBackgroundColor({ color: COLORS.textSubtle });
     await chrome.action.setBadgeTextColor({ color: COLORS.surface });
     await chrome.action.setBadgeText({ text: '!' });
-    await chrome.action.setTitle({ title: t('common.badge.noSession') });
+    await chrome.action.setTitle({ title: limited ? t('common.badge.followerLimit') : t('common.badge.noSession') });
     return;
   }
 

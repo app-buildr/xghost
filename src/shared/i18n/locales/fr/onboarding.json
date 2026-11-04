@@ -32,5 +32,13 @@
     "syncButton": "Lancer la synchronisation",
     "restoreTitle": "Restaurer une sauvegarde",
     "restoreText": "Tu as déjà utilisé xGhost ? Importe ton fichier .json, sans repasser par X."
+  },
+  "limit": {
+    "title": "xGhost ne peut pas encore gérer autant d’abonnés.",
+    "alertTitle": "@{{handle}} a {{n}} abonnés",
+    "alertText": "xGhost prend en charge jusqu’à {{limit}} abonnés par compte. Au-delà, la synchronisation serait trop longue et risquerait de dépasser les limites de X. Aucune synchronisation ne sera lancée.",
+    "unavailable": "Indisponible : plus de {{limit}} abonnés.",
+    "uninstall": "Désinstaller xGhost",
+    "otherAccount": "Tu as un autre compte X avec moins de {{limit}} abonnés ? Connecte-toi à lui sur x.com, xGhost le détectera tout seul."
   }
 }

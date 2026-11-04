@@ -4,7 +4,8 @@
     "lastCheck": "Dernière vérification {{ago}}",
     "neverChecked": "Pas encore vérifié",
     "nextCheck": "prochaine {{in}}",
-    "lastQuick": "Dernier contrôle rapide : {{summary}}"
+    "lastQuick": "Dernier contrôle rapide : {{summary}}",
+    "stopped": "vérifications arrêtées"
   },
   "quick": {
     "arrivals_one": "{{n}} nouvel abonné",
@@ -31,7 +32,8 @@
     "reasons": {
       "disconnected": "Connecte-toi à X pour lancer une vérification",
       "alreadyRunning": "Une vérification est déjà en cours",
-      "rateLimit": "Limite de X atteinte, la vérification reprendra automatiquement"
+      "rateLimit": "Limite de X atteinte, la vérification reprendra automatiquement",
+      "followerLimit": "Limite d’abonnés dépassée : les vérifications sont arrêtées"
     },
     "impossible": "Vérification impossible pour le moment",
     "fullStarted": "Scan complet lancé dans l’onglet x.com épinglé",

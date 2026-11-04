@@ -32,5 +32,13 @@
     "syncButton": "Start syncing",
     "restoreTitle": "Restore a backup",
     "restoreText": "Used xGhost before? Import your .json file, without going through X again."
+  },
+  "limit": {
+    "title": "xGhost can’t handle that many followers yet.",
+    "alertTitle": "@{{handle}} has {{n}} followers",
+    "alertText": "xGhost supports up to {{limit}} followers per account. Beyond that, syncing would take too long and could hit X’s limits. No sync will be started.",
+    "unavailable": "Unavailable: over {{limit}} followers.",
+    "uninstall": "Uninstall xGhost",
+    "otherAccount": "Have another X account with fewer than {{limit}} followers? Log in to it on x.com, xGhost will pick it up automatically."
   }
 }

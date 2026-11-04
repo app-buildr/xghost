@@ -35,6 +35,10 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension, en françai
 > **À savoir :** xGhost ne peut pas faire de statistiques rétroactives. Il compte les départs et les
 > arrivées à partir de son installation (le scan initial sert de référence) ; les unfollows
 > antérieurs ne sont pas visibles.
+>
+> **Comptes jusqu'à 15 000 abonnés.** Au-delà, la synchronisation n'est pas lancée. Un compte déjà
+> suivi peut grandir jusqu'à 20 000 abonnés ; au-delà, les vérifications s'arrêtent (l'historique
+> reste consultable) et reprennent si le compte repasse sous cette limite.
 
 - **Départs** : la liste des comptes qui ont arrêté de te suivre, avec la date. Un départ garde
   l'étiquette « Nouveau » jusqu'à ce que tu quittes la page.
@@ -190,6 +194,21 @@ réponses que la page reçoit elle-même.
   gardés pour « Continuer le scan ».
 - **Limite de X** (429, erreur 88, `x-rate-limit-remaining: 0`) : pause jusqu'à l'heure annoncée, puis
   reprise automatique.
+
+## Limite d'abonnés
+
+Seuils dans `src/features/accounts/limit.ts` : **15 000** pour un compte jamais synchronisé,
+**20 000** pour un compte déjà suivi (la marge évite de couper un compte qui grandit ou dont le
+total oscille). Le total testé est celui annoncé par X sur le profil, lu par le moteur avant tout
+défilement (`onProfile`), et aussi d'après le dernier total connu au lancement d'une vérification.
+
+- Au-delà : scan arrêté, onglet fermé, compte marqué `limit` ; départs en attente, nouveaux essais et
+  reprises effacés. Icône grise avec « ! » si c'est le compte connecté.
+- Compte jamais synchronisé : écran dédié dans l'onboarding (désinstaller, ou se connecter à un autre
+  compte), aucun scan.
+- Compte suivi : « Vérifier maintenant » et « Scan complet » désactivés. Les vérifications
+  automatiques font seulement un contrôle léger (total relu, aucun défilement) ; si le total repasse
+  sous 20 000, la limite est levée et tout reprend.
 
 ## Choix appliqués
 

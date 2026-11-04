@@ -1,6 +1,7 @@
 import { ChevronDown, RefreshCw, Settings, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { isOnboarded } from '@/features/accounts/model';
+import { FollowerLimitAlert } from '@/features/accounts/ui/FollowerLimitAlert';
 import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
 import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
 import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
@@ -120,6 +121,7 @@ export function PopupApp() {
   // Départs pas encore vus (comme le badge de l'icône). `list` ne contient que les comptes
   // toujours absents ; un départ affiché pendant cette visite reste compté jusqu'à la fermeture.
   const fresh = useMemo(() => list.filter((e) => !e.seen).length, [list]);
+  const limited = !!account?.limit;
 
   // Alerte « nouveaux départs » fermée par l'utilisateur : se replie en douceur, puis disparaît.
   // Inutile de s'en souvenir : à la prochaine ouverture, ces départs ne sont plus nouveaux.
@@ -192,7 +194,10 @@ export function PopupApp() {
 
         <ScanStatusBanner account={account} progress={data?.progress} status={app.status} now={now} compact />
 
-        {fresh > 0 && alert !== 'closed' && (
+        {/* Limite d'abonnés dépassée (§ 4.9) : remplace l'alerte des nouveaux départs. */}
+        {limited && account && <FollowerLimitAlert account={account} now={now} compact />}
+
+        {!limited && fresh > 0 && alert !== 'closed' && (
           <div
             className={`xg-collapse${alert === 'closing' ? ' is-closing' : ''}`}
             onTransitionEnd={(e) => {
@@ -220,7 +225,7 @@ export function PopupApp() {
           </div>
         )}
 
-        {account?.lastScan && !account.lastScan.complete && !data?.progress && (
+        {!limited && account?.lastScan && !account.lastScan.complete && !data?.progress && (
           <button
             type="button"
             className="xg-popup__alert xg-popup__alert--link"
@@ -270,14 +275,19 @@ export function PopupApp() {
             <button
               type="button"
               className="xg-btn xg-btn--ghost"
-              disabled={busy || !account}
+              disabled={busy || !account || limited}
               onClick={() => void start()}
             >
-              <RefreshCw size={20} className={busy || data?.progress?.status === 'running' ? 'xg-spin' : undefined} />
+              {/* Limite d'abonnés : pas d'icône, pour que « Vérifications arrêtées » tienne en entier. */}
+              {!limited && (
+                <RefreshCw size={20} className={busy || data?.progress?.status === 'running' ? 'xg-spin' : undefined} />
+              )}
               {/* Largeur du bouton fixée par le pied (voir popup.css) : le libellé peut changer
                   sans élargir la popup. */}
               <span className="xg-popup__check-label">
-                {data?.progress?.status === 'running'
+                {limited
+                  ? t('popup.stopped')
+                  : data?.progress?.status === 'running'
                   ? t('popup.checking')
                   : account?.lastScanAt
                     ? t('common.checkedAgo', { ago: formatAgo(account.lastScanAt, now) })

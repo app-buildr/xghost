@@ -123,6 +123,10 @@ function account(v: unknown, accountId: string): TrackedAccount {
       const v = record(r);
       return { attempts: count(v.attempts), at: finite(v.at) };
     }),
+    limit: optional(a.limit, (l) => {
+      const v = record(l);
+      return { count: count(v.count), at: finite(v.at) };
+    }),
   });
 }
 

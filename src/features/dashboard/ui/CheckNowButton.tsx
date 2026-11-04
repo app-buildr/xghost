@@ -74,22 +74,26 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
     else pending.current = undefined;
   };
 
+  // Limite d'abonnés dépassée (§ 4.9) : plus de vérification à la demande, ni de scan complet.
+  const limited = !!account.limit;
   return (
     <div className="xg-check">
       <button
         type="button"
-        className="xg-btn xg-btn--primary xg-btn--lg"
-        disabled={busy || quickRunning || fullRunning}
+        className={`xg-btn xg-btn--primary xg-btn--lg${limited ? ' is-stopped' : ''}`}
+        disabled={limited || busy || quickRunning || fullRunning}
         onClick={() => void check()}
       >
-        <RefreshCw size={18} className={busy || starting || running ? 'xg-spin' : undefined} />{' '}
-        {quickRunning ? t('dashboard.check.checking') : t('common.checkNow')}
+        <RefreshCw size={18} className={!limited && (busy || starting || running) ? 'xg-spin' : undefined} />{' '}
+        {quickRunning && !limited ? t('dashboard.check.checking') : t('common.checkNow')}
       </button>
-      <Tooltip label={t('dashboard.check.fullScanTitle')} side="bottom" align="end">
-        <button type="button" className="xg-link" disabled={busy || fullRunning} onClick={() => void start({ full: true })}>
-          {t('dashboard.check.fullScan')}
-        </button>
-      </Tooltip>
+      {!limited && (
+        <Tooltip label={t('dashboard.check.fullScanTitle')} side="bottom" align="end">
+          <button type="button" className="xg-link" disabled={busy || fullRunning} onClick={() => void start({ full: true })}>
+            {t('dashboard.check.fullScan')}
+          </button>
+        </Tooltip>
+      )}
     </div>
   );
 }

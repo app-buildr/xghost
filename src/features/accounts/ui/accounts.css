@@ -48,3 +48,36 @@
   font-size: 13px;
   color: var(--xg-text-muted);
 }
+
+/* Alerte « Limite d'abonnés dépassée » (§ 4.9). */
+.xg-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 24px;
+  border-radius: var(--xg-radius-block);
+  background: var(--xg-danger-tint);
+  color: var(--xg-danger-strong);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.xg-limit p {
+  margin: 0;
+}
+.xg-limit__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.xg-limit--compact {
+  gap: 4px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.xg-limit--compact .xg-limit__title {
+  gap: 8px;
+  font-size: 15px;
+}

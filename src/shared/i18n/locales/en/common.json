@@ -47,7 +47,8 @@
     "scanning": "check in progress",
     "unseen_one": "{{count}} unseen unfollow",
     "unseen_other": "{{count}} unseen unfollows",
-    "title": "xGhost: {{parts}}"
+    "title": "xGhost: {{parts}}",
+    "followerLimit": "xGhost: follower limit exceeded"
   },
   "scanStatus": {
     "noSession": "No X session found. Log in to X to resume checking.",
@@ -99,5 +100,10 @@
   "continueScan": "Continue the scan",
   "openX": "Open x.com",
   "departuresEmpty": "No unfollows yet. xGhost is watching.",
-  "checkNow": "Check now"
+  "checkNow": "Check now",
+  "limit": {
+    "title": "Follower limit exceeded",
+    "text": "@{{handle}} has passed {{limit}} followers ({{count}}). From now on, xGhost can no longer scan it: checks are stopped. Your history up to {{date}} is still available.",
+    "short": "Over {{limit}} followers: xGhost can no longer scan this account. Your history is still available."
+  }
 }

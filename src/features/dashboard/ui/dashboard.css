@@ -181,6 +181,13 @@
 .xg-check .xg-link {
   font-size: 14px;
 }
+/* Limite d'abonnés dépassée (§ 4.9) : bouton gris, et non vert pâli, pour dire « arrêté ». */
+.xg-check .xg-btn.is-stopped {
+  opacity: 1;
+  border-color: transparent;
+  background: var(--xg-surface-muted);
+  color: var(--xg-text-muted);
+}
 /* Pause imposée par X : barre grisée, comme l'overlay (§ 3.5). */
 .xg-coverage.is-paused .xg-progress {
   background: var(--xg-surface-muted);

@@ -12,11 +12,27 @@
   gap: 32px;
 }
 .xg-nav {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+/* Pastille de la section courante : glisse de haut en bas (et inverse) d'une section à l'autre. */
+.xg-nav__thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 12px;
+  background: var(--xg-surface);
+  box-shadow: var(--xg-shadow-selected);
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
 .xg-nav__item {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -27,14 +43,21 @@
   font-size: 17px;
   text-decoration: none;
 }
+.xg-nav__item {
+  transition: color 0.2s ease;
+}
 .xg-nav__item:hover {
   color: var(--xg-ink);
 }
 .xg-nav__item.is-current {
-  background: var(--xg-surface);
   color: var(--xg-ink);
   font-weight: 600;
-  box-shadow: var(--xg-shadow-selected);
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-nav__thumb,
+  .xg-nav__item {
+    transition: none;
+  }
 }
 
 .xg-options__main {

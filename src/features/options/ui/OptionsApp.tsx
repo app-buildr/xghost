@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccountsList } from '@/features/accounts/ui/AccountsList';
 import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
 import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
@@ -17,7 +17,7 @@ import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
-import { Logo } from '@/shared/ui/primitives';
+import { Logo, useSlidingIndicator } from '@/shared/ui/primitives';
 import { X_LOGIN_URL } from '@/shared/x-urls';
 import { OptionsFooter } from './OptionsFooter';
 import './options.css';
@@ -76,6 +76,8 @@ export function OptionsApp() {
   const app = useAppState();
   const now = useNow();
   const [section, go] = useSection();
+  const navItems = useRef<(HTMLAnchorElement | null)[]>([]);
+  const navThumb = useSlidingIndicator(navItems, Math.max(0, SECTIONS.findIndex((s) => s.id === section)), 'y');
   const account = app.selected;
   // Les listes signalent leurs lignes affichées ; seules celles-ci sont marquées vues.
   const { data, markDisplayed } = useAccountData(account?.id, { seenOnView: true });
@@ -92,9 +94,14 @@ export function OptionsApp() {
             <span>{t('common.appName')}</span>
           </div>
           <nav aria-label={t('options.nav.label')} className="xg-nav">
-            {SECTIONS.map((s) => (
+            {/* Pastille de la section courante : elle glisse d'une section à l'autre. */}
+            <span className="xg-nav__thumb" style={navThumb} aria-hidden="true" />
+            {SECTIONS.map((s, i) => (
               <a
                 key={s.id}
+                ref={(el) => {
+                  navItems.current[i] = el;
+                }}
                 href={`#${s.id}`}
                 className={`xg-nav__item${section === s.id ? ' is-current' : ''}`}
                 aria-current={section === s.id ? 'page' : undefined}

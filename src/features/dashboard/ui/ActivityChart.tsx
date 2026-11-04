@@ -25,6 +25,13 @@ function dayTexts(b: DayBucket) {
  */
 export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?: number }) {
   const [hover, setHover] = useState<number>();
+  // Dernier jour survolé : l'infobulle garde son contenu le temps de disparaître en fondu.
+  const [last, setLast] = useState<number>();
+  const shown = hover ?? last;
+  const point = (i: number) => {
+    setHover(i);
+    setLast(i);
+  };
   const width = 900;
   const half = 44;
   const height = half * 2 + 4;
@@ -34,11 +41,11 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
   const scale = (n: number) => (n === 0 ? 0 : Math.max(3, (n / max) * half));
   const totalA = buckets.reduce((s, b) => s + b.arrivals, 0);
   const totalD = buckets.reduce((s, b) => s + b.departures, 0);
-  const active = hover === undefined ? undefined : buckets[hover];
+  const active = shown === undefined ? undefined : buckets[shown];
   // Journée entièrement antérieure au premier scan : xGhost ne suivait pas encore le compte.
   const noData = (b: DayBucket) => since === undefined || b.day + DAY <= since;
   // Infobulle centrée sur la barre, calée à gauche ou à droite près des bords.
-  const align = hover === undefined ? 'center' : hover < 3 ? 'start' : hover > buckets.length - 4 ? 'end' : 'center';
+  const align = shown === undefined ? 'center' : shown < 3 ? 'start' : shown > buckets.length - 4 ? 'end' : 'center';
   const tip = active ? dayTexts(active) : undefined;
 
   return (
@@ -72,8 +79,18 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
             const down = scale(b.departures);
             const dim = hover !== undefined && hover !== i;
             return (
-              <g key={b.day} opacity={dim ? 0.35 : 1}>
-                {hover === i && <rect x={i * slot} y={0} width={slot} height={height} rx={4} fill="var(--xg-surface-muted)" />}
+              <g key={b.day} className="xg-chart__day" style={{ opacity: dim ? 0.35 : 1 }}>
+                {/* Fond de la journée survolée : apparaît et disparaît en fondu. */}
+                <rect
+                  className="xg-chart__hl"
+                  x={i * slot}
+                  y={0}
+                  width={slot}
+                  height={height}
+                  rx={4}
+                  fill="var(--xg-surface-muted)"
+                  style={{ opacity: hover === i ? 1 : 0 }}
+                />
                 {/* Jour sans mouvement (ou avant le premier scan) : petit trait, pour que les 30 jours restent visibles. */}
                 {up === 0 && down === 0 && <rect x={x} y={half} width={bar} height={4} rx={2} fill="var(--xg-border)" />}
                 {up > 0 && <rect x={x} y={half - up} width={bar} height={up} rx={2} fill="var(--xg-primary)" />}
@@ -85,13 +102,13 @@ export function ActivityChart({ buckets, since }: { buckets: DayBucket[]; since?
         {/* Zones de survol, une par jour (HTML : l'infobulle se place en pourcentage de la largeur). */}
         <div className="xg-chart__hits" aria-hidden="true">
           {buckets.map((b, i) => (
-            <span key={b.day} onMouseEnter={() => setHover(i)} />
+            <span key={b.day} onMouseEnter={() => point(i)} />
           ))}
         </div>
-        {active && tip && hover !== undefined && (
+        {active && tip && shown !== undefined && (
           <div
-            className={`xg-chart__tip xg-chart__tip--${align}`}
-            style={{ left: `${((hover + 0.5) / buckets.length) * 100}%` }}
+            className={`xg-chart__tip xg-chart__tip--${align}${hover === undefined ? '' : ' is-visible'}`}
+            style={{ left: `${((shown + 0.5) / buckets.length) * 100}%` }}
             aria-hidden="true"
           >
             <strong>{tip.date}</strong>

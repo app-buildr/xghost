@@ -4,6 +4,7 @@ import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { t } from '@/shared/i18n';
 import type { TrackedAccount } from '@/shared/types';
 import { RefreshCw } from 'lucide-react';
+import { Tooltip } from '@/shared/ui/Tooltip';
 import { useToast } from '@/shared/ui/toast';
 import { quickSummary } from './quickSummary';
 
@@ -68,15 +69,11 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
       >
         <RefreshCw size={18} className={busy || quickRunning ? 'xg-spin' : undefined} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
       </button>
-      <button
-        type="button"
-        className="xg-link"
-        disabled={busy || fullRunning}
-        title={t('dashboard.check.fullScanTitle')}
-        onClick={() => void start({ full: true })}
-      >
-        {t('dashboard.check.fullScan')}
-      </button>
+      <Tooltip label={t('dashboard.check.fullScanTitle')} side="bottom" align="end">
+        <button type="button" className="xg-link" disabled={busy || fullRunning} onClick={() => void start({ full: true })}>
+          {t('dashboard.check.fullScan')}
+        </button>
+      </Tooltip>
     </div>
   );
 }

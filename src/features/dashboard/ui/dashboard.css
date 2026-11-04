@@ -95,13 +95,35 @@
   white-space: nowrap;
   pointer-events: none;
   box-shadow: 0 8px 24px rgba(17, 19, 24, 0.18);
-  transform: translateX(-50%);
+  --tip-x: -50%;
+  transform: translate(var(--tip-x), 4px);
+  opacity: 0;
+  /* Fondu à l'apparition et à la disparition ; l'infobulle glisse d'un jour à l'autre. */
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    left 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.xg-chart__tip.is-visible {
+  opacity: 1;
+  transform: translate(var(--tip-x), 0);
 }
 .xg-chart__tip--start {
-  transform: translateX(-12px);
+  --tip-x: -12px;
 }
 .xg-chart__tip--end {
-  transform: translateX(calc(-100% + 12px));
+  --tip-x: calc(-100% + 12px);
+}
+.xg-chart__day,
+.xg-chart__hl {
+  transition: opacity 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-chart__tip,
+  .xg-chart__day,
+  .xg-chart__hl {
+    transition: none;
+  }
 }
 .xg-chart__tip strong {
   font-weight: 600;

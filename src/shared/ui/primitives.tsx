@@ -99,7 +99,7 @@ export function Segmented<T extends string | number>({
 }) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const current = Math.max(0, options.findIndex((o) => o.value === value));
-  const thumb = useSegmentThumb(buttons, current);
+  const thumb = useSlidingIndicator(buttons, current, 'x');
   const onKeyDown = (e: KeyboardEvent) => {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
     const target = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1 : step ? current + step : undefined;
@@ -133,25 +133,37 @@ export function Segmented<T extends string | number>({
 }
 
 /**
- * Position et largeur de la pastille glissante, mesurées sur le bouton choisi (et remesurées
- * quand le contrôle change de taille). Pas d'animation au premier affichage.
+ * Pastille glissante sous l'élément choisi (sélecteur segmenté, menu de navigation) : position
+ * et taille mesurées sur l'élément, remesurées quand le conteneur change de taille. `x` : la
+ * pastille glisse horizontalement, `y` : verticalement. Pas d'animation au premier affichage.
  */
-function useSegmentThumb(buttons: { current: (HTMLButtonElement | null)[] }, current: number): CSSProperties {
-  const [box, setBox] = useState<{ x: number; w: number; ready: boolean }>({ x: 0, w: 0, ready: false });
+export function useSlidingIndicator(
+  items: { current: (HTMLElement | null)[] },
+  current: number,
+  axis: 'x' | 'y',
+): CSSProperties {
+  const [box, setBox] = useState({ offset: 0, size: 0, cross: 0, ready: false });
   useLayoutEffect(() => {
-    const button = buttons.current[current];
-    const parent = button?.parentElement;
-    if (!button || !parent) return;
-    const measure = () => setBox((b) => ({ x: button.offsetLeft, w: button.offsetWidth, ready: b.w > 0 }));
+    const item = items.current[current];
+    const parent = item?.parentElement;
+    if (!item || !parent) return;
+    const measure = () =>
+      setBox((b) => ({
+        offset: axis === 'x' ? item.offsetLeft : item.offsetTop,
+        size: axis === 'x' ? item.offsetWidth : item.offsetHeight,
+        cross: axis === 'x' ? item.offsetHeight : item.offsetWidth,
+        ready: b.size > 0,
+      }));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(parent);
     return () => observer.disconnect();
-  }, [buttons, current]);
+  }, [items, current, axis]);
   return {
-    width: box.w,
-    transform: `translateX(${box.x}px)`,
-    opacity: box.w ? 1 : 0,
+    [axis === 'x' ? 'width' : 'height']: box.size,
+    ...(axis === 'y' ? { width: box.cross } : {}),
+    transform: axis === 'x' ? `translateX(${box.offset}px)` : `translateY(${box.offset}px)`,
+    opacity: box.size ? 1 : 0,
     transition: box.ready ? undefined : 'none',
   };
 }

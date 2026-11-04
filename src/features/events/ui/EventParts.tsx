@@ -1,3 +1,4 @@
+import { Tooltip } from '@/shared/ui/Tooltip';
 import { LOCALE, t } from '@/shared/i18n';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
 import { formatAgo, formatAgoShort } from '@/shared/utils/format';
@@ -18,13 +19,11 @@ export function EventTime({
   const date = new Date(at);
   if (!Number.isFinite(at)) return null;
   return (
-    <time
-      className={className}
-      dateTime={date.toISOString()}
-      title={t('common.event.detectedAt', { date: date.toLocaleString(LOCALE) })}
-    >
-      {short ? formatAgoShort(at, now) : formatAgo(at, now)}
-    </time>
+    <Tooltip label={t('common.event.detectedAt', { date: date.toLocaleString(LOCALE) })}>
+      <time className={className} dateTime={date.toISOString()} tabIndex={0}>
+        {short ? formatAgoShort(at, now) : formatAgo(at, now)}
+      </time>
+    </Tooltip>
   );
 }
 

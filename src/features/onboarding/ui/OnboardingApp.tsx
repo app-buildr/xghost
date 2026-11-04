@@ -216,7 +216,7 @@ export function OnboardingApp() {
                     <button
                       type="button"
                       className="xg-btn xg-btn--secondary"
-                      disabled={busy || backup.busy}
+                      disabled={busy || backup.busy || stopping}
                       onClick={() => fileInput.current?.click()}
                     >
                       {t('backup.import')}

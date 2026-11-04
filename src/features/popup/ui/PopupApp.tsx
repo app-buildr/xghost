@@ -1,3 +1,4 @@
+import { Tooltip } from '@/shared/ui/Tooltip';
 import { isOnboarded } from '@/features/accounts/repository';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
@@ -221,11 +222,11 @@ export function PopupApp() {
         {!account && app.status?.session !== 'disconnected' && <p className="xg-popup__empty">{t('popup.noAccount')}</p>}
 
         <footer className="xg-popup__foot">
+          <Tooltip label={t('popup.recheckTitle')}>
           <button
             type="button"
             className="xg-btn xg-btn--ghost"
             disabled={busy || !account}
-            title={t('popup.recheckTitle')}
             onClick={() => void start()}
           >
             <RefreshCw size={20} className={busy || data?.progress?.status === 'running' ? 'xg-spin' : undefined} />
@@ -235,6 +236,7 @@ export function PopupApp() {
                 ? t('common.checkedAgo', { ago: formatAgo(account.lastScanAt, now) })
                 : t('dashboard.check.checkNow')}
           </button>
+          </Tooltip>
           <button type="button" className="xg-btn xg-btn--ink xg-btn--lg" onClick={() => void openOptions('dashboard')}>
             {t('popup.openDashboard')}
           </button>

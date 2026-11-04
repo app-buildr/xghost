@@ -83,11 +83,20 @@
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  text-decoration: none;
+  /* Soulignement qui apparaît en douceur au survol. */
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition:
+    color 0.2s ease,
+    text-decoration-color 0.2s ease,
+    text-underline-offset 0.2s ease;
 }
 .xg-link:hover {
   color: var(--xg-primary-hover);
-  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
 }
 .xg-icon-btn {
   display: inline-flex;
@@ -268,8 +277,10 @@
 }
 
 /* Apparition d'une liste (premier affichage, changement de filtre) : lignes en cascade. */
+/* `backwards` et pas `both` : une fois l'animation finie, la ligne ne garde aucune transformation
+   (sinon chaque ligne formerait un empilement à part et passerait par-dessus un menu ouvert). */
 .xg-list-in > * {
-  animation: xg-row-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: xg-row-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 .xg-list-in > :nth-child(2) { animation-delay: 30ms; }
 .xg-list-in > :nth-child(3) { animation-delay: 60ms; }
@@ -539,5 +550,73 @@
 @media (prefers-reduced-motion: reduce) {
   .xg-spin {
     animation: none;
+  }
+}
+
+/* --- Bulle d'information (Tooltip) --- */
+.xg-tooltip {
+  position: relative;
+  display: inline-flex;
+}
+.xg-tooltip__bubble {
+  position: absolute;
+  left: 50%;
+  z-index: 30;
+  width: max-content;
+  max-width: 260px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--xg-ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(17, 19, 24, 0.18);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+.xg-tooltip--top .xg-tooltip__bubble {
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 4px);
+}
+.xg-tooltip--bottom .xg-tooltip__bubble {
+  top: calc(100% + 8px);
+  transform: translate(-50%, -4px);
+}
+.xg-tooltip--end .xg-tooltip__bubble {
+  left: auto;
+  right: 0;
+  transform: translateY(-4px);
+}
+.xg-tooltip--end.xg-tooltip--top .xg-tooltip__bubble {
+  transform: translateY(4px);
+}
+.xg-tooltip:hover .xg-tooltip__bubble,
+.xg-tooltip:focus-within .xg-tooltip__bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  /* Petite attente avant l'affichage : pas de bulle qui clignote au simple passage de la souris. */
+  transition:
+    opacity 0.18s ease 0.25s,
+    transform 0.18s ease 0.25s,
+    visibility 0s linear 0.25s;
+}
+/* Bulle calée à droite : pas de recentrage (déclaré après la règle générale, qui l'écraserait). */
+.xg-tooltip--end:hover .xg-tooltip__bubble,
+.xg-tooltip--end:focus-within .xg-tooltip__bubble {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-link,
+  .xg-tooltip__bubble {
+    transition: none;
   }
 }

@@ -106,8 +106,19 @@ describe('stats7d : bilan par compte', () => {
     expect(s).toMatchObject({ departures: 2, arrivals: 0, net: -2 });
   });
 
-  it('arrivé puis reparti dans la période : rien', () => {
-    expect(statsSince([ev('departure', 'p', 1), ev('arrival', 'p', 2)], ctx, now - 7 * 24 * 3600_000)).toMatchObject({ departures: 0, arrivals: 0 });
+  it('arrivé puis reparti dans la période : une arrivée et un départ (comme les listes), solde nul', () => {
+    expect(statsSince([ev('departure', 'p', 1), ev('arrival', 'p', 2)], ctx, now - 7 * 24 * 3600_000)).toMatchObject({
+      departures: 1,
+      arrivals: 1,
+      net: 0,
+    });
+  });
+
+  it('parti puis revenu dans la période : ni départ ni arrivée', () => {
+    expect(statsSince([ev('arrival', 'p', 1), ev('departure', 'p', 2)], ctx, now - 7 * 24 * 3600_000)).toMatchObject({
+      departures: 0,
+      arrivals: 0,
+    });
   });
 
   it('graphe : même règle par journée, le total du jour concorde avec le bilan', () => {

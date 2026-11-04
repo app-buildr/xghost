@@ -87,19 +87,25 @@ export function netMovement(inPeriod: readonly FollowEvent[]): FollowEvent | und
 }
 
 /**
- * Bilan de la période, compte par compte : on compare la situation de chaque compte avant
- * et après la période. Un compte parti puis revenu (ou arrivé puis reparti) ne compte pas ;
- * plusieurs allers-retours ne comptent qu'une fois.
+ * Bilan de la période, compte par compte, cohérent avec les listes :
+ * - départ : compte parti pendant la période et toujours absent à la fin (comme « Derniers
+ *   départs »), y compris un compte arrivé puis reparti ;
+ * - arrivée : compte qui s'est mis à te suivre pendant la période (son premier mouvement de la
+ *   période est une arrivée), même s'il est reparti ensuite ;
+ * - un compte parti puis revenu ne compte ni comme départ ni comme arrivée.
+ * Le solde (arrivées − départs) reste exact : un compte arrivé puis reparti donne +1 − 1.
  */
 export function statsSince(events: FollowEvent[], ctx: VisibilityContext, since: number): PeriodStats {
   let departuresCount = 0;
   let arrivalsCount = 0;
   let unseen = 0;
   for (const list of byProfile(events).values()) {
-    const last = netMovement(list.filter((e) => e.at >= since && isVisible(e, ctx)));
-    if (!last) continue; // revenu, ou arrivé puis reparti
-    if (last.type === 'arrival') arrivalsCount++;
-    else {
+    const inPeriod = list.filter((e) => e.at >= since && isVisible(e, ctx));
+    const first = inPeriod[0];
+    const last = inPeriod.at(-1);
+    if (!first || !last) continue;
+    if (first.type === 'arrival') arrivalsCount++;
+    if (last.type === 'departure') {
       departuresCount++;
       if (!last.seen) unseen++;
     }

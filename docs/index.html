@@ -44,7 +44,11 @@
           <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
           Partager
         </a>
-        <a class="btn btn--primary btn--small" href="#installation">Télécharger</a>
+        <!-- URL de la fiche Chrome Web Store à mettre une fois l'extension publiée. -->
+        <a class="btn btn--primary btn--small" href="https://chromewebstore.google.com/" target="_blank" rel="noopener">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Ajouter à Chrome
+        </a>
       </div>
     </div>
   </header>
@@ -58,9 +62,10 @@
           <h1>Découvre qui t'a <span class="hl">unfollow</span> sur X.</h1>
           <p class="hero__lead">Extension Chrome gratuite, sans inscription, sans tracking.</p>
           <div class="hero__actions">
-            <a class="btn btn--primary btn--large" href="#installation">
-              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
-              Télécharger la dernière version
+            <!-- URL de la fiche Chrome Web Store à mettre une fois l'extension publiée. -->
+            <a class="btn btn--primary btn--large" href="https://chromewebstore.google.com/" target="_blank" rel="noopener">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Ajouter à Chrome
             </a>
             <a class="btn btn--secondary btn--large" href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">Voir le code sur GitHub</a>
           </div>
@@ -76,18 +81,24 @@
         <h2>xGhost compare régulièrement la liste de tes abonnés.</h2>
         <div class="cards cards--how">
           <article class="how">
-            <span class="how__num">1</span>
-            <h3>Scan initial</h3>
+            <div class="how__head">
+              <span class="how__num">1</span>
+              <h3>Scan initial</h3>
+            </div>
             <p>À l'installation, xGhost récupère la liste de tes abonnés. C'est la référence de départ.</p>
           </article>
           <article class="how">
-            <span class="how__num">2</span>
-            <h3>Vérifications régulières</h3>
+            <div class="how__head">
+              <span class="how__num">2</span>
+              <h3>Vérifications régulières</h3>
+            </div>
             <p>Toutes les 6, 12 ou 24 h selon ton choix, il vérifie les arrivées et les départs.</p>
           </article>
           <article class="how">
-            <span class="how__num">3</span>
-            <h3>Alerte à chaque départ</h3>
+            <div class="how__head">
+              <span class="how__num">3</span>
+              <h3>Alerte à chaque départ</h3>
+            </div>
             <p>Dès qu'un compte part, l'icône te le signale.</p>
             <img src="assets/images/fonctionnement-icone-alerte.png" width="315" height="47" alt="Barre d'adresse de Chrome, l'icône xGhost porte un badge rouge.">
           </article>
@@ -122,58 +133,41 @@
       <div class="container split">
         <div class="split__intro">
           <p class="eyebrow">Installation</p>
-          <h2>Installé en 2 minutes.</h2>
-          <p class="split__text">Fonctionne sur Chrome, Brave, Edge et les navigateurs basés sur Chromium, sur ordinateur.</p>
-          <a class="btn btn--primary btn--large" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
-            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
-            Télécharger le .zip
+          <h2>Installé en 30 secondes.</h2>
+          <p class="split__text">Disponible sur le Chrome Web Store, pour Chrome, Brave, Edge et les navigateurs basés sur Chromium, sur ordinateur.</p>
+          <!-- URL de la fiche Chrome Web Store (…/detail/xghost/<id>) à mettre une fois l'extension publiée. -->
+          <a class="btn btn--primary btn--large" href="https://chromewebstore.google.com/" target="_blank" rel="noopener">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Ajouter à Chrome
           </a>
         </div>
         <ol class="steps">
           <li class="step">
             <span class="step__num">1</span>
             <div class="step__body">
-              <h3>Clique sur « Télécharger le .zip »</h3>
-              <p>Le bouton juste ici, à gauche. Il pointe toujours vers la dernière version.</p>
+              <h3>Ouvre la fiche Chrome Web Store</h3>
+              <p>Avec le bouton « Ajouter à Chrome », juste ici à gauche.</p>
             </div>
           </li>
           <li class="step">
             <span class="step__num">2</span>
             <div class="step__body">
-              <h3>Décompresse-le</h3>
-              <p>Tu obtiens un dossier xGhost. Range-le dans un dossier où il restera, par exemple Documents : Chrome le relit à chaque démarrage, il ne faut ni le déplacer ni le supprimer ensuite.</p>
+              <h3>Clique sur « Ajouter à Chrome »</h3>
+              <p>Puis confirme avec « Ajouter l'extension » dans la fenêtre de Chrome.</p>
             </div>
           </li>
           <li class="step">
             <span class="step__num">3</span>
             <div class="step__body">
-              <h3>Ouvre la page des extensions</h3>
-              <p>Menu ⋮ › Extensions › Gérer les extensions (ou tape chrome://extensions).</p>
-              <img src="assets/images/installation/etape-3-menu-extensions.png" width="420" height="447" alt="Menu ⋮ de Chrome ouvert sur Extensions, Gérer les extensions." loading="lazy">
-            </div>
-          </li>
-          <li class="step">
-            <span class="step__num">4</span>
-            <div class="step__body">
-              <h3>Active le mode développeur</h3>
-              <p>L'interrupteur est en haut à droite de la page.</p>
-              <img src="assets/images/installation/etape-4-mode-developpeur.png" width="260" height="157" alt="Interrupteur Mode développeur activé." loading="lazy">
-            </div>
-          </li>
-          <li class="step">
-            <span class="step__num">5</span>
-            <div class="step__body">
-              <h3>Charge l'extension</h3>
-              <p>Clique sur « Charger l'extension non empaquetée », puis sélectionne le dossier xGhost.</p>
-              <img src="assets/images/installation/etape-5a-charger-extension.png" width="420" height="238" alt="Bouton Charger l'extension non empaquetée." loading="lazy">
-              <img src="assets/images/installation/etape-5b-choisir-dossier.png" width="300" height="190" alt="Sélection du dossier xGhost." loading="lazy">
+              <h3>Épingle l'icône</h3>
+              <p>Clique sur la pièce de puzzle dans la barre de Chrome, puis sur l'épingle à côté de xGhost.</p>
             </div>
           </li>
           <li class="step step--done">
             <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
             <div class="step__body">
               <h3>C'est prêt !</h3>
-              <p>Épingle l'icône fantôme dans ta barre, puis clique dessus pour lancer la première synchronisation de tes abonnés.</p>
+              <p>La page de démarrage de xGhost s'ouvre : choisis une nouvelle synchronisation ou importe ta sauvegarde.</p>
             </div>
           </li>
         </ol>
@@ -185,48 +179,32 @@
       <div class="container split">
         <div class="split__intro">
           <p class="eyebrow">Mise à jour</p>
-          <h2>Nouvelle version, mêmes données.</h2>
-          <p class="warning">
-            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4L12 4Zm0 6v4.5m0 2.5v.01"/></svg>
-            <span>Remplace les fichiers dans le <strong>même dossier</strong>. Si tu changes de dossier, Chrome voit une nouvelle extension et ton historique local repart de zéro.</span>
-          </p>
+          <h2>Toujours à jour, sans rien faire.</h2>
+          <p class="split__text">Comme toutes les extensions du Chrome Web Store, xGhost se met à jour automatiquement.</p>
         </div>
-        <ol class="steps">
-          <li class="step">
-            <span class="step__num">1</span>
+        <ul class="steps">
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
             <div class="step__body">
-              <h3>Télécharge la nouvelle version</h3>
-              <p>Le lien pointe toujours vers la dernière release.</p>
-              <a class="btn btn--primary btn--small step__btn" href="https://github.com/app-buildr/xghost/releases/latest/download/xghost.zip" target="_blank" rel="noopener">
-                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
-                Télécharger la dernière version
-              </a>
-            </div>
-          </li>
-          <li class="step">
-            <span class="step__num">2</span>
-            <div class="step__body">
-              <h3>Remplace les fichiers</h3>
-              <p>Décompresse-la dans le même dossier xGhost que la première fois, en écrasant les fichiers.</p>
-              <img src="assets/images/mise-a-jour/etape-2-dossier.png" width="300" height="139" alt="Dossier Documents contenant le dossier xGhost." loading="lazy">
-            </div>
-          </li>
-          <li class="step">
-            <span class="step__num">3</span>
-            <div class="step__body">
-              <h3>Recharge l'extension</h3>
-              <p>Menu ⋮ › Extensions › Gérer les extensions, puis clique sur la flèche circulaire de la carte xGhost.</p>
-              <img src="assets/images/mise-a-jour/etape-3-recharger.png" width="380" height="159" alt="Carte de l'extension xGhost, bouton de rechargement." loading="lazy">
+              <h3>Mises à jour automatiques</h3>
+              <p>Chrome installe chaque nouvelle version tout seul, en arrière-plan.</p>
             </div>
           </li>
           <li class="step step--done">
             <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
             <div class="step__body">
-              <h3>C'est à jour !</h3>
-              <p>Ton historique et tes réglages sont conservés, rien d'autre à faire.</p>
+              <h3>Tes données restent en place</h3>
+              <p>Ton historique, tes comptes et tes réglages sont conservés d'une version à l'autre.</p>
             </div>
           </li>
-        </ol>
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>Une sauvegarde en plus</h3>
+              <p>Pour être tranquille, exporte une sauvegarde .json depuis les réglages de xGhost.</p>
+            </div>
+          </li>
+        </ul>
       </div>
     </section>
 

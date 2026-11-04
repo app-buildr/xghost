@@ -1,3 +1,4 @@
+import { settleWriteRequests } from '@/shared/messaging/server';
 import { accountIdOfKey } from '@/shared/storage/keys';
 import { loadAccounts, settleWrites as settleAccounts } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
@@ -53,6 +54,7 @@ export async function importBackup(raw: unknown): Promise<ImportResult> {
   return withImportLock(async () => {
     // Plus aucun travail ne démarre (verrou) ; on attend celui déjà lancé : une analyse de fin
     // de scan ou une écriture en file réécrirait sinon l'ancien état par-dessus la sauvegarde.
+    await settleWriteRequests();
     await settleSeen();
     await settleAnalyses();
     await Promise.all([settleEvents(), settleAccounts()]);

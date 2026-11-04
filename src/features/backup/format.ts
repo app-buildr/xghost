@@ -110,6 +110,7 @@ function account(v: unknown, accountId: string): TrackedAccount {
     id: accountId,
     handle: handleOf(a.handle, accountId),
     name: optional(a.name, (n) => text(n, 100)),
+    avatar: optional(a.avatar, (v) => (typeof v === 'string' && AVATAR.test(v) ? v : fail())),
     addedAt: finite(a.addedAt),
     baselineAt: optional(a.baselineAt, finite),
     lastScanAt: optional(a.lastScanAt, finite),

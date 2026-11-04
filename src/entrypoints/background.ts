@@ -1,3 +1,4 @@
+import { ID } from '@/features/x-api/parse';
 import { t } from '@/shared/i18n';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
 import { importBackup } from '@/features/backup/backup';
@@ -36,6 +37,12 @@ const WRITES = new Set<RequestType>([
   'account:remove',
   'scan:stop',
 ]);
+/** Identifiant de compte X d'une requête : refusé s'il n'a pas la forme attendue (défense en profondeur). */
+const accountIdOf = (id: string): string => {
+  if (!ID.test(id)) throw new Error(t('common.errors.invalidRequest'));
+  return id;
+};
+
 const refuseDuringImport = (type: RequestType) =>
   isImporting() && WRITES.has(type) ? t('common.errors.importing') : undefined;
 
@@ -117,21 +124,27 @@ export default defineBackground(() => {
       return triggerCheck(full ? 'user-full' : 'user');
     },
     async 'scan:stop'({ accountId }) {
+      accountId = accountIdOf(accountId);
       await abandonScan(accountId);
     },
     async 'scan:focus'({ accountId }) {
+      accountId = accountIdOf(accountId);
       await focusScanTab(accountId);
     },
     async 'events:mark-seen'({ accountId, eventIds }) {
+      accountId = accountIdOf(accountId);
       await markSeen(accountId, eventIds);
     },
     async 'events:delete'({ accountId, eventId }) {
+      accountId = accountIdOf(accountId);
       return { removed: await deleteEvent(accountId, eventId) };
     },
     async 'events:restore'({ accountId, event }) {
+      accountId = accountIdOf(accountId);
       await restoreEvent(accountId, event);
     },
     async 'profile:ignore'({ accountId, profileId, ignored }) {
+      accountId = accountIdOf(accountId);
       await setIgnored(accountId, profileId, ignored);
       await refreshBadge();
     },
@@ -141,10 +154,12 @@ export default defineBackground(() => {
       await refreshBadge();
     },
     async 'account:update'({ accountId, mutualsOnly }) {
+      accountId = accountIdOf(accountId);
       await patchAccount(accountId, { mutualsOnly });
       await refreshBadge();
     },
     async 'account:remove'({ accountId }) {
+      accountId = accountIdOf(accountId);
       await cancelScan(accountId);
       await updateAccounts((all) => {
         delete all[accountId];
@@ -159,7 +174,7 @@ export default defineBackground(() => {
       if (remaining[0]) await setSelectedAccountId(remaining[0]);
       await refreshBadge();
     },
-  }, refuseDuringImport);
+  }, { refuse: refuseDuringImport, isWrite: (type) => WRITES.has(type) });
 
   // Réveil du service worker : détecte la session et reprend un scan interrompu.
   void handleSessionChange();

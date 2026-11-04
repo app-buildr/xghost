@@ -71,15 +71,8 @@ export default defineContentScript({
       portPost.call(channel.port1, msg);
     };
 
-    /** Les fonctions remplacées se présentent comme les originales (`toString`). */
-    const disguise = <T extends object>(patched: T, original: T): T =>
-      Object.defineProperty(patched, 'toString', {
-        value: () => Function.prototype.toString.call(original),
-        configurable: true,
-      });
-
     const open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = disguise(function (this: XMLHttpRequest, ...args: unknown[]) {
+    XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: unknown[]) {
       const url = String(args[1]);
       if (watchedOperation(url)) {
         addListener.call(this, 'loadend', () => {
@@ -89,10 +82,10 @@ export default defineContentScript({
         });
       }
       return (open as (...a: unknown[]) => void).apply(this, args);
-    } as typeof XMLHttpRequest.prototype.open, open);
+    } as typeof XMLHttpRequest.prototype.open;
 
     const originalFetch = window.fetch;
-    window.fetch = disguise(async function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+    window.fetch = async function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
       const res = await originalFetch.call(this, input, init);
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (watchedOperation(url)) {
@@ -102,6 +95,6 @@ export default defineContentScript({
           .catch(() => undefined);
       }
       return res;
-    } as typeof window.fetch, originalFetch);
+    } as typeof window.fetch;
   },
 });

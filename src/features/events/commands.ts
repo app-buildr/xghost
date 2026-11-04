@@ -1,6 +1,7 @@
 import { isImporting } from '@/features/backup/lock';
 import { refreshBadge } from '@/features/alerts/badge';
 import type { FollowEvent } from '@/shared/types';
+import { compactEventsOf, decodeEvent, encodeEvent } from './codec';
 import { updateEvents } from './repository';
 
 /**
@@ -66,6 +67,9 @@ export async function deleteEvent(accountId: string, eventId: string): Promise<F
 }
 
 export async function restoreEvent(accountId: string, event: FollowEvent): Promise<void> {
-  await updateEvents(accountId, (events) => (events.some((e) => e.id === event.id) ? events : [event, ...events]));
+  // Événement renvoyé par l'interface (« Annuler ») : repassé par le format compact, rien d'autre n'est écrit.
+  const [clean] = compactEventsOf([encodeEvent(event)]).map(decodeEvent);
+  if (!clean) return;
+  await updateEvents(accountId, (events) => (events.some((e) => e.id === clean.id) ? events : [clean, ...events]));
   await refreshBadge();
 }

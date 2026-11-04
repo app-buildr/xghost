@@ -41,6 +41,7 @@ describe('validateBackup', () => {
     const full = {
       ...account,
       name: 'Moi',
+      avatar: 'https://pbs.twimg.com/profile_images/1/a_normal.jpg',
       baselineAt: 1,
       lastScanAt: 2,
       followersCount: 10,

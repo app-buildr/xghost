@@ -83,7 +83,8 @@
     "noReply": "Pas de réponse du service worker",
     "noRoot": "#root introuvable",
     "render": "Cette partie ne peut pas s’afficher. Recharge la page ; si le problème continue, restaure une sauvegarde depuis les réglages.",
-    "importing": "Import d’une sauvegarde en cours : réessaie dans un instant."
+    "importing": "Import d’une sauvegarde en cours : réessaie dans un instant.",
+    "invalidRequest": "Requête invalide"
   },
   "log": {
     "scanEnd": "[xGhost] fin de scan",
@@ -96,7 +97,8 @@
     "short": "{{h}} h",
     "hourly": "Toutes les heures",
     "everyHours": "Toutes les {{h}} h",
-    "daily": "1 fois par jour"
+    "daily": "1 fois par jour",
+    "manual": "Manuel"
   },
   "checkedAgo": "Vérifié {{ago}}",
   "continueScan": "Continuer le scan",

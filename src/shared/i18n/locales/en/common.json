@@ -83,7 +83,8 @@
     "noReply": "No reply from the service worker",
     "noRoot": "#root not found",
     "render": "This part can’t be displayed. Reload the page; if the problem persists, restore a backup from the settings.",
-    "importing": "A backup is being imported: try again in a moment."
+    "importing": "A backup is being imported: try again in a moment.",
+    "invalidRequest": "Invalid request"
   },
   "log": {
     "scanEnd": "[xGhost] end of scan",
@@ -96,7 +97,8 @@
     "short": "{{h}}h",
     "hourly": "Every hour",
     "everyHours": "Every {{h}} hours",
-    "daily": "Once a day"
+    "daily": "Once a day",
+    "manual": "Manual"
   },
   "checkedAgo": "Checked {{ago}}",
   "continueScan": "Continue the scan",

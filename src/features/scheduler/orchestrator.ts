@@ -15,7 +15,7 @@ import { isOnboarded,
   updateAccounts,
 } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
-import { isImporting } from '@/features/backup/lock';
+import { importEpoch, isImporting } from '@/features/backup/lock';
 import { notifyAccountAdded } from '@/features/alerts/notifications';
 import { clearPartial, loadJob, loadSnapshot } from '@/features/followers-sync/repository';
 import {
@@ -106,7 +106,10 @@ setScanHooks({
 export async function setupAlarms(): Promise<void> {
   const { frequencyHours } = await loadSettings();
   const existing = await chrome.alarms.get(ALARM_CHECK);
-  if (existing?.periodInMinutes !== frequencyHours * 60) {
+  if (frequencyHours === 0) {
+    // Manuel uniquement : aucune vérification programmée, l'utilisateur lance lui-même les contrôles.
+    if (existing) await chrome.alarms.clear(ALARM_CHECK);
+  } else if (existing?.periodInMinutes !== frequencyHours * 60) {
     await chrome.alarms.create(ALARM_CHECK, { periodInMinutes: frequencyHours * 60 });
   }
   if (!(await chrome.alarms.get(ALARM_WATCHDOG))) {
@@ -258,9 +261,12 @@ function scanReason(
  */
 export async function abandonScan(accountId: string): Promise<void> {
   const hadBaseline = !!(await loadAccounts())[accountId]?.baselineAt;
+  const epoch = importEpoch();
   await cancelScan(accountId);
   // Analyse de fin de scan déjà lancée : on la laisse finir, puis on défait ce qu'elle a écrit.
   await settleAnalyses();
+  // Sauvegarde importée entre-temps : ses données font foi, on n'y touche pas.
+  if (isImporting() || epoch !== importEpoch()) return;
   await clearPartial(accountId);
   if (!hadBaseline) {
     await localKv.remove([keys.snapshot(accountId), keys.profiles(accountId)]);

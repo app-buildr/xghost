@@ -8,7 +8,6 @@ import { useAppState } from '@/features/app-state/useAppState';
 import { DisplayedContext, useMarkDisplayed } from '@/features/app-state/useSeenOnView';
 import { currentDepartures, statsSince } from '@/features/events/selectors';
 import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
-import { oldestEventAt } from '@/features/stats/selectors';
 import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { joinParts } from '@/features/events/ui/display';
 import { departureMeta } from '@/features/events/ui/DeparturesPanel';
@@ -27,6 +26,10 @@ import { ChevronDown, RefreshCw, Settings } from 'lucide-react';
 import { Logo, StatTile, Segmented } from '@/shared/ui/primitives';
 import { formatAgo, formatNumber, formatPercent, formatSigned } from '@/shared/utils/format';
 import './popup.css';
+
+/** Date du plus ancien mouvement (repli de « Tout » quand le compte n'a pas de référence). */
+const oldestAt = (events: readonly { at: number }[]): number | undefined =>
+  events.length ? Math.min(...events.map((e) => e.at)) : undefined;
 
 /** Ouvre une section des options (onglet réutilisé s'il existe), puis ferme la popup. */
 async function openOptions(section: 'dashboard' | 'settings'): Promise<void> {
@@ -104,7 +107,7 @@ export function PopupApp() {
   const latest = useMemo(() => list.slice(0, 5), [list]);
   // Bilan sur la période choisie (24 h / 7 j / 30 j / Tout), mémorisée d'une ouverture à l'autre.
   const [period, setPeriod] = useStoredChoice<PopupPeriod>('xg.popupPeriod', POPUP_PERIODS, '7d');
-  const since = periodStart(period, now, account?.baselineAt ?? oldestEventAt(data?.events ?? []));
+  const since = periodStart(period, now, account?.baselineAt ?? oldestAt(data?.events ?? []));
   const stats = useMemo(() => statsSince(data?.events ?? [], ctx, since), [data?.events, ctx, since]);
   // `list` ne contient déjà que les comptes toujours absents.
   const fresh = useMemo(

@@ -93,7 +93,7 @@ function netMovement(inPeriod: readonly FollowEvent[]): FollowEvent | undefined 
  * et après la période. Un compte parti puis revenu (ou arrivé puis reparti) ne compte pas ;
  * plusieurs allers-retours ne comptent qu'une fois.
  */
-function statsSince(events: FollowEvent[], ctx: VisibilityContext, since: number): PeriodStats {
+export function statsSince(events: FollowEvent[], ctx: VisibilityContext, since: number): PeriodStats {
   let departuresCount = 0;
   let arrivalsCount = 0;
   let unseen = 0;

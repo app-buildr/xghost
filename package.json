@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "postinstall": "wxt prepare",
-    "package": "npm run build && rm -rf pack xghost.zip && mkdir pack && cp -R dist pack/xGhost && (cd pack && zip -qrX ../xghost.zip xGhost) && rm -rf pack",
     "release": "./release.sh"
   },
   "dependencies": {

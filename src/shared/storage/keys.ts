@@ -8,6 +8,8 @@ export const keys = {
   selectedAccount: 'sel',
   status: 'status',
   scanTab: 'scanTab',
+  /** Compte retiré alors qu'il était connecté sur x.com : pas de ré-ajout automatique. */
+  dismissed: 'dismissed',
   /** Historique complet (départs et arrivées, format compact). */
   events: (accountId: string) => `acc:${accountId}:events`,
   ignored: (accountId: string) => `acc:${accountId}:ign`,
@@ -17,6 +19,7 @@ export const keys = {
   scanProgress: (accountId: string) => `acc:${accountId}:progress`,
   partialScan: (accountId: string) => `acc:${accountId}:partial`,
   suspicious: (accountId: string) => `acc:${accountId}:suspicious`,
+  /** Ancienne date de dernière visite de la popup (plus utilisée ; effacée avec le compte). */
   lastVisit: (accountId: string) => `acc:${accountId}:visit`,
   /** Total d'abonnés annoncé par X, un point par jour (courbe des abonnés). */
   totals: (accountId: string) => `acc:${accountId}:totals`,

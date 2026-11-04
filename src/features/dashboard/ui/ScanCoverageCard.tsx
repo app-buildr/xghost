@@ -1,16 +1,14 @@
-import { joinParts } from '@/features/events/ui/display';
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import { GIVE_UP_MS, type ScanProgress } from '@/features/followers-sync/repository';
+import { GIVE_UP_MS, SHOW_STUCK_AFTER_MS, type ScanProgress } from '@/features/followers-sync/model';
 import { pauseMessage, rateLimitText, scanTabHint, stallText } from '@/features/scan-status/messages';
 import { scanCoverage } from '@/features/scan-status/progress';
-import { ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
+import { LastScanBar, ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
 import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
 import { StopScanButton } from '@/features/scan-status/ui/StopScanButton';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
 import type { ScanReason, TrackedAccount } from '@/shared/types';
-import { ProgressBar } from '@/shared/ui/primitives';
 import {
   formatCountdown,
   formatDayOrDate,
@@ -19,7 +17,9 @@ import {
   formatPercent,
   formatProgressCount,
   formatTime,
+  joinParts,
 } from '@/shared/utils/format';
+import { SECOND } from '@/shared/utils/time';
 
 /** Pourquoi le scan complet en cours a été lancé (témoin pour l'utilisateur). */
 const REASONS: Partial<Record<ScanReason, () => string>> = {
@@ -32,9 +32,6 @@ const REASONS: Partial<Record<ScanReason, () => string>> = {
   safety: () => t('dashboard.coverage.reasons.safety'),
   recheck: () => t('dashboard.coverage.reasons.recheck'),
 };
-
-/** Sans nouvel abonné depuis ce délai pendant un scan en cours, on le signale comme bloqué. */
-const STUCK_MS = 45_000;
 
 type LiveState =
   | { kind: 'running' }
@@ -49,7 +46,7 @@ function liveState(p: ScanProgress, now: number): LiveState {
     return { kind: 'interrupted', text: pauseMessage(p) };
   }
   const last = p.lastProgressAt ?? p.startedAt;
-  return now - last > STUCK_MS ? { kind: 'stuck', since: last } : { kind: 'running' };
+  return now - last > SHOW_STUCK_AFTER_MS ? { kind: 'stuck', since: last } : { kind: 'running' };
 }
 
 function StateTag({ state, complete, hasLast }: { state?: LiveState; complete: boolean; hasLast: boolean }) {
@@ -86,9 +83,9 @@ export function ScanCoverageCard({
   const { start, busy } = useStartScan();
   const live = progress && progress.kind !== 'quick' ? progress : undefined;
   // Horloge propre à la carte pendant un scan : l'état « bloqué » apparaît sans attendre le parent.
-  const clock = useNow(5_000, !!live);
+  const clock = useNow(5 * SECOND, !!live);
   const state = live ? liveState(live, Math.max(now, clock)) : undefined;
-  const tick = useNow(1000, !!state && state.kind !== 'running');
+  const tick = useNow(SECOND, !!state && state.kind !== 'running');
   const last = account.lastScan;
   // Pendant un nouveau scan, la carte garde les chiffres du dernier scan : rien n'est effacé,
   // l'instantané précédent reste la référence tant que le nouveau scan n'est pas complet.
@@ -122,7 +119,7 @@ export function ScanCoverageCard({
       {live ? (
         <ScanProgressBar progress={live} />
       ) : (
-        <ProgressBar value={scanned} max={detected || scanned || 1} label={t('dashboard.coverage.title')} />
+        <LastScanBar scan={{ scanned, detected }} label={t('dashboard.coverage.title')} />
       )}
       {live && state ? (
         <div className="xg-coverage__foot">

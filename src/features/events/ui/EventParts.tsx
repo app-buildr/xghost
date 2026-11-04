@@ -1,7 +1,7 @@
 import { Tooltip } from '@/shared/ui/Tooltip';
-import { LOCALE, t } from '@/shared/i18n';
+import { t } from '@/shared/i18n';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
-import { formatAgo, formatAgoShort } from '@/shared/utils/format';
+import { formatAgo, formatAgoShort, formatDateTime } from '@/shared/utils/format';
 import { profileUrl } from '@/shared/x-urls';
 
 /** Date d'un mouvement (forme courte dans la popup), avec la date complète au survol. */
@@ -21,7 +21,7 @@ export function EventTime({
   return (
     // Popup : la date est au bord droit, une bulle centrée débordrait et élargirait la fenêtre.
     <Tooltip
-      label={t('common.event.detectedAt', { date: date.toLocaleString(LOCALE) })}
+      label={t('common.event.detectedAt', { date: formatDateTime(at) })}
       align={short ? 'end' : 'center'}
     >
       <time className={className} dateTime={date.toISOString()} tabIndex={0}>

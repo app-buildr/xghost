@@ -1,6 +1,6 @@
 import { byProfile, followDuration, isVisible, netMovement, type VisibilityContext } from '@/features/events/selectors';
 import type { FollowEvent } from '@/shared/types';
-import { DAY, startOfDay } from './period';
+import { DAY, startOfDay } from '@/shared/utils/time';
 
 /**
  * Statistiques du tableau de bord (§ 3.4), calculées à partir de l'historique des départs et des
@@ -10,8 +10,12 @@ import { DAY, startOfDay } from './period';
 export type Unit = 'day' | 'week' | 'month';
 
 /** Date du plus ancien mouvement, ou `undefined` sans historique. */
-export const oldestEventAt = (events: readonly FollowEvent[]): number | undefined =>
-  events.length ? Math.min(...events.map((e) => e.at)) : undefined;
+export function oldestEventAt(events: readonly FollowEvent[]): number | undefined {
+  // Boucle plutôt que Math.min(...) : un historique très long dépasserait la limite d'arguments.
+  let oldest: number | undefined;
+  for (const e of events) if (oldest === undefined || e.at < oldest) oldest = e.at;
+  return oldest;
+}
 
 /** Début (local) du jour, de la semaine (lundi) ou du mois contenant `at`. */
 export function startOf(unit: Unit, at: number): number {

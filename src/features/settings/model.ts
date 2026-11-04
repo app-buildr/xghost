@@ -5,7 +5,7 @@ import type { Frequency } from '@/shared/types';
 export const FREQUENCIES: readonly Frequency[] = [1, 6, 12, 24, 0];
 
 /** Libellé d'une fréquence : court (« 6 h ») pour les réglages, long (« Toutes les 6 h ») pour l'onboarding. */
-export function frequencyLabel(h: Frequency, style: 'short' | 'long' = 'short'): string {
+function frequencyLabel(h: Frequency, style: 'short' | 'long' = 'short'): string {
   if (h === 0) return t('common.frequency.manual');
   if (style === 'short') return t('common.frequency.short', { h });
   if (h === 1) return t('common.frequency.hourly');

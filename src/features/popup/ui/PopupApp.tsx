@@ -1,36 +1,34 @@
-import { Tooltip } from '@/shared/ui/Tooltip';
-import { isOnboarded } from '@/features/accounts/repository';
+import { ChevronDown, RefreshCw, Settings, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { isOnboarded } from '@/features/accounts/model';
 import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
 import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
 import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
 import { useAppState } from '@/features/app-state/useAppState';
 import { DisplayedContext, useMarkVisible } from '@/features/app-state/useSeenOnView';
-import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { currentDepartures, statsSince } from '@/features/events/selectors';
-import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
-import { oldestEventAt } from '@/features/stats/selectors';
-import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
-import { joinParts } from '@/features/events/ui/display';
 import { departureMeta } from '@/features/events/ui/DeparturesPanel';
 import { EventRow } from '@/features/events/ui/EventRow';
 import { scanCoverage } from '@/features/scan-status/progress';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
+import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
+import type { OptionSection } from '@/features/options/sections';
+import { oldestEventAt } from '@/features/stats/selectors';
 import { focusOrOpenExtensionPage } from '@/shared/browser/tabs';
 import { useNow } from '@/shared/hooks/useNow';
+import { useScrollFade } from '@/shared/hooks/useScrollFade';
+import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { t } from '@/shared/i18n';
-import { localKv } from '@/shared/storage/kv';
-import { keys } from '@/shared/storage/keys';
 import type { FollowEvent } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
-import { ChevronDown, RefreshCw, Settings, X } from 'lucide-react';
-import { Logo, StatTile, Segmented } from '@/shared/ui/primitives';
-import { formatAgo, formatNumber, formatPercent, formatSigned } from '@/shared/utils/format';
+import { Logo, Segmented, StatTile } from '@/shared/ui/primitives';
+import { Tooltip } from '@/shared/ui/Tooltip';
+import { formatAgo, formatNumber, formatPercent, formatSigned, joinParts } from '@/shared/utils/format';
 import './popup.css';
 
 /** Ouvre une section des options (onglet réutilisé s'il existe), puis ferme la popup. */
-async function openOptions(section: 'dashboard' | 'settings'): Promise<void> {
+async function openOptions(section: OptionSection): Promise<void> {
   await focusOrOpenExtensionPage('/options.html', section);
   window.close();
 }
@@ -39,24 +37,6 @@ async function openOptions(section: 'dashboard' | 'settings'): Promise<void> {
 async function openOnboarding(): Promise<void> {
   await focusOrOpenExtensionPage('/onboarding.html');
   window.close();
-}
-
-/**
- * Date de la visite précédente, figée à l'ouverture de la popup, puis mise à jour :
- * l'encart « depuis ta dernière visite » reste stable tant que la popup est ouverte.
- */
-function usePreviousVisit(accountId: string | undefined): number | null | undefined {
-  const [previous, setPrevious] = useState<number | null>();
-  const done = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!accountId || done.current === accountId) return;
-    done.current = accountId;
-    void localKv.get<number>(keys.lastVisit(accountId)).then(async (v) => {
-      setPrevious(typeof v === 'number' ? v : null);
-      await localKv.set({ [keys.lastVisit(accountId)]: Date.now() });
-    });
-  }, [accountId]);
-  return previous;
 }
 
 /** Lignes visibles sans défiler ; les suivantes (jusqu'à `POPUP_LATEST`) s'atteignent en défilant. */
@@ -100,7 +80,7 @@ function LatestDepartures({
     };
   }, [latest]);
 
-  if (latest.length === 0) return <p className="xg-popup__empty">{t('dashboard.departures.empty')}</p>;
+  if (latest.length === 0) return <p className="xg-empty">{t('common.departuresEmpty')}</p>;
   return (
     <ul
       ref={list}
@@ -128,7 +108,6 @@ export function PopupApp() {
   const account = app.selected;
   const { data, markDisplayed } = useAccountData(account?.id, { seenOnView: true });
   const ctx = useVisibilityContext(data, account);
-  const previousVisit = usePreviousVisit(account?.id);
   const unseenByAccount = useUnseenByAccount(app.accounts);
   const { start, busy } = useStartScan();
 
@@ -138,11 +117,9 @@ export function PopupApp() {
   const [period, setPeriod] = useStoredChoice<PopupPeriod>('xg.popupPeriod', POPUP_PERIODS, '7d');
   const since = periodStart(period, now, account?.baselineAt ?? oldestEventAt(data?.events ?? []));
   const stats = useMemo(() => statsSince(data?.events ?? [], ctx, since), [data?.events, ctx, since]);
-  // `list` ne contient déjà que les comptes toujours absents.
-  const fresh = useMemo(
-    () => list.filter((e) => !e.seen && (previousVisit == null || e.at > previousVisit)).length,
-    [list, previousVisit],
-  );
+  // Départs pas encore vus (comme le badge de l'icône). `list` ne contient que les comptes
+  // toujours absents ; un départ affiché pendant cette visite reste compté jusqu'à la fermeture.
+  const fresh = useMemo(() => list.filter((e) => !e.seen).length, [list]);
 
   // Alerte « nouveaux départs » fermée par l'utilisateur : se replie en douceur, puis disparaît.
   // Inutile de s'en souvenir : à la prochaine ouverture, ces départs ne sont plus nouveaux.
@@ -228,7 +205,7 @@ export function PopupApp() {
                 <span>
                   <b>{t('popup.fresh', { count: fresh })}</b>
                   <br />
-                  {t('popup.sinceLastVisit')}
+                  {t('popup.notSeenYet', { count: fresh })}
                 </span>
                 <button
                   type="button"
@@ -286,23 +263,27 @@ export function PopupApp() {
           </section>
         )}
 
-        {!account && app.status?.session !== 'disconnected' && <p className="xg-popup__empty">{t('popup.noAccount')}</p>}
+        {!account && app.status?.session !== 'disconnected' && <p className="xg-empty">{t('popup.noAccount')}</p>}
 
         <footer className="xg-popup__foot">
           <Tooltip label={t('popup.recheckTitle')}>
-          <button
-            type="button"
-            className="xg-btn xg-btn--ghost"
-            disabled={busy || !account}
-            onClick={() => void start()}
-          >
-            <RefreshCw size={20} className={busy || data?.progress?.status === 'running' ? 'xg-spin' : undefined} />
-            {data?.progress?.status === 'running'
-              ? t('popup.checking')
-              : account?.lastScanAt
-                ? t('common.checkedAgo', { ago: formatAgo(account.lastScanAt, now) })
-                : t('dashboard.check.checkNow')}
-          </button>
+            <button
+              type="button"
+              className="xg-btn xg-btn--ghost"
+              disabled={busy || !account}
+              onClick={() => void start()}
+            >
+              <RefreshCw size={20} className={busy || data?.progress?.status === 'running' ? 'xg-spin' : undefined} />
+              {/* Largeur du bouton fixée par le pied (voir popup.css) : le libellé peut changer
+                  sans élargir la popup. */}
+              <span className="xg-popup__check-label">
+                {data?.progress?.status === 'running'
+                  ? t('popup.checking')
+                  : account?.lastScanAt
+                    ? t('common.checkedAgo', { ago: formatAgo(account.lastScanAt, now) })
+                    : t('common.checkNow')}
+              </span>
+            </button>
           </Tooltip>
           <button type="button" className="xg-btn xg-btn--ink xg-btn--lg" onClick={() => void openOptions('dashboard')}>
             {t('popup.openDashboard')}

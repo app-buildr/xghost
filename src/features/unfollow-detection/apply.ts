@@ -25,6 +25,7 @@ import {
   isComplete,
   SUSPICIOUS_MAX_RETRIES,
 } from './diff';
+import { MINUTE } from '@/shared/utils/time';
 
 /**
  * Exploitation des scans (§ 4.1, 4.2, 4.7) : référence, comparaison, garde-fous,
@@ -32,12 +33,12 @@ import {
  * Le statut des comptes partis n'est pas vérifié : xGhost n'ouvre jamais leur profil.
  */
 
-const SUSPICIOUS_RETRY_MS = 30 * 60_000;
+const SUSPICIOUS_RETRY_MS = 30 * MINUTE;
 /** Haut de la liste gardé dans l'ordre de x.com, pour le contrôle léger. */
 const SNAPSHOT_TOP_SIZE = 200;
 /** Nombre de contrôles « total X en retard » tolérés avant de lancer un scan complet. */
 const MAX_STALE_RUNS = 3;
-const STALE_RECHECK_MS = 10 * 60_000;
+const STALE_RECHECK_MS = 10 * MINUTE;
 
 export type ApplyOutcome =
   | { kind: 'incomplete'; coverage: ScanCoverage }

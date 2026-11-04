@@ -1,13 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import { LOCALE } from '@/shared/i18n';
 import './stats.css';
 
 /** Briques communes aux graphiques du tableau de bord : dates, en-tête, survol, infobulle. */
 
-/** « 12 oct. » sous les axes. */
-export const shortDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
-/** « mercredi 4 novembre » dans les infobulles. */
-export const longDate = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
 
 /** En-tête d'une carte de graphique : titre, sous-titre et, à droite, un chiffre ou une légende. */
 export function StatHead({ title, sub, aside }: { title: string; sub?: ReactNode; aside?: ReactNode }) {

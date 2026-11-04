@@ -1,3 +1,5 @@
+import { isSameDay } from '@/shared/utils/time';
+import type { ScanProgress } from './model';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
 import type { PartialScan, Profile, ScanJob, Snapshot } from '@/shared/types';
@@ -34,18 +36,11 @@ export async function loadTotals(accountId: string): Promise<TotalPoint[]> {
 /** Retient le total annoncé par X pour le jour de `at` (le dernier relevé du jour l'emporte). */
 export async function recordTotal(accountId: string, total: number, at: number): Promise<void> {
   if (!Number.isSafeInteger(total) || total < 0) return;
-  const day = new Date(at).toDateString();
-  const points = (await loadTotals(accountId)).filter(([t]) => new Date(t).toDateString() !== day);
+  const points = (await loadTotals(accountId)).filter(([t]) => !isSameDay(t, at));
   points.push([at, total]);
   points.sort((a, b) => a[0] - b[0]);
   await localKv.set({ [keys.totals(accountId)]: points.slice(-MAX_TOTALS) });
 }
-
-/**
- * Scan sans aucune page depuis ce délai (hors limite de X annoncée) : arrêté d'office, onglet
- * fermé, et gardé comme incomplet (« Continuer le scan »). Jamais de blocage sans fin.
- */
-export const GIVE_UP_MS = 5 * 60_000;
 
 export const loadJob = (accountId: string) => localKv.get<ScanJob>(keys.scanJob(accountId));
 
@@ -53,24 +48,6 @@ export const loadPartial = (accountId: string) => localKv.get<PartialScan>(keys.
 export const savePartial = (accountId: string, partial: PartialScan) =>
   localKv.set({ [keys.partialScan(accountId)]: partial });
 export const clearPartial = (accountId: string) => localKv.remove(keys.partialScan(accountId));
-
-/** État léger du scan, lu par les interfaces (barre de progression) sans charger la liste. */
-export interface ScanProgress {
-  kind: ScanJob['kind'];
-  status: ScanJob['status'];
-  collected: number;
-  /** Abonnés repris d'un scan incomplet (exclus du calcul de vitesse). */
-  seeded: number;
-  expected: number;
-  startedAt: number;
-  updatedAt: number;
-  reason?: ScanJob['reason'];
-  /** Dernière page de la liste reçue (détection d'un scan bloqué). */
-  lastProgressAt?: number;
-  pausedReason?: ScanJob['pausedReason'];
-  resumeAt?: number;
-  error?: string;
-}
 
 const toProgress = (job: ScanJob): ScanProgress => ({
   kind: job.kind,
@@ -84,7 +61,6 @@ const toProgress = (job: ScanJob): ScanProgress => ({
   reason: job.reason,
   pausedReason: job.pausedReason,
   resumeAt: job.resumeAt,
-  error: job.error,
 });
 
 export const saveJob = (job: ScanJob) =>
@@ -104,4 +80,13 @@ export async function deleteLocalAccountData(accountId: string): Promise<void> {
     keys.lastVisit(accountId),
     keys.totals(accountId),
   ]);
+}
+
+/** État léger du scan d'un compte (barre de progression, détection de blocage). */
+export const loadProgress = (accountId: string) => localKv.get<ScanProgress>(keys.scanProgress(accountId));
+
+/** États légers des scans de plusieurs comptes. */
+export async function loadProgresses(accountIds: readonly string[]): Promise<(ScanProgress | undefined)[]> {
+  const items = await localKv.getMany(accountIds.map(keys.scanProgress));
+  return accountIds.map((id) => items[keys.scanProgress(id)] as ScanProgress | undefined);
 }

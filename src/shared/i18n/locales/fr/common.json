@@ -11,9 +11,7 @@
       "accountSwitched": "Un autre compte est connecté sur x.com : reviens sur @{{handle}} pour terminer le scan.",
       "error": "Erreur, nouvel essai automatique.",
       "rateLimitAt": "Limite de requêtes X atteinte : reprise automatique à {{time}}.",
-      "errorAt": "Erreur, nouvel essai automatique à {{time}}.",
-      "errorDetail": "Erreur ({{detail}}), nouvel essai automatique.",
-      "errorDetailAt": "Erreur ({{detail}}), nouvel essai automatique à {{time}}."
+      "errorAt": "Erreur, nouvel essai automatique à {{time}}."
     },
     "remaining": {
       "lessThanMinute": "Moins d’une minute restante",
@@ -103,5 +101,7 @@
   },
   "checkedAgo": "Vérifié {{ago}}",
   "continueScan": "Continuer le scan",
-  "openX": "Ouvrir x.com"
+  "openX": "Ouvrir x.com",
+  "departuresEmpty": "Aucun départ pour l’instant. xGhost veille.",
+  "checkNow": "Vérifier maintenant"
 }

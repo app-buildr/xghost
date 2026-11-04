@@ -20,14 +20,7 @@
   color: var(--xg-text-muted);
 }
 .xg-onb__steps {
-  list-style: none;
-  margin: 0;
   padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--xg-surface);
-  border: 1px solid var(--xg-border);
   border-radius: var(--xg-radius-card);
 }
 .xg-step {

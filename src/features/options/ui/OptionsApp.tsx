@@ -21,21 +21,15 @@ import { Logo, useSlidingIndicator } from '@/shared/ui/primitives';
 import { X_LOGIN_URL } from '@/shared/x-urls';
 import { OptionsFooter } from './OptionsFooter';
 import './options.css';
+import { OPTION_SECTIONS, type OptionSection } from '../sections';
 
-type Section = 'dashboard' | 'departures' | 'arrivals' | 'settings';
-const SECTIONS: { id: Section; label: `options.nav.${Section}` }[] = [
-  { id: 'dashboard', label: 'options.nav.dashboard' },
-  { id: 'departures', label: 'options.nav.departures' },
-  { id: 'arrivals', label: 'options.nav.arrivals' },
-  { id: 'settings', label: 'options.nav.settings' },
-];
 
-function useSection(): [Section, (s: Section) => void] {
+function useSection(): [OptionSection, (s: OptionSection) => void] {
   const read = () => {
-    const h = location.hash.slice(1) as Section;
-    return SECTIONS.some((s) => s.id === h) ? h : 'dashboard';
+    const h = location.hash.slice(1) as OptionSection;
+    return OPTION_SECTIONS.includes(h) ? h : 'dashboard';
   };
-  const [section, setSection] = useState<Section>(read);
+  const [section, setSection] = useState<OptionSection>(read);
   useEffect(() => {
     const onHash = () => setSection(read());
     window.addEventListener('hashchange', onHash);
@@ -65,7 +59,7 @@ export function OptionsRecovery() {
 }
 
 /**
- * Section protégée : une erreur de rendu n'emporte pas le reste de la page. Elle est retentée
+ * OptionSection protégée : une erreur de rendu n'emporte pas le reste de la page. Elle est retentée
  * quand les données affichées changent (autre compte, sauvegarde importée).
  */
 const Guard = ({ children, resetKey }: { children: ReactNode; resetKey?: unknown }) => (
@@ -77,7 +71,7 @@ export function OptionsApp() {
   const now = useNow();
   const [section, go] = useSection();
   const navItems = useRef<(HTMLAnchorElement | null)[]>([]);
-  const navThumb = useSlidingIndicator(navItems, Math.max(0, SECTIONS.findIndex((s) => s.id === section)), 'y');
+  const navThumb = useSlidingIndicator(navItems, Math.max(0, OPTION_SECTIONS.indexOf(section)), 'y');
   const account = app.selected;
   // Les listes signalent leurs lignes affichées ; seules celles-ci sont marquées vues.
   const { data, markDisplayed } = useAccountData(account?.id, { seenOnView: true });
@@ -96,22 +90,22 @@ export function OptionsApp() {
           <nav aria-label={t('options.nav.label')} className="xg-nav">
             {/* Pastille de la section courante : elle glisse d'une section à l'autre. */}
             <span className="xg-nav__thumb" style={navThumb} aria-hidden="true" />
-            {SECTIONS.map((s, i) => (
+            {OPTION_SECTIONS.map((id, i) => (
               <a
-                key={s.id}
+                key={id}
                 ref={(el) => {
                   navItems.current[i] = el;
                 }}
-                href={`#${s.id}`}
-                className={`xg-nav__item${section === s.id ? ' is-current' : ''}`}
-                aria-current={section === s.id ? 'page' : undefined}
+                href={`#${id}`}
+                className={`xg-nav__item${section === id ? ' is-current' : ''}`}
+                aria-current={section === id ? 'page' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
-                  go(s.id);
+                  go(id);
                 }}
               >
-                {t(s.label)}
-                {s.id === 'departures' && <UnseenCount count={unseenSelected} />}
+                {t(`options.nav.${id}`)}
+                {id === 'departures' && <UnseenCount count={unseenSelected} />}
               </a>
             ))}
           </nav>

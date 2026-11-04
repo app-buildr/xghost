@@ -1,13 +1,17 @@
 import { LOCALE, t } from '@/shared/i18n';
+import { DAY, daysBefore, HOUR, isSameDay, MINUTE as MIN, startOfDay } from '@/shared/utils/time';
 
 /** Formats d'affichage, dans la langue du navigateur (textes dans locales/<langue>/format.json). */
 
-const MIN = 60_000;
-const HOUR = 60 * MIN;
-const DAY = 24 * HOUR;
-
 const numberFmt = new Intl.NumberFormat(LOCALE);
-const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
+/** « 12 oct. » (axes des graphiques, dates courtes). */
+export const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
+/** « mercredi 4 novembre » (infobulles des graphiques). */
+export const longDay = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+const dateTime = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'medium', timeStyle: 'short' });
+/** « juil. » (mois des graphiques), avec l'année (« juil. 26 ») quand la période en couvre plusieurs. */
+export const shortMonth = new Intl.DateTimeFormat(LOCALE, { month: 'short' });
+export const shortMonthYear = new Intl.DateTimeFormat(LOCALE, { month: 'short', year: '2-digit' });
 const dayMonthYear = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
 const time = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit' });
 
@@ -27,11 +31,11 @@ export function formatDate(at: number, now = Date.now()): string {
 
 export const formatTime = (at: number) => time.format(new Date(at));
 
-function isYesterday(at: number, now: number): boolean {
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  return at < start.getTime() && at >= start.getTime() - DAY;
-}
+/** Date et heure complètes : « 4 nov. 2026, 09:14 ». */
+export const formatDateTime = (at: number) => dateTime.format(new Date(at));
+
+/** Veille calendaire de `now` (sûr aux changements d'heure). */
+const isYesterday = (at: number, now: number) => at < startOfDay(now) && at >= daysBefore(now, 1);
 
 /** Forme courte de la popup : « 2 h », « hier », « 3 j », « 29 oct. ». */
 export function formatAgoShort(at: number, now = Date.now()): string {
@@ -106,7 +110,7 @@ export const formatBadgeCount = (n: number) => (n <= 0 ? '' : n > 99 ? '99+' : S
 
 /** « aujourd’hui, 09:14 » ou « 12 oct. ». */
 export const formatDayOrDate = (at: number, now = Date.now()) =>
-  new Date(at).toDateString() === new Date(now).toDateString()
+  isSameDay(at, now)
     ? t('format.todayAt', { time: formatTime(at) })
     : formatDate(at, now);
 
@@ -126,3 +130,7 @@ const conjunction = new Intl.ListFormat(LOCALE, { style: 'long', type: 'conjunct
 
 /** Énumération dans la langue : « a et b », « a, b et c ». */
 export const formatList = (items: readonly string[]) => conjunction.format(items);
+
+/** Morceaux d'information assemblés avec le séparateur de la langue (« @x · suivi pendant 3 mois »). */
+export const joinParts = (parts: readonly (string | false | undefined)[]) =>
+  parts.filter(Boolean).join(t('format.separator'));

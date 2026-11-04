@@ -7,22 +7,19 @@ import { cancelScan, settleAnalyses } from '@/features/followers-sync/scan-engin
 import { settleWrites as settleEvents } from '@/features/events/repository';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
 import { installedVersion } from '@/shared/utils/version';
-import { isTransientKey, MAX_BACKUP_BYTES, validateBackup, type BackupError } from './format';
-import { withImportLock } from './lock';
+import { isTransientKey, MAX_BACKUP_BYTES, validateBackup } from './format';
+import type { ImportResult } from '@/shared/types';
+import { withImportLock } from '@/shared/storage/import-lock';
 
 /**
  * Import d'une sauvegarde (service worker, seul écrivain des données).
  *
  * 1. Validation complète du fichier : rien n'est touché s'il est refusé.
- * 2. Verrou d'import : le moteur ne lance ni ne poursuit de scan (voir lock.ts).
+ * 2. Verrou d'import : le moteur ne lance ni ne poursuit de scan (voir shared/storage/import-lock.ts).
  * 3. Arrêt des scans, des alarmes de compte et des « vus » en attente.
  * 4. Écriture des nouvelles valeurs, puis suppression des clés absentes de la sauvegarde.
  *    En cas d'échec, l'état d'avant (copie en mémoire) est réécrit.
  */
-
-/** `exportedAt` : date de la sauvegarde importée (affichée par l'onboarding). */
-export type ImportResult = { ok: true; exportedAt: number } | { ok: false; error: BackupError | 'failed' };
-
 
 /** Comptes concernés par des clés de stockage (scans et alarmes à arrêter). */
 const accountIdsOf = (keys: string[]) =>
@@ -42,7 +39,6 @@ async function writeData(target: Record<string, unknown>): Promise<void> {
   const stale = Object.keys(current).filter((k) => !isTransientKey(k) && !(k in target));
   if (stale.length) await chrome.storage.local.remove(stale);
 }
-
 
 export async function importBackup(raw: unknown): Promise<ImportResult> {
   // Taille vérifiée côté service worker aussi (le message peut venir d'une autre page de l'extension).

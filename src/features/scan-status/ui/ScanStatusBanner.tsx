@@ -1,5 +1,5 @@
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import type { ScanProgress } from '@/features/followers-sync/repository';
+import type { ScanProgress } from '@/features/followers-sync/model';
 import { t } from '@/shared/i18n';
 import type { GlobalStatus, TrackedAccount } from '@/shared/types';
 import { ExternalLink } from '@/shared/ui/ExternalLink';

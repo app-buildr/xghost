@@ -1,7 +1,7 @@
 import type { DurationBucket, DurationRow } from '@/features/stats/selectors';
 import { t } from '@/shared/i18n';
-import { formatNumber } from '@/shared/utils/format';
-import { shortDate, StatHead } from './chart';
+import { dayMonth, formatNumber } from '@/shared/utils/format';
+import { StatHead } from './chart';
 
 /**
  * Départs de la période par durée de suivi (§ 3.4, § 4.5) : une barre par tranche. Toutes les
@@ -18,7 +18,7 @@ export function DurationChart({
   const total = buckets.reduce((n, b) => n + b.count, 0);
   const label = (bucket: DurationBucket) =>
     bucket === 'before'
-      ? t('stats.duration.before', { date: baselineAt ? shortDate.format(baselineAt) : '…' })
+      ? t('stats.duration.before', { date: baselineAt ? dayMonth.format(baselineAt) : '…' })
       : t(`stats.duration.${bucket}`);
 
   return (
@@ -44,7 +44,7 @@ export function DurationChart({
           </li>
         ))}
       </ul>
-      {total === 0 && <p className="xg-stat__empty">{t('stats.duration.empty')}</p>}
+      {total === 0 && <p className="xg-empty">{t('stats.duration.empty')}</p>}
     </figure>
   );
 }

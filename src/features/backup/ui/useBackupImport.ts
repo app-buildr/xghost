@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { MAX_BACKUP_BYTES, type BackupError } from '@/features/backup/format';
+import { MAX_BACKUP_BYTES } from '@/features/backup/format';
+import type { BackupError } from '@/shared/types';
 import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
 import { useToast } from '@/shared/ui/toast';

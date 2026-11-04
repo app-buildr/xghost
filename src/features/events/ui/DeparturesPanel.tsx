@@ -1,13 +1,13 @@
 import { useCallback, useMemo } from 'react';
 import type { AccountData } from '@/features/app-state/useAccountData';
-import { followDurationLabel } from '@/features/events/labels';
-import { currentDepartures, followDuration, type VisibilityContext } from '@/features/events/selectors';
+import { followDurationLabel } from '../labels';
+import { currentDepartures, followDuration, type VisibilityContext } from '../selectors';
 import { t } from '@/shared/i18n';
 import type { FollowEvent, TrackedAccount } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
 import { Copy, EyeOff, Trash2 } from 'lucide-react';
-import { formatNumber } from '@/shared/utils/format';
-import { joinParts, statusLabel } from './display';
+import { formatNumber, joinParts } from '@/shared/utils/format';
+import { statusLabel } from './display';
 import { EventListPanel } from './EventListPanel';
 import { ProfileLink } from './EventParts';
 import { EventRow } from './EventRow';
@@ -65,7 +65,7 @@ export function DeparturesPanel({
       filterLabel={t('dashboard.departures.filterLabel')}
       items={items}
       followsBack={followsBack}
-      empty={t('dashboard.departures.empty')}
+      empty={t('common.departuresEmpty')}
       emptyFiltered={t('dashboard.departures.emptyFilter')}
       limit={limit}
       onShowAll={onShowAll}

@@ -65,11 +65,6 @@
 .xg-stat__delta.is-down {
   color: var(--xg-danger-text);
 }
-.xg-stat__empty {
-  margin: 8px 0;
-  font-size: 14px;
-  color: var(--xg-text-muted);
-}
 .xg-stat__plot {
   position: relative;
 }
@@ -347,13 +342,13 @@
   min-width: 170px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--xg-ink);
-  color: #fff;
+  background: var(--xg-bubble-bg);
+  color: var(--xg-bubble-fg);
   font-size: 13px;
   line-height: 1.35;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 8px 24px rgba(17, 19, 24, 0.18);
+  box-shadow: var(--xg-bubble-shadow);
   --tip-x: -50%;
   transform: translate(var(--tip-x), 4px);
   opacity: 0;
@@ -403,8 +398,8 @@
 .xg-chart__tip-net {
   margin-top: 2px;
   padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  color: #c9ced6;
+  border-top: 1px solid var(--xg-bubble-divider);
+  color: var(--xg-bubble-muted);
 }
 .xg-chart__foot {
   margin: 0;

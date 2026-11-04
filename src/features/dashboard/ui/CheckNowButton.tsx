@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ScanProgress } from '@/features/followers-sync/repository';
+import type { ScanProgress } from '@/features/followers-sync/model';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { t } from '@/shared/i18n';
 import type { TrackedAccount } from '@/shared/types';
@@ -7,13 +7,14 @@ import { RefreshCw } from 'lucide-react';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { useToast } from '@/shared/ui/toast';
 import { quickSummary } from './quickSummary';
+import { MINUTE, SECOND } from '@/shared/utils/time';
 
 /** Au-delà, un contrôle lancé ici sans résultat est oublié (échec, fermeture) : pas de toast tardif. */
-const RESULT_TIMEOUT_MS = 3 * 60_000;
+const RESULT_TIMEOUT_MS = 3 * MINUTE;
 /** Contrôle si rapide qu'il s'est terminé avant d'être vu tourner. */
-const FAST_RESULT_MS = 30_000;
+const FAST_RESULT_MS = 30 * SECOND;
 /** Démarrage demandé sans scan visible au bout de ce délai : l'icône arrête de tourner. */
-const START_GRACE_MS = 15_000;
+const START_GRACE_MS = 15 * SECOND;
 
 /**
  * « Vérifier maintenant » : contrôle léger (total + abonnés les plus récents, quelques secondes).
@@ -68,7 +69,7 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
 
   const check = async () => {
     // Noté avant l'envoi : le résultat peut être enregistré avant la réponse du service worker.
-    pending.current = { since: Date.now() - 1000, seen: false };
+    pending.current = { since: Date.now() - SECOND, seen: false };
     if (await start()) setStarting(true);
     else pending.current = undefined;
   };
@@ -81,7 +82,8 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
         disabled={busy || quickRunning || fullRunning}
         onClick={() => void check()}
       >
-        <RefreshCw size={18} className={busy || starting || running ? 'xg-spin' : undefined} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
+        <RefreshCw size={18} className={busy || starting || running ? 'xg-spin' : undefined} />{' '}
+        {quickRunning ? t('dashboard.check.checking') : t('common.checkNow')}
       </button>
       <Tooltip label={t('dashboard.check.fullScanTitle')} side="bottom" align="end">
         <button type="button" className="xg-link" disabled={busy || fullRunning} onClick={() => void start({ full: true })}>

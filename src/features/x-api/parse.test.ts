@@ -30,15 +30,17 @@ describe('parseFollowersPage', () => {
         },
       },
     };
-    const page = parseFollowersPage(data);
+    const page = parseFollowersPage(data)!;
     expect(page.users.map((u) => u.id)).toEqual(['1', '2']);
     expect(page.users[0]).toMatchObject({ handle: 'a', name: 'A', following: true });
     expect(page).toMatchObject({ nextCursor: '123|456', done: false });
   });
   it('fin de liste : curseur « 0|… » ou aucun curseur suivant', () => {
     const end = { data: { user: { result: { timeline: { timeline: { instructions: [{ entries: [user('1', 'a'), { entryId: 'cursor-bottom-0', content: { cursorType: 'Bottom', value: '0|999' } }] }] } } } } } };
-    expect(parseFollowersPage(end).done).toBe(true);
-    expect(parseFollowersPage({}).done).toBe(true);
+    expect(parseFollowersPage(end)!.done).toBe(true);
+    // Pas de liste dans la réponse (erreur avec un statut 200) : ni page, ni fin de liste.
+    expect(parseFollowersPage({})).toBeUndefined();
+    expect(parseFollowersPage({ errors: [{ message: 'oops' }], data: {} })).toBeUndefined();
   });
   it('page vide qui annonce une suite : pas la fin de la liste', () => {
     const empty = { data: { user: { result: { timeline: { timeline: { instructions: [{ entries: [{ entryId: 'cursor-bottom-1', content: { cursorType: 'Bottom', value: '77|88' } }] }] } } } } } };
@@ -55,7 +57,7 @@ describe('parseFollowersPage', () => {
       },
     };
     const data = { data: { user: { result: { timeline: { timeline: { instructions: [{ entries: [legacy] }] } } } } } };
-    expect(parseFollowersPage(data).users[0]).toMatchObject({ id: '9', handle: 'old', following: true });
+    expect(parseFollowersPage(data)!.users[0]).toMatchObject({ id: '9', handle: 'old', following: true });
   });
 });
 

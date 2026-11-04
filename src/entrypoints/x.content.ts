@@ -78,14 +78,17 @@ export default defineContentScript({
 
     /**
      * Après une erreur (limite atteinte), x.com affiche un bouton « Réessayer » en bas de liste.
-     * On ne clique que ce bouton-là : jamais une fiche d'abonné (qui ouvrirait son profil).
+     * On ne clique que ce bouton-là : jamais une fiche d'abonné (qui ouvrirait son profil). Son
+     * texte dépend de la langue de X : reconnu en français ou en anglais, sinon c'est le seul
+     * bouton de la dernière cellule (sans fiche ni lien), quelle que soit la langue.
      */
     function clickRetry(): boolean {
       const cell = lastCell();
       if (!cell || cell.querySelector('[data-testid="UserCell"], a[href]')) return false;
-      const button = [...cell.querySelectorAll<HTMLElement>('button')].find((b) =>
-        /r[ée]essayer|retry|try again/i.test(b.textContent ?? ''),
-      );
+      const buttons = [...cell.querySelectorAll<HTMLElement>('button, [role="button"]')];
+      const button =
+        buttons.find((b) => /r[ée]essayer|retry|try again/i.test(b.textContent ?? '')) ??
+        (buttons.length === 1 ? buttons[0] : undefined);
       if (!button) return false;
       button.click();
       return true;

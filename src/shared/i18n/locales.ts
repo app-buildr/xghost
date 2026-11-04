@@ -5,7 +5,6 @@
 import frBackup from './locales/fr/backup.json';
 import frCommon from './locales/fr/common.json';
 import frDashboard from './locales/fr/dashboard.json';
-import frEngine from './locales/fr/engine.json';
 import frFormat from './locales/fr/format.json';
 import frOnboarding from './locales/fr/onboarding.json';
 import frOptions from './locales/fr/options.json';
@@ -14,7 +13,6 @@ import frStats from './locales/fr/stats.json';
 import enBackup from './locales/en/backup.json';
 import enCommon from './locales/en/common.json';
 import enDashboard from './locales/en/dashboard.json';
-import enEngine from './locales/en/engine.json';
 import enFormat from './locales/en/format.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enOptions from './locales/en/options.json';
@@ -25,7 +23,6 @@ export const fr = {
   backup: frBackup,
   common: frCommon,
   dashboard: frDashboard,
-  engine: frEngine,
   format: frFormat,
   onboarding: frOnboarding,
   options: frOptions,
@@ -37,7 +34,6 @@ export const en: typeof fr = {
   backup: enBackup,
   common: enCommon,
   dashboard: enDashboard,
-  engine: enEngine,
   format: enFormat,
   onboarding: enOnboarding,
   options: enOptions,

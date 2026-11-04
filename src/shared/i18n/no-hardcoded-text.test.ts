@@ -25,6 +25,10 @@ const LITERAL = /(['"`])((?:\\.|(?!\1).)*)\1/g;
 const HUMAN = /[À-ÿ’…]|[A-Za-z]{2,} [A-Za-z]{2,}/;
 /** Littéraux techniques tolérés : « … » seul (valeur inconnue), classes CSS, CSS en ligne, polices, URLs. */
 const TECHNICAL = /^…$|^xg-|var\(|\bpx\b|rgba|svg|font|https?:|Segoe UI|^[\w-]+ [\w-]+(--[\w-]+)?$/;
+/** Attribut lu par l'utilisateur ou un lecteur d'écran, écrit en dur (même un seul mot). */
+const TEXT_ATTRIBUTE = /\b(aria-label|title|alt|placeholder|label)="([^"]*[A-Za-zÀ-ÿ][^"]*)"/g;
+/** Même chose posée en DOM (overlay x.com) : `setAttribute('aria-label', 'Fermer')`. */
+const DOM_ATTRIBUTE = /setAttribute\(\s*'(aria-label|title|alt|placeholder)'\s*,\s*'([^']*[A-Za-zÀ-ÿ][^']*)'/g;
 /** Texte entre balises JSX. */
 const JSX_TEXT = />\s*([^<>{}\n]*[A-Za-zÀ-ÿ]{2,}[^<>{}\n]*?)\s*</g;
 
@@ -40,6 +44,8 @@ describe('textes', () => {
           if (s && HUMAN.test(s) && !TECHNICAL.test(s)) found.push(`${where}: ${s}`);
         }
         if (file.endsWith('.tsx')) for (const [, s] of line.matchAll(JSX_TEXT)) if (s && !/[=;()]|^[\w.]+$/.test(s)) found.push(`${where}: ${s}`);
+        if (file.endsWith('.tsx')) for (const [, attr, s] of line.matchAll(TEXT_ATTRIBUTE)) found.push(`${where}: ${attr}="${s}"`);
+        for (const [, attr, s] of line.matchAll(DOM_ATTRIBUTE)) found.push(`${where}: ${attr}="${s}"`);
       }
     }
     expect(found).toEqual([]);

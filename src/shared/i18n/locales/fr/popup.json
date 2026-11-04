@@ -7,16 +7,17 @@
   "settings": "Réglages",
   "fresh_one": "nouveau départ",
   "fresh_other": "nouveaux départs",
-  "sinceLastVisit": "depuis ta dernière visite",
   "incomplete": "Scan incomplet ({{pct}})",
   "incompleteHint": "ouvre le tableau de bord pour le terminer",
   "latest": "Derniers unfollows",
   "net": "Solde",
   "noAccount": "Ouvre x.com et connecte-toi : xGhost détectera ton compte.",
   "recheckTitle": "Relancer une vérification",
-  "checking": "Vérification en cours…",
+  "checking": "Vérification…",
   "openDashboard": "Tableau de bord",
   "departures": "Départs",
   "arrivals": "Arrivées",
-  "summary": "Bilan"
+  "summary": "Bilan",
+  "notSeenYet_one": "que tu n’as pas encore vu",
+  "notSeenYet_other": "que tu n’as pas encore vus"
 }

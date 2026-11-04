@@ -2,11 +2,11 @@ import { compactEventsOf, isCompactEvent } from '@/features/events/codec';
 import { MAX_TOTALS } from '@/features/followers-sync/repository';
 import { sanitizeSettings } from '@/features/settings/repository';
 import { isNewer } from '@/shared/utils/version';
-import { AVATAR, HANDLE, ID } from '@/features/x-api/parse';
+import { AVATAR, HANDLE, ID } from '@/shared/x-urls';
 import { keys } from '@/shared/storage/keys';
 import { isRecord } from '@/shared/utils/guards';
 import { fromLegacyLayout } from '@/shared/storage/legacy';
-import type { ScanCoverage, Snapshot, TrackedAccount } from '@/shared/types';
+import type { BackupError, ScanCoverage, Snapshot, TrackedAccount } from '@/shared/types';
 
 /**
  * Format du fichier de sauvegarde et validation stricte (fonctions pures, testées).
@@ -34,7 +34,6 @@ export interface Backup {
   data: Record<string, unknown>;
 }
 
-export type BackupError = 'invalid' | 'newer' | 'too-large';
 export type BackupCheck = { ok: true; backup: Backup } | { ok: false; error: BackupError };
 
 /**
@@ -42,7 +41,7 @@ export type BackupCheck = { ok: true; backup: Backup } | { ok: false; error: Bac
  * onglet de scan, statut.
  */
 const TRANSIENT_SUFFIXES = [':job', ':progress'];
-const TRANSIENT_KEYS = new Set<string>([keys.scanTab, keys.status]);
+const TRANSIENT_KEYS = new Set<string>([keys.scanTab, keys.status, keys.dismissed]);
 export const isTransientKey = (key: string) =>
   TRANSIENT_KEYS.has(key) || TRANSIENT_SUFFIXES.some((suffix) => key.endsWith(suffix));
 
@@ -53,7 +52,6 @@ class Invalid extends Error {}
 const fail = (): never => {
   throw new Invalid();
 };
-
 
 const record = (v: unknown): Record<string, unknown> => (isRecord(v) ? v : fail());
 const finite = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : fail());

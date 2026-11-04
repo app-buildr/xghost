@@ -49,5 +49,7 @@
   },
   "todayAt": "aujourd’hui, {{time}}",
   "separator": " · ",
-  "progressCount": "{{collected}} / {{expected}}"
+  "progressCount": "{{collected}} / {{expected}}",
+  "listSeparator": ", ",
+  "ofTotal": "/ {{expected}}"
 }

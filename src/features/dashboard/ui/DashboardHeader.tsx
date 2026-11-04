@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
-import { joinParts } from '@/features/events/ui/display';
-import type { ScanProgress } from '@/features/followers-sync/repository';
-import { ALARM_CHECK } from '@/features/scheduler/alarms';
+import type { ScanProgress } from '@/features/followers-sync/model';
+import { nextCheckAt } from '@/features/scheduler/alarms';
 import { t } from '@/shared/i18n';
 import { DASHBOARD_PERIODS, type DashboardPeriod } from '@/features/stats/period';
 import type { TrackedAccount } from '@/shared/types';
 import { Segmented } from '@/shared/ui/primitives';
-import { formatAgo, formatIn } from '@/shared/utils/format';
+import { formatAgo, formatIn, joinParts } from '@/shared/utils/format';
 import { CheckNowButton } from './CheckNowButton';
 import { quickSummary } from './quickSummary';
 import './dashboard.css';
+import { MINUTE } from '@/shared/utils/time';
 
 /** Heure de la prochaine vérification automatique (alarme relue chaque minute). */
 function useNextCheck(): number | undefined {
   const [next, setNext] = useState<number>();
   useEffect(() => {
-    const read = () => chrome.alarms.get(ALARM_CHECK).then((a) => setNext(a?.scheduledTime));
+    const read = () => nextCheckAt().then(setNext);
     void read();
-    const timer = setInterval(read, 60_000);
+    const timer = setInterval(read, MINUTE);
     return () => clearInterval(timer);
   }, []);
   return next;

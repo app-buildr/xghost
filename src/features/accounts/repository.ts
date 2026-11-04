@@ -1,5 +1,5 @@
 import { createSerialQueue } from '@/shared/utils/serial';
-import { ID } from '@/features/x-api/parse';
+import { ID } from '@/shared/x-urls';
 import { localKv } from '@/shared/storage/kv';
 import { isRecord } from '@/shared/utils/guards';
 import { keys } from '@/shared/storage/keys';
@@ -7,19 +7,7 @@ import type { TrackedAccount } from '@/shared/types';
 
 /** Comptes X suivis, comptes ignorés par compte, compte sélectionné. */
 
-export type AccountsMap = Record<string, TrackedAccount>;
-
-/** Le @handle est connu (avant la première lecture du profil, `handle` vaut l'id du compte). */
-/**
- * Choix de démarrage fait (§ 3.3) : un compte au moins a sa référence, obtenue par une
- * synchronisation ou par l'import d'une sauvegarde. Seule définition, partagée par le service
- * worker, l'onboarding et la popup.
- */
-export const isOnboarded = (accounts: readonly Pick<TrackedAccount, 'baselineAt'>[] | AccountsMap): boolean =>
-  (Array.isArray(accounts) ? accounts : Object.values(accounts)).some((a) => !!a.baselineAt);
-
-export const hasKnownHandle = (a: Pick<TrackedAccount, 'id' | 'handle'>) => !!a.handle && a.handle !== a.id;
-
+import type { AccountsMap } from './model';
 
 /**
  * Comptes suivis. Lecture défensive : une entrée corrompue (quelle qu'en soit l'origine)
@@ -65,11 +53,14 @@ export async function loadIgnored(accountId: string): Promise<Set<string>> {
   return new Set(Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string' && ID.test(id)) : []);
 }
 
-export async function setIgnored(accountId: string, profileId: string, ignored: boolean): Promise<void> {
-  const set = await loadIgnored(accountId);
-  if (ignored) set.add(profileId);
-  else set.delete(profileId);
-  await localKv.set({ [keys.ignored(accountId)]: [...set] });
+/** Ignore ou réintègre un compte ; dans la file des écritures (deux clics rapprochés ne s'écrasent pas). */
+export function setIgnored(accountId: string, profileId: string, ignored: boolean): Promise<void> {
+  return writes.run(async () => {
+    const set = await loadIgnored(accountId);
+    if (ignored) set.add(profileId);
+    else set.delete(profileId);
+    await localKv.set({ [keys.ignored(accountId)]: [...set] });
+  });
 }
 
 export async function getSelectedAccountId(): Promise<string | undefined> {
@@ -78,4 +69,11 @@ export async function getSelectedAccountId(): Promise<string | undefined> {
 
 export async function setSelectedAccountId(id: string): Promise<void> {
   await localKv.set({ [keys.selectedAccount]: id });
+}
+
+/** Compte affiché par les interfaces : seulement un compte suivi. */
+export function selectAccount(accountId: string): Promise<void> {
+  return writes.run(async () => {
+    if ((await loadAccounts())[accountId]) await localKv.set({ [keys.selectedAccount]: accountId });
+  });
 }

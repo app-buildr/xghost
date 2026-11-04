@@ -1,8 +1,9 @@
 import type { AccountStatus, Profile } from '@/shared/types';
+import { AVATAR, HANDLE, ID } from '@/shared/x-urls';
 
 /** Analyse pure des réponses GraphQL de X, tolérante aux variations de format. */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Réponses de X non typées : lues prudemment, champ par champ. */
 type Json = any;
 
 export interface FollowersPage {
@@ -29,11 +30,6 @@ export function watchedOperation(url: string): string | undefined {
   }
 }
 
-/** Formats X acceptés (aussi utilisés pour valider une sauvegarde importée). */
-export const HANDLE = /^[A-Za-z0-9_]{1,15}$/;
-export const ID = /^\d{1,20}$/;
-export const AVATAR = /^https:\/\/(pbs|abs)\.twimg\.com\//;
-
 function parseUser(r: Json): (Profile & { followersCount?: number }) | null {
   if (!r || r.__typename !== 'User' || !r.rest_id) return null;
   // Valeurs reprises dans des URL et des <img> : on n'accepte que des formats X valides.
@@ -52,18 +48,26 @@ function parseUser(r: Json): (Profile & { followersCount?: number }) | null {
   };
 }
 
-function* timelineEntries(data: Json): Generator<Json> {
-  const timeline = data?.data?.user?.result?.timeline?.timeline ?? data?.data?.user?.result?.timeline_v2?.timeline;
+const timelineOf = (data: Json): Json =>
+  data?.data?.user?.result?.timeline?.timeline ?? data?.data?.user?.result?.timeline_v2?.timeline;
+
+function* timelineEntries(timeline: Json): Generator<Json> {
   for (const instruction of timeline?.instructions ?? []) {
     if (Array.isArray(instruction.entries)) yield* instruction.entries;
     if (instruction.entry) yield instruction.entry;
   }
 }
 
-export function parseFollowersPage(data: Json, previousCursor?: string): FollowersPage {
+/**
+ * Page de la liste des abonnés, ou `undefined` si la réponse n'en contient pas (erreur renvoyée
+ * avec un statut 200, format inattendu) : seule une vraie page peut annoncer la fin de la liste.
+ */
+export function parseFollowersPage(data: Json, previousCursor?: string): FollowersPage | undefined {
+  const timeline = timelineOf(data);
+  if (!Array.isArray(timeline?.instructions)) return undefined;
   const users: Profile[] = [];
   let nextCursor: string | undefined;
-  for (const entry of timelineEntries(data)) {
+  for (const entry of timelineEntries(timeline)) {
     const content = entry?.content;
     if (content?.cursorType === 'Bottom' || String(entry?.entryId ?? '').startsWith('cursor-bottom')) {
       nextCursor = content?.value;

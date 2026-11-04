@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type { AccountData } from '@/features/app-state/useAccountData';
-import { currentArrivals, type VisibilityContext } from '@/features/events/selectors';
+import { currentArrivals, type VisibilityContext } from '../selectors';
 import { t } from '@/shared/i18n';
 import type { FollowEvent } from '@/shared/types';
 import { formatNumber } from '@/shared/utils/format';

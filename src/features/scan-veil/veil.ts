@@ -1,3 +1,4 @@
+import { Clock, createElement } from 'lucide';
 import { remainingLabel } from '@/features/followers-sync/estimate';
 import { rateLimitText, rateLimitTitle } from '@/features/scan-status/messages';
 import type { VeilState } from '@/shared/messaging/protocol';
@@ -60,8 +61,6 @@ const STYLE = `
   [hidden] { display: none !important; }
 `;
 
-const CLOCK =
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 
 interface Veil {
   card: HTMLElement;
@@ -129,7 +128,7 @@ function create(): Veil | undefined {
   bar.append(fill);
   const foot = el('div', 'foot');
   const chip = el('div', 'chip');
-  chip.innerHTML = CLOCK;
+  chip.append(createElement(Clock, { width: 18, height: 18, 'aria-hidden': 'true' }));
   const chipText = el('span');
   chip.append(chipText);
 

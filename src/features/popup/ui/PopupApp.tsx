@@ -19,7 +19,7 @@ import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
 import type { FollowEvent } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
-import { IconChevronDown, IconRefresh, IconSettings } from '@/shared/ui/icons';
+import { ChevronDown, RefreshCw, Settings } from 'lucide-react';
 import { Logo, StatTile } from '@/shared/ui/primitives';
 import { formatAgo, formatNumber, formatPercent, formatSigned } from '@/shared/utils/format';
 import './popup.css';
@@ -117,7 +117,7 @@ export function PopupApp() {
   const handle = account ? (
     <>
       <span className="xg-popup__handle">@{account.handle}</span>
-      {app.accounts.length > 1 && <IconChevronDown size={18} />}
+      {app.accounts.length > 1 && <ChevronDown size={18} />}
     </>
   ) : null;
 
@@ -166,7 +166,7 @@ export function PopupApp() {
             aria-label={t('popup.settings')}
             onClick={() => void openOptions('settings')}
           >
-            <IconSettings size={24} />
+            <Settings size={24} />
           </button>
         </header>
 
@@ -228,7 +228,7 @@ export function PopupApp() {
             title={t('popup.recheckTitle')}
             onClick={() => void start()}
           >
-            <IconRefresh size={20} />
+            <RefreshCw size={20} className={busy || data?.progress?.status === 'running' ? 'xg-spin' : undefined} />
             {data?.progress?.status === 'running'
               ? t('popup.checking')
               : account?.lastScanAt

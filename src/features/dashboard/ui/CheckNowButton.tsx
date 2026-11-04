@@ -3,7 +3,7 @@ import type { ScanProgress } from '@/features/followers-sync/repository';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { t } from '@/shared/i18n';
 import type { TrackedAccount } from '@/shared/types';
-import { IconRefresh } from '@/shared/ui/icons';
+import { RefreshCw } from 'lucide-react';
 import { useToast } from '@/shared/ui/toast';
 import { quickSummary } from './quickSummary';
 
@@ -66,7 +66,7 @@ export function CheckNowButton({ account, progress }: { account: TrackedAccount;
         disabled={busy || quickRunning || fullRunning}
         onClick={() => void check()}
       >
-        <IconRefresh size={18} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
+        <RefreshCw size={18} className={busy || quickRunning ? 'xg-spin' : undefined} /> {quickRunning ? t('dashboard.check.checking') : t('dashboard.check.checkNow')}
       </button>
       <button
         type="button"

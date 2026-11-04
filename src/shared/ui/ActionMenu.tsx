@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { IconMore } from './icons';
+import { Ellipsis } from 'lucide-react';
 
 export interface MenuAction {
   key: string;
@@ -99,7 +99,7 @@ export function ActionMenu({
           }
         }}
       >
-        {trigger ?? <IconMore />}
+        {trigger ?? <Ellipsis />}
       </button>
       {open && (
         <div className={`xg-menu xg-menu--${align}`} role="menu" id={menuId} aria-label={label} onKeyDown={onKeyDown}>

@@ -221,11 +221,26 @@
 
 /* --- Contrôle segmenté --- */
 .xg-segmented {
+  position: relative;
   display: flex;
   gap: 4px;
   padding: 4px;
   background: var(--xg-surface-muted);
   border-radius: 12px;
+}
+/* Pastille glissante sous l'option choisie (le bouton lui-même reste transparent). */
+.xg-segmented__thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 9px;
+  background: var(--xg-surface);
+  box-shadow: var(--xg-shadow-selected);
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
 }
 .xg-segmented button {
   flex: 1;
@@ -239,12 +254,52 @@
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s ease;
 }
 .xg-segmented button[aria-checked='true'] {
-  background: var(--xg-surface);
   color: var(--xg-ink);
   font-weight: 600;
-  box-shadow: var(--xg-shadow-selected);
+}
+/* Autres apparences (ex. tuiles de l'onboarding) : pas de pastille glissante. */
+:not(.xg-segmented) > .xg-segmented__thumb {
+  display: none;
+}
+
+/* Apparition d'une liste (premier affichage, changement de filtre) : lignes en cascade. */
+.xg-list-in > * {
+  animation: xg-row-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.xg-list-in > :nth-child(2) { animation-delay: 30ms; }
+.xg-list-in > :nth-child(3) { animation-delay: 60ms; }
+.xg-list-in > :nth-child(4) { animation-delay: 90ms; }
+.xg-list-in > :nth-child(5) { animation-delay: 120ms; }
+.xg-list-in > :nth-child(6) { animation-delay: 150ms; }
+.xg-list-in > :nth-child(n + 7) { animation-delay: 180ms; }
+.xg-fade-in {
+  animation: xg-fade-in 0.25s ease both;
+}
+@keyframes xg-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes xg-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-segmented__thumb,
+  .xg-segmented button {
+    transition: none;
+  }
+  .xg-list-in > *,
+  .xg-fade-in {
+    animation: none;
+  }
 }
 
 /* --- Menu d'actions --- */
@@ -470,4 +525,19 @@
 .xg-tag--ok {
   background: var(--xg-success-tint);
   color: var(--xg-success);
+}
+
+/* Icône qui tourne pendant une vérification (flèche de « Vérifier maintenant »). */
+.xg-spin {
+  animation: xg-spin 0.9s linear infinite;
+}
+@keyframes xg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-spin {
+    animation: none;
+  }
 }

@@ -5,7 +5,7 @@ import { currentDepartures, followDuration, type VisibilityContext } from '@/fea
 import { t } from '@/shared/i18n';
 import type { FollowEvent, TrackedAccount } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
-import { IconCopy, IconEyeOff, IconTrash } from '@/shared/ui/icons';
+import { Copy, EyeOff, Trash2 } from 'lucide-react';
 import { formatNumber } from '@/shared/utils/format';
 import { joinParts, statusLabel } from './display';
 import { EventListPanel } from './EventListPanel';
@@ -83,20 +83,20 @@ export function DeparturesPanel({
                   {
                     key: 'copy',
                     label: t('dashboard.row.copyUsername'),
-                    icon: <IconCopy size={18} />,
+                    icon: <Copy size={18} />,
                     onSelect: () => void actions.copyUsername(event.handle),
                   },
                   {
                     key: 'ignore',
                     label: t('dashboard.row.ignore'),
                     hint: t('dashboard.row.ignoreHint'),
-                    icon: <IconEyeOff size={18} />,
+                    icon: <EyeOff size={18} />,
                     onSelect: () => void actions.ignore(event.profileId, event.handle),
                   },
                   {
                     key: 'delete',
                     label: t('dashboard.row.delete'),
-                    icon: <IconTrash size={18} />,
+                    icon: <Trash2 size={18} />,
                     danger: true,
                     separatorBefore: true,
                     onSelect: () => void actions.remove(event),

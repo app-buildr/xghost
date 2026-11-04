@@ -11,7 +11,7 @@ import { DashboardHeader } from '@/features/dashboard/ui/DashboardHeader';
 import { ArrivalsPanel } from '@/features/events/ui/ArrivalsPanel';
 import { DeparturesPanel } from '@/features/events/ui/DeparturesPanel';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
-import { AccountSettings } from '@/features/settings/ui/AccountSettings';
+import { IgnoredAccounts, RemoveAccount } from '@/features/settings/ui/AccountSettings';
 import { SettingsPanel } from '@/features/settings/ui/SettingsPanel';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
@@ -170,10 +170,11 @@ export function OptionsApp() {
                 </Guard>
                 <div className="xg-settings">
                   <Guard resetKey={data}>
-                    <AccountSettings account={account} data={data} />
+                    <IgnoredAccounts account={account} data={data} />
                   </Guard>
                   {/* Hors de toute zone dépendant des données : la restauration reste toujours possible. */}
                   <DataPanel />
+                  <RemoveAccount account={account} />
                 </div>
               </div>
             </div>

@@ -59,9 +59,14 @@ export function EventListPanel({
       </div>
 
       {shown.length === 0 ? (
-        <p className="xg-dep-panel__empty">{items.length === 0 ? empty : emptyFiltered}</p>
+        <p key={filter} className="xg-dep-panel__empty xg-fade-in">
+          {items.length === 0 ? empty : emptyFiltered}
+        </p>
       ) : (
-        <ul className="xg-dep-list">{shown.map(renderRow)}</ul>
+        // Clé du filtre : la liste est recréée, ses lignes rejouent leur apparition en cascade.
+        <ul key={filter} className="xg-dep-list xg-list-in">
+          {shown.map(renderRow)}
+        </ul>
       )}
 
       {limit && onShowAll && showAllLabel && items.length > 0 && (

@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { AVATAR } from '@/features/x-api/parse';
 import { initials } from '../utils/format';
 import logoUrl from './logo.svg';
@@ -99,6 +99,7 @@ export function Segmented<T extends string | number>({
 }) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const current = Math.max(0, options.findIndex((o) => o.value === value));
+  const thumb = useSegmentThumb(buttons, current);
   const onKeyDown = (e: KeyboardEvent) => {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
     const target = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1 : step ? current + step : undefined;
@@ -110,6 +111,8 @@ export function Segmented<T extends string | number>({
   };
   return (
     <div className={className} role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+      {/* Pastille de l'option choisie : elle glisse d'une option à l'autre. */}
+      <span className="xg-segmented__thumb" style={thumb} aria-hidden="true" />
       {options.map((o, i) => (
         <button
           key={String(o.value)}
@@ -127,6 +130,30 @@ export function Segmented<T extends string | number>({
       ))}
     </div>
   );
+}
+
+/**
+ * Position et largeur de la pastille glissante, mesurées sur le bouton choisi (et remesurées
+ * quand le contrôle change de taille). Pas d'animation au premier affichage.
+ */
+function useSegmentThumb(buttons: { current: (HTMLButtonElement | null)[] }, current: number): CSSProperties {
+  const [box, setBox] = useState<{ x: number; w: number; ready: boolean }>({ x: 0, w: 0, ready: false });
+  useLayoutEffect(() => {
+    const button = buttons.current[current];
+    const parent = button?.parentElement;
+    if (!button || !parent) return;
+    const measure = () => setBox((b) => ({ x: button.offsetLeft, w: button.offsetWidth, ready: b.w > 0 }));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [buttons, current]);
+  return {
+    width: box.w,
+    transform: `translateX(${box.x}px)`,
+    opacity: box.w ? 1 : 0,
+    transition: box.ready ? undefined : 'none',
+  };
 }
 
 export function ProgressBar({ value, max, label }: { value: number; max: number; label: string }) {

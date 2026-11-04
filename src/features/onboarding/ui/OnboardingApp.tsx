@@ -16,7 +16,7 @@ import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
 import type { Frequency } from '@/shared/types';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
-import { IconCheck, IconRefresh, IconUpload } from '@/shared/ui/icons';
+import { Check, RefreshCw, Upload } from 'lucide-react';
 import { Logo, ProgressBar, Segmented } from '@/shared/ui/primitives';
 import { formatNumber, formatPercent, formatProgressCount } from '@/shared/utils/format';
 import { X_LOGIN_URL } from '@/shared/x-urls';
@@ -120,7 +120,7 @@ export function OnboardingApp() {
 
       <ol className="xg-onb__steps">
         <li className={`xg-step${session?.loggedIn ? ' is-done' : ' is-current'}`}>
-          <span className="xg-step__num">{session?.loggedIn ? <IconCheck size={18} /> : 1}</span>
+          <span className="xg-step__num">{session?.loggedIn ? <Check size={18} /> : 1}</span>
           <div>
             <div className="xg-step__title">
               {session?.loggedIn ? t('onboarding.session.detected') : t('onboarding.session.connect')}
@@ -143,7 +143,7 @@ export function OnboardingApp() {
         </li>
 
         <li className={`xg-step${done ? ' is-done' : session?.loggedIn ? ' is-current' : ''}`}>
-          <span className="xg-step__num">{done ? <IconCheck size={18} /> : 2}</span>
+          <span className="xg-step__num">{done ? <Check size={18} /> : 2}</span>
           <div className="xg-step__body">
             <div className="xg-step__row">
               <span className="xg-step__title">{step2Title}</span>
@@ -196,7 +196,7 @@ export function OnboardingApp() {
                 <div className="xg-onb__choices">
                   <section className="xg-onb__choice">
                     <h3>
-                      <IconRefresh size={20} /> {t('onboarding.choice.syncTitle')}
+                      <RefreshCw size={20} /> {t('onboarding.choice.syncTitle')}
                     </h3>
                     <p>{t('onboarding.choice.syncText')}</p>
                     <button
@@ -210,7 +210,7 @@ export function OnboardingApp() {
                   </section>
                   <section className="xg-onb__choice">
                     <h3>
-                      <IconUpload size={20} /> {t('onboarding.choice.restoreTitle')}
+                      <Upload size={20} /> {t('onboarding.choice.restoreTitle')}
                     </h3>
                     <p>{t('onboarding.choice.restoreText')}</p>
                     <button

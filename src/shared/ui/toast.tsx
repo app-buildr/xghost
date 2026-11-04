@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { t } from '@/shared/i18n';
-import { IconClose } from './icons';
+import { X } from 'lucide-react';
 
 interface Toast {
   id: number;
@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   {toast.action.label}
                 </button>
                 <button type="button" className="xg-toast__close" aria-label={t('common.actions.close')} onClick={() => dismiss(toast.id)}>
-                  <IconClose size={16} />
+                  <X size={16} />
                 </button>
               </>
             )}

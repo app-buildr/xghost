@@ -19,7 +19,11 @@ export function EventTime({
   const date = new Date(at);
   if (!Number.isFinite(at)) return null;
   return (
-    <Tooltip label={t('common.event.detectedAt', { date: date.toLocaleString(LOCALE) })}>
+    // Popup : la date est au bord droit, une bulle centrée débordrait et élargirait la fenêtre.
+    <Tooltip
+      label={t('common.event.detectedAt', { date: date.toLocaleString(LOCALE) })}
+      align={short ? 'end' : 'center'}
+    >
       <time className={className} dateTime={date.toISOString()} tabIndex={0}>
         {short ? formatAgoShort(at, now) : formatAgo(at, now)}
       </time>

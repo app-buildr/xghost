@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DAY, periodStart } from './period';
+import { DAY } from '@/shared/utils/time';
+import { periodStart } from './period';
 
 // Midi local : les heures autour restent le même jour, quel que soit le fuseau.
 const NOW = new Date(2026, 10, 4, 12).getTime(); // mercredi 4 novembre 2026

@@ -1,4 +1,4 @@
-import { isImporting } from '@/features/backup/lock';
+import { isImporting } from '@/shared/storage/import-lock';
 import { refreshBadge } from '@/features/alerts/badge';
 import type { FollowEvent } from '@/shared/types';
 import { compactEventsOf, decodeEvent, encodeEvent } from './codec';
@@ -11,7 +11,7 @@ import { updateEvents } from './repository';
  */
 
 const SEEN_DEBOUNCE_MS = 2_500;
-const pendingSeen = new Map<string, Set<string> | 'all'>();
+const pendingSeen = new Map<string, Set<string>>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 /** Écriture des « vus » en cours, attendue par l'import d'une sauvegarde. */
@@ -26,7 +26,7 @@ function flushSeen(): Promise<void> {
       // Import commencé entre deux comptes : le reste viserait des données remplacées.
       if (isImporting()) return;
       await updateEvents(accountId, (events) =>
-        events.map((e) => (ids === 'all' || ids.has(e.id) ? { ...e, seen: true } : e)),
+        events.map((e) => (ids.has(e.id) ? { ...e, seen: true } : e)),
       );
     }
     await refreshBadge();
@@ -45,10 +45,8 @@ export async function settleSeen(): Promise<void> {
   await flushing;
 }
 
-export async function markSeen(accountId: string, eventIds: string[] | 'all'): Promise<void> {
-  const current = pendingSeen.get(accountId);
-  if (eventIds === 'all' || current === 'all') pendingSeen.set(accountId, 'all');
-  else pendingSeen.set(accountId, new Set([...(current ?? []), ...eventIds]));
+export async function markSeen(accountId: string, eventIds: readonly string[]): Promise<void> {
+  pendingSeen.set(accountId, new Set([...(pendingSeen.get(accountId) ?? []), ...eventIds]));
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => void flushSeen(), SEEN_DEBOUNCE_MS);
 }

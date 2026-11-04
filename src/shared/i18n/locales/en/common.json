@@ -11,9 +11,7 @@
       "accountSwitched": "Another account is logged in on x.com: switch back to @{{handle}} to finish the scan.",
       "error": "Error, retrying automatically.",
       "rateLimitAt": "X request limit reached: resuming automatically at {{time}}.",
-      "errorAt": "Error, retrying automatically at {{time}}.",
-      "errorDetail": "Error ({{detail}}), retrying automatically.",
-      "errorDetailAt": "Error ({{detail}}), retrying automatically at {{time}}."
+      "errorAt": "Error, retrying automatically at {{time}}."
     },
     "remaining": {
       "lessThanMinute": "Less than a minute left",
@@ -103,5 +101,7 @@
   },
   "checkedAgo": "Checked {{ago}}",
   "continueScan": "Continue the scan",
-  "openX": "Open x.com"
+  "openX": "Open x.com",
+  "departuresEmpty": "No unfollows yet. xGhost is watching.",
+  "checkNow": "Check now"
 }

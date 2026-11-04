@@ -3,7 +3,8 @@ import { EyeOff } from 'lucide-react';
 import type { AccountData } from '@/features/app-state/useAccountData';
 import type { VisibilityContext } from '@/features/events/selectors';
 import { useChartVisibility } from '@/features/settings/useChartVisibility';
-import { activityUnit, daysBefore, netUnit, periodStart, startOfDay, type DashboardPeriod } from '@/features/stats/period';
+import { activityUnit, netUnit, periodStart, type DashboardPeriod } from '@/features/stats/period';
+import { daysBefore, startOfDay } from '@/shared/utils/time';
 import { departuresByDuration, followerSeries, movementBuckets, retention } from '@/features/stats/selectors';
 import { t } from '@/shared/i18n';
 import type { DashboardChart, TrackedAccount } from '@/shared/types';
@@ -75,7 +76,7 @@ export function useChartCards({
       durations: departuresByDuration(data.events, ctx, from, now, baselineAt),
       retention: retention(data.events, ctx, from, now),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` suit `today` (voir ci-dessus)
+    // `now` n'est pas une dépendance : il suit `today` (voir ci-dessus).
     [data.events, data.totals, ctx, from, axisFrom, unit, net, today, account.followersCount, baselineAt],
   );
   const setShown = useChartVisibility(hidden);

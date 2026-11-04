@@ -172,6 +172,8 @@ export interface ScanJob {
   failedPages?: number;
   /** x.com affiche son bouton « Réessayer » (chargement refusé) depuis la dernière page reçue. */
   xError?: boolean;
+  /** Échecs de l'analyse de fin de scan (nouvel essai sur la liste déjà lue, sans relire). */
+  analysisFailures?: number;
   /** Scan terminé : analyse en cours (l'onglet est déjà fermé). */
   finishing?: boolean;
   /** Ids dans l'ordre reçu de x.com (les clés de `collected` ne gardent pas l'ordre). */
@@ -207,8 +209,12 @@ export interface ScanJob {
   earlyStopPages?: number;
   pausedReason?: ScanPauseReason;
   resumeAt?: number;
-  error?: string;
 }
+
+/** Refus d'une sauvegarde à l'import (fichier invalide, version plus récente, trop gros). */
+export type BackupError = 'invalid' | 'newer' | 'too-large';
+/** Résultat de la restauration d'une sauvegarde (`exportedAt` : date de la sauvegarde importée). */
+export type ImportResult = { ok: true; exportedAt: number } | { ok: false; error: BackupError | 'failed' };
 
 export type SessionState = 'ok' | 'disconnected';
 

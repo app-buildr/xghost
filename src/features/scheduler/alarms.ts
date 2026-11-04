@@ -15,3 +15,6 @@ const ACCOUNT_PREFIXES = [ALARM_RESUME_PREFIX, ALARM_RETRY_PREFIX, ALARM_QUICK_T
 /** Supprime toutes les alarmes d'un compte (retrait du compte). */
 export const clearAccountAlarms = (accountId: string) =>
   Promise.all(ACCOUNT_PREFIXES.map((prefix) => chrome.alarms.clear(`${prefix}${accountId}`)));
+
+/** Heure de la prochaine vérification automatique (aucune en mode manuel). */
+export const nextCheckAt = () => chrome.alarms.get(ALARM_CHECK).then((a) => a?.scheduledTime);

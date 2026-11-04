@@ -36,7 +36,6 @@
     "impossible": "Can’t check right now",
     "fullStarted": "Full scan started in the pinned x.com tab",
     "checking": "Checking…",
-    "checkNow": "Check now",
     "fullScan": "Full scan",
     "fullScanTitle": "Read the whole follower list again",
     "result": "Check done: {{summary}}",
@@ -83,7 +82,6 @@
   },
   "departures": {
     "filterLabel": "Filter unfollows",
-    "empty": "No unfollows yet. xGhost is watching.",
     "emptyFilter": "No unfollows for this filter.",
     "showAll_one": "See full history ({{n}} unfollow)",
     "showAll_other": "See full history ({{n}} unfollows)"

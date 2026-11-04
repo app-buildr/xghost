@@ -1,13 +1,14 @@
 import { useEffect, useMemo } from 'react';
-import { getSelectedAccountId, loadAccounts, setSelectedAccountId } from '@/features/accounts/repository';
+import { getSelectedAccountId, loadAccounts } from '@/features/accounts/repository';
 import { loadSettings } from '@/features/settings/repository';
 import { useStorageQuery } from '@/shared/hooks/useStorageQuery';
 import { send } from '@/shared/messaging/client';
-import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
-import { DEFAULT_SETTINGS, type GlobalStatus, type Settings, type TrackedAccount } from '@/shared/types';
+import { DEFAULT_SETTINGS, type Settings, type TrackedAccount } from '@/shared/types';
+import { loadStatus } from '@/features/scheduler/status';
 
-const selectAccount = (id: string) => setSelectedAccountId(id);
+/** Changement de compte : écrit par le service worker, comme toutes les données. */
+const selectAccount = (accountId: string) => send('account:select', { accountId });
 const updateSettings = (patch: Partial<Settings>) => send('settings:update', patch);
 
 /** État global : comptes, compte sélectionné, réglages, état de session. */
@@ -18,7 +19,7 @@ export function useAppState() {
         loadAccounts(),
         getSelectedAccountId(),
         loadSettings(),
-        localKv.get<GlobalStatus>(keys.status),
+        loadStatus(),
       ]);
       return { accounts, selectedId, settings, status };
     },

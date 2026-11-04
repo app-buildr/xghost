@@ -14,7 +14,3 @@ export function statusLabel(e: FollowEvent): string | undefined {
   if (e.status === 'gone') return t('dashboard.row.gone');
   return undefined;
 }
-
-/** Morceaux d'information assemblés avec le séparateur de la langue (« @x · suivi pendant 3 mois »). */
-export const joinParts = (parts: readonly (string | undefined)[]) =>
-  parts.filter(Boolean).join(t('format.separator'));

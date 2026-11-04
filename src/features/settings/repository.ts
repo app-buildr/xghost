@@ -1,3 +1,4 @@
+import { createSerialQueue } from '@/shared/utils/serial';
 import { localKv } from '@/shared/storage/kv';
 import { isRecord } from '@/shared/utils/guards';
 import { FREQUENCIES } from './model';
@@ -9,7 +10,6 @@ export async function loadSettings(): Promise<Settings> {
   const stored = await localKv.get<unknown>(keys.settings);
   return { ...DEFAULT_SETTINGS, ...sanitizeSettings(stored) };
 }
-
 
 /** Ne garde que les réglages connus, avec le bon type (toute autre valeur est ignorée). */
 export function sanitizeSettings(raw: unknown): Partial<Settings> {
@@ -27,8 +27,13 @@ export function sanitizeSettings(raw: unknown): Partial<Settings> {
   return clean;
 }
 
-export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
-  const next = { ...(await loadSettings()), ...sanitizeSettings(patch) };
-  await localKv.set({ [keys.settings]: next });
-  return next;
+const writes = createSerialQueue();
+
+/** Enregistre un changement de réglages, l'un après l'autre (deux changements rapprochés ne s'écrasent pas). */
+export function saveSettings(patch: Partial<Settings>): Promise<Settings> {
+  return writes.run(async () => {
+    const next = { ...(await loadSettings()), ...sanitizeSettings(patch) };
+    await localKv.set({ [keys.settings]: next });
+    return next;
+  });
 }

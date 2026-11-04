@@ -1,15 +1,14 @@
-import type { ImportResult } from '@/features/backup/backup';
-import type { FollowEvent, Settings } from '../types';
+import type { FollowEvent, ImportResult, Settings } from '../types';
 
 /**
  * Messages des interfaces (popup, options, onboarding) vers le service worker.
  * Toutes les écritures passent par le service worker, seul propriétaire des données.
  */
 export interface Requests {
-  'session:detect': { req: void; res: { loggedIn: boolean; accountId?: string; handle?: string } };
+  'session:detect': { req: { explicit?: boolean } | void; res: { loggedIn: boolean; accountId?: string; handle?: string } };
   /** `full` : scan complet de toute la liste ; sinon contrôle léger des abonnés les plus récents. */
   'scan:start': { req: { accountId?: string; full?: boolean }; res: { started: boolean; reason?: string } };
-  'events:mark-seen': { req: { accountId: string; eventIds: string[] | 'all' }; res: void };
+  'events:mark-seen': { req: { accountId: string; eventIds: string[] }; res: void };
   'events:delete': { req: { accountId: string; eventId: string }; res: { removed?: FollowEvent } };
   'events:restore': { req: { accountId: string; event: FollowEvent }; res: void };
   'profile:ignore': { req: { accountId: string; profileId: string; ignored: boolean }; res: void };
@@ -20,6 +19,8 @@ export interface Requests {
   /** Arrête le scan en cours (bloqué) en le gardant comme incomplet, pour « Continuer le scan ». */
   'scan:interrupt': { req: { accountId: string }; res: void };
   'settings:update': { req: Partial<Settings>; res: void };
+  /** Compte affiché par les interfaces (popup, options). */
+  'account:select': { req: { accountId: string }; res: void };
   'account:update': { req: { accountId: string; mutualsOnly: boolean }; res: void };
   'account:remove': { req: { accountId: string }; res: void };
   /**

@@ -61,7 +61,6 @@ const STYLE = `
   [hidden] { display: none !important; }
 `;
 
-
 interface Veil {
   card: HTMLElement;
   handle: HTMLElement;
@@ -148,11 +147,9 @@ function render(): void {
   veil.card.classList.toggle('paused', paused);
   veil.handle.textContent = s.handle ? `@${s.handle}` : '';
   veil.title.textContent = paused ? rateLimitTitle() : t('common.veil.title');
-  veil.text.textContent = paused
-    ? rateLimitText()
-    : t('common.veil.text');
+  veil.text.textContent = paused ? rateLimitText() : t('common.veil.text');
   veil.count.textContent = formatNumber(s.collected);
-  veil.total.textContent = s.expected > 0 ? `/ ${formatNumber(s.expected)}` : '';
+  veil.total.textContent = s.expected > 0 ? t('format.ofTotal', { expected: formatNumber(s.expected) }) : '';
   veil.pct.textContent = s.expected > 0 ? formatPercent(percent(s)) : '';
   veil.fill.style.width = `${percent(s)}%`;
   veil.foot.hidden = paused;
@@ -222,10 +219,17 @@ function drawFavicon(pct: number, paused: boolean): string {
   return canvas.toDataURL('image/png');
 }
 
-function applyTabIdentity(): void {
-  if (!last || !document.head) return;
+/** Rétablit le titre et l'icône de l'onglet de scan (x.com les réécrit en naviguant). */
+function reapplyIdentity(): void {
   const title = tabTitle();
   if (title && document.title !== title) document.title = title;
+  document.head?.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]').forEach((link) => {
+    if (favicon && link.href !== favicon) link.href = favicon;
+  });
+}
+
+function applyTabIdentity(): void {
+  if (!last || !document.head) return;
   favicon = drawFavicon(percent(last), last.state === 'rate-limit');
   const links = document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]');
   if (links.length === 0) {
@@ -233,18 +237,10 @@ function applyTabIdentity(): void {
     link.rel = 'icon';
     document.head.append(link);
   }
-  document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]').forEach((link) => {
-    if (link.href !== favicon) link.href = favicon!;
-  });
-  // x.com réécrit le titre à chaque navigation interne : on le rétablit.
+  reapplyIdentity();
+  // x.com réécrit le titre et l'icône à chaque navigation interne : on les rétablit.
   if (!headObserver) {
-    headObserver = new MutationObserver(() => {
-      const t = tabTitle();
-      if (t && document.title !== t) document.title = t;
-      document.head?.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]').forEach((link) => {
-        if (favicon && link.href !== favicon) link.href = favicon;
-      });
-    });
+    headObserver = new MutationObserver(reapplyIdentity);
     headObserver.observe(document.head, { subtree: true, childList: true, characterData: true, attributes: true });
   }
 }

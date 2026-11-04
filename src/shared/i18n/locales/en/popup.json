@@ -7,7 +7,6 @@
   "settings": "Settings",
   "fresh_one": "new unfollow",
   "fresh_other": "new unfollows",
-  "sinceLastVisit": "since your last visit",
   "incomplete": "Incomplete scan ({{pct}})",
   "incompleteHint": "open the dashboard to finish it",
   "latest": "Latest unfollows",
@@ -18,5 +17,7 @@
   "openDashboard": "Dashboard",
   "departures": "Unfollows",
   "arrivals": "New followers",
-  "summary": "Summary"
+  "summary": "Summary",
+  "notSeenYet_one": "you haven’t seen yet",
+  "notSeenYet_other": "you haven’t seen yet"
 }

@@ -1,14 +1,21 @@
-import { ID } from '@/features/x-api/parse';
+import { ID } from '@/shared/x-urls';
 import { t } from '@/shared/i18n';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
 import { importBackup } from '@/features/backup/backup';
-import { loadAccounts, patchAccount, setIgnored, setSelectedAccountId, updateAccounts } from '@/features/accounts/repository';
+import {
+  loadAccounts,
+  patchAccount,
+  selectAccount,
+  setIgnored,
+  setSelectedAccountId,
+  updateAccounts,
+} from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
 import { onNotificationClick } from '@/features/alerts/notifications';
 import { deleteEvent, markSeen, restoreEvent } from '@/features/events/commands';
 import { deleteAccountEvents } from '@/features/events/repository';
 import { deleteLocalAccountData } from '@/features/followers-sync/repository';
-import { cancelScan, focusScanTab, handleTabEvent, handleTabRemoved } from '@/features/followers-sync/scan-engine';
+import { cancelScan, focusScanTab, handleTabEvent, handleTabRemoved, settleAnalyses } from '@/features/followers-sync/scan-engine';
 import {
   ensureActiveAccount,
   handleAlarm,
@@ -23,7 +30,7 @@ import { saveSettings } from '@/features/settings/repository';
 import { onSessionCookieChange, readSession } from '@/features/x-api/session';
 import type { RequestType, TabEvent } from '@/shared/messaging/protocol';
 import { registerHandlers } from '@/shared/messaging/server';
-import { isImporting } from '@/features/backup/lock';
+import { isImporting } from '@/shared/storage/import-lock';
 import { keys } from '@/shared/storage/keys';
 import { localKv } from '@/shared/storage/kv';
 
@@ -38,6 +45,7 @@ const WRITES = new Set<RequestType>([
   'account:remove',
   'scan:stop',
   'scan:interrupt',
+  'account:select',
 ]);
 /** Identifiant de compte X d'une requête : refusé s'il n'a pas la forme attendue (défense en profondeur). */
 const accountIdOf = (id: string): string => {
@@ -111,7 +119,7 @@ export default defineBackground(() => {
       await handleSessionChange().catch((err) => console.error(err));
       return result;
     },
-    async 'session:detect'() {
+    async 'session:detect'(req) {
       const session = await readSession();
       if (!session) {
         await updateStatus();
@@ -119,7 +127,8 @@ export default defineBackground(() => {
       }
       // Enregistre le compte s'il est nouveau (sans rien lancer : l'onboarding attend un choix).
       await handleSessionChange();
-      const account = isImporting() ? undefined : await ensureActiveAccount();
+      // `explicit` : écran de démarrage (choix de l'utilisateur) ; sinon détection automatique.
+      const account = isImporting() ? undefined : await ensureActiveAccount(!!req?.explicit);
       return { loggedIn: true, accountId: session.accountId, handle: account?.handle };
     },
     async 'scan:start'({ full }) {
@@ -128,6 +137,9 @@ export default defineBackground(() => {
     async 'scan:stop'({ accountId }) {
       accountId = accountIdOf(accountId);
       await abandonScan(accountId);
+    },
+    async 'account:select'({ accountId }) {
+      await selectAccount(accountIdOf(accountId));
     },
     async 'scan:interrupt'({ accountId }) {
       accountId = accountIdOf(accountId);
@@ -139,6 +151,10 @@ export default defineBackground(() => {
     },
     async 'events:mark-seen'({ accountId, eventIds }) {
       accountId = accountIdOf(accountId);
+      // Liste d'ids d'événements seulement (défense en profondeur), de taille raisonnable.
+      if (!Array.isArray(eventIds) || eventIds.length > 10_000 || !eventIds.every((id) => typeof id === 'string')) {
+        throw new Error(t('common.errors.invalidRequest'));
+      }
       await markSeen(accountId, eventIds);
     },
     async 'events:delete'({ accountId, eventId }) {
@@ -166,6 +182,12 @@ export default defineBackground(() => {
     },
     async 'account:remove'({ accountId }) {
       accountId = accountIdOf(accountId);
+      // Compte connecté sur x.com : pas de ré-ajout automatique (seulement après reconnexion).
+      if ((await readSession())?.accountId === accountId) await localKv.set({ [keys.dismissed]: accountId });
+      await cancelScan(accountId);
+      // Analyse de fin de scan déjà lancée : on attend qu'elle finisse, puis on retire ce qu'elle
+      // a pu réécrire (scan remis en pause après un échec).
+      await settleAnalyses();
       await cancelScan(accountId);
       await updateAccounts((all) => {
         delete all[accountId];

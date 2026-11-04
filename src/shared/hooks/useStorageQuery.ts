@@ -47,7 +47,7 @@ export function useStorageQuery<T>(
       alive = false;
       off();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Dépendances fournies par l'appelant (`load` et `match` changent à chaque rendu).
   }, deps);
 
   return { data, loading };

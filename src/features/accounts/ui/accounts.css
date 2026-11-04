@@ -3,14 +3,7 @@
   font-size: 13px;
 }
 .xg-accounts__list {
-  list-style: none;
-  margin: 0;
   padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--xg-surface);
-  border: 1px solid var(--xg-border);
   border-radius: var(--xg-radius-block);
 }
 .xg-account {

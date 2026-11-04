@@ -186,5 +186,5 @@
   background: var(--xg-surface-muted);
 }
 .xg-coverage.is-paused .xg-progress__bar {
-  background: var(--xg-disabled-icon, #9aa1ad);
+  background: var(--xg-disabled-icon);
 }

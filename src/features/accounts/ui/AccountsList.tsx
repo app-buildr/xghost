@@ -25,7 +25,7 @@ export function AccountsList({
     <div className="xg-accounts">
       <h2 className="xg-eyebrow xg-accounts__title">{t('options.accounts.title')}</h2>
       {accounts.length > 0 && (
-        <ul className="xg-accounts__list">
+        <ul className="xg-boxlist xg-accounts__list">
           {accounts.map((a) => {
             const active = status?.session === 'ok' && status.activeAccountId === a.id;
             const count = unseen[a.id] ?? 0;

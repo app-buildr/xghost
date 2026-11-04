@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FollowEvent } from '@/shared/types';
-import { DAY, periodStart, startOfDay } from './period';
+import { DAY, startOfDay } from '@/shared/utils/time';
+import { periodStart } from './period';
 import { bucketStarts, departuresByDuration, followerSeries, movementBuckets, retention, startOf } from './selectors';
 
 // Midi local : les heures autour restent le même jour, quel que soit le fuseau.

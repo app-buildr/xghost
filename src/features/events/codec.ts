@@ -1,5 +1,6 @@
-import { HANDLE, ID } from '@/features/x-api/parse';
+import { HANDLE, ID } from '@/shared/x-urls';
 import type { AccountStatus, FollowEvent } from '@/shared/types';
+import { isSameDay } from '@/shared/utils/time';
 
 /**
  * Format compact des événements (§ 5.3), pour limiter la place prise par l'historique :
@@ -78,13 +79,12 @@ export function decodeEvent(c: CompactEvent): FollowEvent {
  */
 export function dedupeEvents(events: FollowEvent[]): FollowEvent[] {
   // Jour local (comme le graphe et les bilans), pas le jour UTC.
-  const day = (at: number) => new Date(at).toDateString();
   const kept: FollowEvent[] = [];
   const lastIndex = new Map<string, number>(); // dernier événement conservé par compte
   for (const e of [...events].sort((a, b) => a.at - b.at)) {
     const i = lastIndex.get(e.profileId);
     const previous = i === undefined ? undefined : kept[i];
-    if (previous && previous.type === e.type && day(previous.at) === day(e.at)) {
+    if (previous && previous.type === e.type && isSameDay(previous.at, e.at)) {
       kept[i!] = { ...previous, seen: previous.seen || e.seen };
       continue;
     }

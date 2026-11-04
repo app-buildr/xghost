@@ -1,7 +1,7 @@
 import { bucketStarts, type FollowerSeries } from '@/features/stats/selectors';
 import { t } from '@/shared/i18n';
-import { formatNumber, formatSigned } from '@/shared/utils/format';
-import { ChartHits, ChartTip, longDate, shortDate, StatHead, useChartHover } from './chart';
+import { dayMonth, formatNumber, formatSigned, longDay } from '@/shared/utils/format';
+import { ChartHits, ChartTip, StatHead, useChartHover } from './chart';
 
 /** Repères de dates sous la courbe : début, fin, et deux intermédiaires. */
 const ticks = (days: readonly number[]): readonly number[] =>
@@ -26,7 +26,7 @@ export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeri
     return (
       <figure className="xg-stat">
         <StatHead title={t('stats.followers.title')} />
-        <p className="xg-stat__empty">{t('stats.followers.empty')}</p>
+        <p className="xg-empty">{t('stats.followers.empty')}</p>
       </figure>
     );
   }
@@ -61,7 +61,7 @@ export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeri
   const range = t(all ? 'stats.followers.rangeAll' : 'stats.followers.range', {
     from: formatNumber(start),
     to: formatNumber(end.total),
-    date: shortDate.format(first.day),
+    date: dayMonth.format(first.day),
   });
 
   return (
@@ -96,7 +96,7 @@ export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeri
         <ChartHits count={days.length} onEnter={enter} />
         {shown !== undefined && days[shown] !== undefined && (
           <ChartTip index={shown} count={days.length} left={(x(shown) / width) * 100} visible={hover !== undefined}>
-            <strong>{longDate.format(days[shown])}</strong>
+            <strong>{longDay.format(days[shown])}</strong>
             <span>
               {active
                 ? t('stats.followers.tip', { count: active.total, n: formatNumber(active.total) })
@@ -107,7 +107,7 @@ export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeri
       </div>
       <div className="xg-stat__axis" aria-hidden="true">
         {ticks(days).map((day) => (
-          <span key={day}>{shortDate.format(day)}</span>
+          <span key={day}>{dayMonth.format(day)}</span>
         ))}
       </div>
     </figure>

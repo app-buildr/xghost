@@ -1,10 +1,10 @@
 import { createSerialQueue } from '@/shared/utils/serial';
-import { loadAccounts, type AccountsMap } from '@/features/accounts/repository';
+import type { AccountsMap } from '@/features/accounts/model';
+import { loadAccounts } from '@/features/accounts/repository';
 import { unseenCountsByAccount } from '@/features/events/unseen';
 import { loadSettings } from '@/features/settings/repository';
-import { localKv } from '@/shared/storage/kv';
-import { keys } from '@/shared/storage/keys';
-import type { GlobalStatus, ScanJob } from '@/shared/types';
+import { loadProgresses } from '@/features/followers-sync/repository';
+import { loadStatus } from '@/features/scheduler/status';
 import { t } from '@/shared/i18n';
 import { COLORS } from '@/shared/ui/tokens';
 import { formatBadgeCount } from '@/shared/utils/format';
@@ -28,11 +28,10 @@ async function totalUnseen(accounts: AccountsMap): Promise<number> {
 }
 
 async function anyScanRunning(accountIds: string[]): Promise<boolean> {
-  const jobs = await localKv.getMany(accountIds.map(keys.scanProgress));
-  return Object.values(jobs).some((j) => {
-    const p = j as Pick<ScanJob, 'status' | 'pausedReason'> | undefined;
-    return p?.status === 'running' || p?.pausedReason === 'needs-focus' || p?.pausedReason === 'rate-limit';
-  });
+  const progresses = await loadProgresses(accountIds);
+  return progresses.some(
+    (p) => p?.status === 'running' || p?.pausedReason === 'needs-focus' || p?.pausedReason === 'rate-limit',
+  );
 }
 
 // Les mises à jour s'exécutent l'une après l'autre : chacune relit l'état au moment où elle
@@ -45,7 +44,7 @@ async function applyBadge(): Promise<void> {
   const [accounts, settings, status] = await Promise.all([
     loadAccounts(),
     loadSettings(),
-    localKv.get<GlobalStatus>(keys.status),
+    loadStatus(),
   ]);
   const disconnected = status?.session === 'disconnected';
 
@@ -65,8 +64,6 @@ async function applyBadge(): Promise<void> {
   await chrome.action.setBadgeBackgroundColor({ color: COLORS.danger });
   await chrome.action.setBadgeTextColor({ color: COLORS.surface });
   await chrome.action.setBadgeText({ text: formatBadgeCount(unseen) });
-  const parts = [
-    scanning ? t('common.badge.scanning') : unseen ? t('common.badge.unseen', { count: unseen }) : undefined,
-  ].filter(Boolean);
-  await chrome.action.setTitle({ title: parts.length ? t('common.badge.title', { parts: parts.join(' · ') }) : t('common.appName') });
+  const state = scanning ? t('common.badge.scanning') : unseen ? t('common.badge.unseen', { count: unseen }) : undefined;
+  await chrome.action.setTitle({ title: state ? t('common.badge.title', { parts: state }) : t('common.appName') });
 }

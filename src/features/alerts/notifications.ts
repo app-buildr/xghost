@@ -1,5 +1,6 @@
 import { loadSettings } from '@/features/settings/repository';
 import { t } from '@/shared/i18n';
+import { formatList } from '@/shared/utils/format';
 import type { FollowEvent } from '@/shared/types';
 
 /** Notifications système : une seule par vérification, groupée (§ 8, question 3). */
@@ -21,8 +22,8 @@ export async function notifyDepartures(accountHandle: string, departures: Follow
     message: single
       ? t('common.notifications.detectedNow')
       : rest > 0
-        ? t('common.notifications.andOthers', { list: shown.join(', '), count: rest })
-        : shown.join(', '),
+        ? t('common.notifications.andOthers', { list: shown.join(t('format.listSeparator')), count: rest })
+        : formatList(shown),
     priority: 1,
   });
 }

@@ -1,14 +1,14 @@
-import { DAY } from '@/features/stats/period';
+import { DAY } from '@/shared/utils/time';
 import type { Bucket } from '@/features/stats/selectors';
 import { t } from '@/shared/i18n';
-import { formatNumber, formatSigned } from '@/shared/utils/format';
-import { ChartHits, ChartTip, longDate, shortDate, StatHead, useChartHover } from './chart';
+import { dayMonth, formatNumber, formatSigned, longDay } from '@/shared/utils/format';
+import { ChartHits, ChartTip, StatHead, useChartHover } from './chart';
 
 /** Textes d'une tranche (jour ou semaine), partagés par l'infobulle et le tableau pour lecteurs d'écran. */
 function texts(b: Bucket, unit: 'day' | 'week') {
   const net = formatSigned(b.arrivals - b.departures);
   return {
-    date: unit === 'day' ? longDate.format(b.day) : t('stats.activity.weekOf', { date: shortDate.format(b.day) }),
+    date: unit === 'day' ? longDay.format(b.day) : t('stats.activity.weekOf', { date: dayMonth.format(b.day) }),
     arrivals: t('stats.activity.tipArrivals', { count: b.arrivals, n: formatNumber(b.arrivals) }),
     departures: t('stats.activity.tipDepartures', { count: b.departures, n: formatNumber(b.departures) }),
     net: unit === 'day' ? t('stats.activity.netDay', { net }) : t('stats.activity.netWeek', { net }),

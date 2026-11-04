@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { hasKnownHandle } from '@/features/accounts/repository';
+import { hasKnownHandle } from '@/features/accounts/model';
 import { useBackupImport } from '@/features/backup/ui/useBackupImport';
 import { useAccountData } from '@/features/app-state/useAccountData';
 import { useAppState } from '@/features/app-state/useAppState';
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import type { ScanProgress } from '@/features/followers-sync/repository';
+import type { ScanProgress } from '@/features/followers-sync/model';
 import { pauseMessage, scanTabHint } from '@/features/scan-status/messages';
 import { scanCoverage } from '@/features/scan-status/progress';
-import { ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
+import { LastScanBar, ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
 import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { frequencyOptions } from '@/features/settings/model';
@@ -17,10 +17,11 @@ import { send } from '@/shared/messaging/client';
 import type { Frequency } from '@/shared/types';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
 import { Check, RefreshCw, Upload } from 'lucide-react';
-import { Logo, ProgressBar, Segmented } from '@/shared/ui/primitives';
+import { Logo, Segmented } from '@/shared/ui/primitives';
 import { formatNumber, formatPercent, formatProgressCount } from '@/shared/utils/format';
 import { X_LOGIN_URL } from '@/shared/x-urls';
 import './onboarding.css';
+import { SECOND } from '@/shared/utils/time';
 
 /** Détecte la session X, en réessayant tant que l'utilisateur n'est pas connecté. */
 function useSessionDetection() {
@@ -29,7 +30,7 @@ function useSessionDetection() {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
-      const res = await send('session:detect', undefined).catch(() => ({ loggedIn: false }));
+      const res = await send('session:detect', { explicit: true }).catch(() => ({ loggedIn: false }));
       if (!alive) return;
       setSession(res);
       if (!res.loggedIn) timer = setTimeout(poll, 3000);
@@ -51,7 +52,7 @@ function scanHint(progress: ScanProgress, now: number): string {
 }
 
 /** Délai avant la redirection vers le tableau de bord, le temps de lire « terminé ». */
-const REDIRECT_MS = 2_000;
+const REDIRECT_MS = 2 * SECOND;
 const DASHBOARD_URL = () => chrome.runtime.getURL('/options.html');
 
 /**
@@ -62,7 +63,7 @@ const DASHBOARD_URL = () => chrome.runtime.getURL('/options.html');
  */
 export function OnboardingApp() {
   const app = useAppState();
-  const now = useNow(5_000);
+  const now = useNow(5 * SECOND);
   const session = useSessionDetection();
   const account = app.accounts.find((a) => a.id === session?.accountId);
   const { data } = useAccountData(account?.id);
@@ -118,7 +119,7 @@ export function OnboardingApp() {
       <h1>{t('onboarding.title')}</h1>
       <p className="xg-onb__lead">{t('onboarding.lead')}</p>
 
-      <ol className="xg-onb__steps">
+      <ol className="xg-boxlist xg-onb__steps">
         <li className={`xg-step${session?.loggedIn ? ' is-done' : ' is-current'}`}>
           <span className="xg-step__num">{session?.loggedIn ? <Check size={18} /> : 1}</span>
           <div>
@@ -168,11 +169,7 @@ export function OnboardingApp() {
               </>
             ) : incomplete && account?.lastScan ? (
               <>
-                <ProgressBar
-                  value={account.lastScan.scanned}
-                  max={account.lastScan.detected || 1}
-                  label={t('onboarding.scan.title')}
-                />
+                <LastScanBar scan={account.lastScan} label={t('onboarding.scan.title')} />
                 <div className="xg-step__hint">
                   {t('onboarding.scan.incomplete', { pct: formatPercent(scanCoverage(account.lastScan)) })}
                 </div>

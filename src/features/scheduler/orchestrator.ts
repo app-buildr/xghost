@@ -7,7 +7,8 @@ import {
   ALARM_RETRY_PREFIX,
   ALARM_WATCHDOG,
 } from './alarms';
-import { isOnboarded,
+import { isOnboarded } from '@/features/accounts/model';
+import {
   getSelectedAccountId,
   loadAccounts,
   patchAccount,
@@ -15,7 +16,7 @@ import { isOnboarded,
   updateAccounts,
 } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
-import { importEpoch, isImporting } from '@/features/backup/lock';
+import { importEpoch, isImporting } from '@/shared/storage/import-lock';
 import { notifyAccountAdded } from '@/features/alerts/notifications';
 import { clearPartial, loadJob, loadSnapshot } from '@/features/followers-sync/repository';
 import {
@@ -37,6 +38,8 @@ import { readSession } from '@/features/x-api/session';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
 import type { GlobalStatus, ScanKind, ScanReason, TrackedAccount } from '@/shared/types';
+import { HOUR, MINUTE, SECOND } from '@/shared/utils/time';
+import { loadStatus, saveStatus } from './status';
 
 /**
  * Orchestration : alarmes, détection automatique des comptes (§ 4.4),
@@ -46,18 +49,18 @@ import type { GlobalStatus, ScanKind, ScanReason, TrackedAccount } from '@/share
 /** Un scan complet de contrôle tous les N contrôles légers. */
 const SAFETY_EVERY = 10;
 /** Durée maximale d'un contrôle léger (chargement de la page et de la première liste). */
-const QUICK_TIMEOUT_MS = 90_000;
+const QUICK_TIMEOUT_MS = 90 * SECOND;
 /** Alarme d'un autre compte que celui connecté sur x.com : reportée de ce délai. */
-const OTHER_ACCOUNT_DELAY_MS = 30 * 60_000;
+const OTHER_ACCOUNT_DELAY_MS = 30 * MINUTE;
 /** Report d'une vérification refusée parce qu'autre chose est en cours. */
-const BUSY_DELAY_MS = 5 * 60_000;
+const BUSY_DELAY_MS = 5 * MINUTE;
 /** Attente maximale entre deux reports d'une même vérification. */
-const MAX_DEFER_MS = 12 * 3600_000;
+const MAX_DEFER_MS = 12 * HOUR;
 /** Reports successifs par alarme (remis à zéro quand la vérification démarre). */
 const deferrals = new Map<string, number>();
 /** Scan de référence automatique qui n'aboutit pas : attente avant le suivant, doublée à chaque essai. */
-const BASELINE_RETRY_MS = 15 * 60_000;
-const BASELINE_RETRY_MAX_MS = 12 * 3600_000;
+const BASELINE_RETRY_MS = 15 * MINUTE;
+const BASELINE_RETRY_MAX_MS = 12 * HOUR;
 
 /**
  * Origine d'une vérification :
@@ -98,7 +101,7 @@ setScanHooks({
     await saveIncomplete(job);
   },
   async onStateChange() {
-    await updateStatus();
+    await updateStatus({ badge: true });
   },
   async scheduleResume(accountId, at) {
     await chrome.alarms.create(`${ALARM_RESUME_PREFIX}${accountId}`, { when: at });
@@ -119,17 +122,23 @@ export async function setupAlarms(): Promise<void> {
   }
 }
 
-/** État global affiché par l'icône et les interfaces. */
-export async function updateStatus(): Promise<GlobalStatus> {
+/**
+ * État global affiché par l'icône et les interfaces. Écrit seulement s'il change (le chien de
+ * garde l'appelle chaque minute) ; l'icône est recalculée à ce moment-là, ou si `badge` le
+ * demande (état d'un scan changé).
+ */
+export async function updateStatus({ badge = false }: { badge?: boolean } = {}): Promise<GlobalStatus> {
   const session = await readSession();
+  const previous = await loadStatus();
   const status: GlobalStatus = {
     session: session ? 'ok' : 'disconnected',
     activeAccountId: session?.accountId,
     updatedAt: Date.now(),
   };
-  await localKv.set({ [keys.status]: status });
-  await refreshBadge();
-  return status;
+  const changed = previous?.session !== status.session || previous.activeAccountId !== status.activeAccountId;
+  if (changed) await saveStatus(status);
+  if (changed || badge) await refreshBadge();
+  return changed ? status : previous!;
 }
 
 /**
@@ -137,18 +146,26 @@ export async function updateStatus(): Promise<GlobalStatus> {
  * Le @handle et le nombre d'abonnés sont complétés pendant le scan, à partir des
  * réponses lues dans la page x.com.
  */
-export function ensureActiveAccount(): Promise<TrackedAccount | undefined> {
+export function ensureActiveAccount(explicit = false): Promise<TrackedAccount | undefined> {
   // Appelé de plusieurs endroits à la fois au réveil : un seul ajout (et une seule notification).
-  return accountQueue.run(addSessionAccount);
+  return accountQueue.run(() => addSessionAccount(explicit));
 }
 const accountQueue = createSerialQueue();
 
-async function addSessionAccount(): Promise<TrackedAccount | undefined> {
+/**
+ * `explicit` : demande de l'utilisateur (« Vérifier maintenant », onboarding). Un compte retiré
+ * alors qu'il était connecté n'est ré-ajouté que sur demande, ou après une reconnexion.
+ */
+async function addSessionAccount(explicit: boolean): Promise<TrackedAccount | undefined> {
   const session = await readSession();
   if (!session) return undefined;
   const accounts = await loadAccounts();
   const known = accounts[session.accountId];
   if (known) return known;
+  if ((await localKv.get<string>(keys.dismissed)) === session.accountId) {
+    if (!explicit) return undefined;
+    await localKv.remove(keys.dismissed);
+  }
 
   const isFirst = Object.keys(accounts).length === 0;
   const account: TrackedAccount = {
@@ -175,7 +192,7 @@ export async function triggerCheck(
   accountId?: string,
 ): Promise<{ started: boolean; reason?: string }> {
   if (isImporting()) return { started: false, reason: 'importing' };
-  const account = await ensureActiveAccount();
+  const account = await ensureActiveAccount(origin === 'user' || origin === 'user-full');
   if (!account) {
     await updateStatus();
     return { started: false, reason: 'disconnected' };
@@ -257,16 +274,16 @@ function scanReason(
   return 'safety'; // scan de contrôle périodique
 }
 
+/** « Arrêter le scan » du tableau de bord : arrêt immédiat, abonnés gardés pour le continuer. */
+export async function stopScan(accountId: string): Promise<void> {
+  await interruptScan(accountId);
+  await updateStatus({ badge: true });
+}
+
 /**
  * « Arrêter » (onboarding) : ferme l'onglet de scan et abandonne le scan, sans rien garder
  * (ni scan partiel, ni couverture) : l'utilisateur peut ensuite importer une sauvegarde.
  */
-/** « Arrêter le scan » du tableau de bord : arrêt immédiat, abonnés gardés pour le continuer. */
-export async function stopScan(accountId: string): Promise<void> {
-  await interruptScan(accountId);
-  await updateStatus();
-}
-
 export async function abandonScan(accountId: string): Promise<void> {
   const hadBaseline = !!(await loadAccounts())[accountId]?.baselineAt;
   const epoch = importEpoch();
@@ -288,7 +305,7 @@ export async function abandonScan(accountId: string): Promise<void> {
   } else {
     await patchAccount(accountId, { lastScan: undefined, baselineRetry: undefined });
   }
-  await updateStatus();
+  await updateStatus({ badge: true });
 }
 
 /** Reprend un scan en pause dont l'échéance est passée, ou dont l'onglet a disparu. */
@@ -351,7 +368,12 @@ const sessionQueue = createSerialQueue();
 async function onSessionChange(): Promise<void> {
   if (isImporting()) return;
   const session = await readSession();
+  // Compte retiré pendant qu'il était connecté : oublié dès qu'on se déconnecte ou change de
+  // compte, pour qu'une reconnexion le fasse de nouveau détecter.
+  const dismissed = await localKv.get<string>(keys.dismissed);
+  if (dismissed && dismissed !== session?.accountId) await localKv.remove(keys.dismissed);
   if (!session) return void (await updateStatus());
+  if (dismissed === session.accountId && !(await loadAccounts())[session.accountId]) return void (await updateStatus());
   // Scan d'un autre compte en cours : X servirait sa liste avec la session du nouveau compte.
   await suspendForeignScan(session.accountId);
   const accounts = await loadAccounts();

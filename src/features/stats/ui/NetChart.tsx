@@ -1,10 +1,8 @@
 import type { Bucket } from '@/features/stats/selectors';
-import { LOCALE, t } from '@/shared/i18n';
-import { formatSigned } from '@/shared/utils/format';
-import { shortDate, StatHead, useChartHover } from './chart';
+import { t } from '@/shared/i18n';
+import { dayMonth, formatSigned, shortMonth, shortMonthYear } from '@/shared/utils/format';
+import { StatHead, useChartHover } from './chart';
 
-const monthDate = new Intl.DateTimeFormat(LOCALE, { month: 'short' });
-const monthYearDate = new Intl.DateTimeFormat(LOCALE, { month: 'short', year: '2-digit' });
 
 /**
  * Solde net par semaine (ou par mois sur « Tout ») : arrivées moins départs (§ 3.4). Barres vers
@@ -28,7 +26,7 @@ export function NetChart({
   // Mois seul (« juil. ») ; l'année seulement si la période en couvre plusieurs.
   const years = new Set(buckets.map((b) => new Date(b.day).getFullYear()));
   const label = (b: Bucket) =>
-    (unit === 'week' ? shortDate : years.size > 1 ? monthYearDate : monthDate).format(b.day);
+    (unit === 'week' ? dayMonth : years.size > 1 ? shortMonthYear : shortMonth).format(b.day);
   // Beaucoup de barres (90 jours, « Tout ») : chiffres au survol seulement, quatre dates sous l'axe.
   const dense = buckets.length > 8;
   const every = dense ? Math.ceil(buckets.length / 4) : 1;

@@ -36,7 +36,6 @@
     "impossible": "Vérification impossible pour le moment",
     "fullStarted": "Scan complet lancé dans l’onglet x.com épinglé",
     "checking": "Vérification…",
-    "checkNow": "Vérifier maintenant",
     "fullScan": "Scan complet",
     "fullScanTitle": "Relire toute la liste des abonnés",
     "result": "Contrôle terminé : {{summary}}",
@@ -83,7 +82,6 @@
   },
   "departures": {
     "filterLabel": "Filtrer les départs",
-    "empty": "Aucun départ pour l’instant. xGhost veille.",
     "emptyFilter": "Aucun départ pour ce filtre.",
     "showAll_one": "Voir tout l’historique ({{n}} départ)",
     "showAll_other": "Voir tout l’historique ({{n}} départs)"

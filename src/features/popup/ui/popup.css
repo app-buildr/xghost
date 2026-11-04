@@ -92,7 +92,7 @@ body {
 .xg-popup__alert-close:hover,
 .xg-popup__alert-close:focus-visible {
   opacity: 1;
-  background: rgba(143, 36, 20, 0.08);
+  background: color-mix(in srgb, var(--xg-danger-strong) 8%, transparent);
 }
 /* Fermeture : l'alerte s'efface et se replie, le contenu dessous remonte en douceur
    (marge négative pour absorber l'écart de la colonne). */
@@ -130,11 +130,6 @@ body {
 .xg-popup__section {
   margin: 0 0 4px;
 }
-.xg-popup__empty {
-  margin: 8px 0;
-  font-size: 14px;
-  color: var(--xg-text-muted);
-}
 
 .xg-popup__summary {
   display: flex;
@@ -155,7 +150,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin: 4px -16px 0;
   padding: 12px 16px 16px;
   border-top: 1px solid var(--xg-border);
@@ -163,6 +158,28 @@ body {
 .xg-popup__foot .xg-btn--ghost {
   font-weight: 500;
   font-size: 14px;
+}
+/* Bouton de vérification : il prend la place laissée par « Tableau de bord », quel que soit son
+   libellé (« Vérifié à l'instant », « Vérifié hier, 21:40 », « Vérification… »). Sa largeur ne
+   dépend donc plus du texte et la popup ne s'élargit plus pendant une vérification. */
+.xg-popup__foot > .xg-tooltip {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.xg-popup__foot > .xg-tooltip > .xg-btn--ghost {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+}
+/* Marges resserrées : tous les libellés français tiennent sans être coupés (mesuré, 126 px au plus). */
+.xg-popup__foot > .xg-btn--ink {
+  flex: none;
+  padding: 0 16px;
+}
+.xg-popup__check-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .xg-popup .xg-banner {
   font-size: 13px;

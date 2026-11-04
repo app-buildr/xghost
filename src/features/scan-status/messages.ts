@@ -11,7 +11,7 @@ export const stallText = () => t('common.scan.stallText');
 
 /** Message d'un scan en pause, quelle qu'en soit la raison (phrases complètes, avec ou sans heure). */
 export function pauseMessage(
-  p: Pick<ScanJob, 'pausedReason' | 'resumeAt' | 'error'>,
+  p: Pick<ScanJob, 'pausedReason' | 'resumeAt'>,
   account?: Pick<TrackedAccount, 'handle'>,
 ): string {
   const time = p.resumeAt ? formatTime(p.resumeAt) : undefined;
@@ -25,11 +25,6 @@ export function pauseMessage(
     case 'account-switched':
       return t('common.scan.pause.accountSwitched', { handle: account?.handle ?? '…' });
     default:
-      if (p.error) {
-        return time
-          ? t('common.scan.pause.errorDetailAt', { detail: p.error, time })
-          : t('common.scan.pause.errorDetail', { detail: p.error });
-      }
       return time ? t('common.scan.pause.errorAt', { time }) : t('common.scan.pause.error');
   }
 }

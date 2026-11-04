@@ -2,15 +2,15 @@ import { useMemo } from 'react';
 import { loadIgnored } from '@/features/accounts/repository';
 import { loadEvents } from '@/features/events/repository';
 import type { VisibilityContext } from '@/features/events/selectors';
+import type { ScanProgress } from '@/features/followers-sync/model';
 import {
   loadProfiles,
+  loadProgress,
   loadTotals,
   type ProfileCache,
-  type ScanProgress,
   type TotalPoint,
 } from '@/features/followers-sync/repository';
 import { useStorageQuery } from '@/shared/hooks/useStorageQuery';
-import { localKv } from '@/shared/storage/kv';
 import { isAccountKey, keys } from '@/shared/storage/keys';
 import type { FollowEvent, TrackedAccount } from '@/shared/types';
 import { useSeenOnView } from './useSeenOnView';
@@ -53,7 +53,7 @@ export function useAccountData(accountId: string | undefined, options: { seenOnV
   );
   // État du scan en cours : petite clé mise à jour à chaque page.
   const { data: progress } = useStorageQuery<ScanProgress | undefined>(
-    async () => (accountId ? localKv.get<ScanProgress>(keys.scanProgress(accountId)) : undefined),
+    async () => (accountId ? loadProgress(accountId) : undefined),
     (k) => !!accountId && k === keys.scanProgress(accountId),
     [accountId],
   );

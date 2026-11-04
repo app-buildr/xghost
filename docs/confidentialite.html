@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Politique de confidentialité · xGhost</title>
+  <meta name="description" content="Politique de confidentialité de l'extension Chrome xGhost : aucune donnée ne quitte ton navigateur.">
+  <link rel="icon" type="image/svg+xml" href="assets/images/icone/xghost-32.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/icone/xghost-32.png">
+  <link rel="canonical" href="https://app-buildr.github.io/xghost/confidentialite.html">
+  <link rel="alternate" hreflang="fr" href="https://app-buildr.github.io/xghost/confidentialite.html">
+  <link rel="alternate" hreflang="en" href="https://app-buildr.github.io/xghost/en/privacy.html">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .legal { padding: 56px 0 72px; }
+    .legal h1 { font-size: clamp(32px, 5vw, 44px); margin-bottom: 8px; }
+    .legal .updated { color: var(--text-muted); font-size: 14px; margin-bottom: 32px; }
+    .legal h2 { font-size: 22px; margin: 36px 0 10px; }
+    .legal p, .legal li { font-size: 16px; line-height: 1.65; color: var(--ink); }
+    .legal p + p { margin-top: 10px; }
+    .legal ul { margin: 10px 0 0; padding-left: 22px; }
+    .legal li + li { margin-top: 6px; }
+    .legal code { font-size: 14px; }
+    .legal-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 28px; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <main class="legal">
+    <div class="container container--narrow">
+      <div class="legal-top">
+        <a href="./">← xGhost</a>
+        <a href="en/privacy.html" hreflang="en" lang="en">English version</a>
+      </div>
+
+      <h1>Politique de confidentialité</h1>
+      <p class="updated">Dernière mise à jour : 4 novembre 2026</p>
+
+      <p>xGhost est une extension Chrome qui détecte les comptes X qui ont arrêté de te suivre. Cette page explique quelles données elle utilise, où elles restent et ce qu'elle n'en fait jamais.</p>
+
+      <h2>En bref</h2>
+      <ul>
+        <li>Aucun serveur, aucun compte xGhost, aucun analytics, aucune télémétrie, aucune publicité.</li>
+        <li>Toutes les données restent dans ton navigateur. Elles ne sont ni vendues, ni partagées, ni envoyées à qui que ce soit.</li>
+        <li>Désinstaller l'extension efface toutes ses données.</li>
+      </ul>
+
+      <h2>Données utilisées et conservées</h2>
+      <p>xGhost enregistre uniquement dans le stockage local de ton navigateur (<code>chrome.storage.local</code>) :</p>
+      <ul>
+        <li>tes réglages (fréquence des vérifications, alertes, graphiques affichés) ;</li>
+        <li>les comptes X que tu suis avec xGhost : identifiant, @handle, nom, adresse de la photo de profil et nombre d'abonnés annoncé par X ;</li>
+        <li>la liste de tes abonnés : identifiant, @handle, nom et adresse de la photo de profil de chacun ;</li>
+        <li>l'historique des départs et des nouveaux abonnés, et le nombre d'abonnés relevé chaque jour.</li>
+      </ul>
+
+      <h2>Cookies de x.com</h2>
+      <p>xGhost lit localement les cookies de session de x.com (<code>auth_token</code>, <code>ct0</code>, <code>twid</code>) uniquement pour savoir si tu es connecté à X et avec quel compte. Seul l'identifiant de ton compte est conservé. Aucune valeur de cookie n'est enregistrée, journalisée ni transmise.</p>
+
+      <h2>Connexions</h2>
+      <p>xGhost ne se connecte à aucun serveur qui lui appartient. Pour lire ta liste d'abonnés, il ouvre x.com dans un onglet épinglé, fait défiler la liste, puis ferme l'onglet. Il lit les réponses que la page x.com reçoit elle-même, avec ta propre session : il n'envoie aucune requête de son propre chef et n'utilise aucune API.</p>
+      <p>Les photos de profil sont affichées depuis les serveurs d'images de X (<code>pbs.twimg.com</code>, <code>abs.twimg.com</code>), qui voient donc ton adresse IP, comme quand tu navigues sur x.com.</p>
+
+      <h2>Sauvegarde</h2>
+      <p>La fonction « Exporter mes données » crée un fichier sur ton ordinateur, qui contient ta liste d'abonnés et ton historique. xGhost ne l'envoie nulle part. Garde-le pour toi.</p>
+
+      <h2>Signaler un bug</h2>
+      <p>Le lien « Signaler un bug » ouvre une page GitHub préremplie avec la version de xGhost et le nom de ton navigateur. Rien n'est envoyé tant que tu ne valides pas toi-même le signalement sur GitHub.</p>
+
+      <h2>Suppression de tes données</h2>
+      <ul>
+        <li>« Retirer ce compte », dans les réglages de xGhost, efface les données d'un compte.</li>
+        <li>Désinstaller l'extension efface toutes ses données.</li>
+      </ul>
+
+      <h2>Utilisation limitée</h2>
+      <p>Les données ne servent qu'à l'objectif unique de l'extension : te montrer qui a arrêté de te suivre sur X et te prévenir. Elles ne sont ni vendues, ni transférées à des tiers, ni utilisées pour de la publicité ou pour évaluer une solvabilité. Personne ne les lit, puisqu'elles ne quittent pas ton navigateur.</p>
+
+      <h2>Contact</h2>
+      <p>Pour toute question, ouvre un ticket sur <a href="https://github.com/app-buildr/xghost/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+
+      <p style="margin-top: 32px; color: var(--text-muted); font-size: 14px;">xGhost est un projet indépendant et open source, non affilié à X Corp.</p>
+    </div>
+  </main>
+
+</body>
+</html>

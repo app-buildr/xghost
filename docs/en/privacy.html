@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy · xGhost</title>
+  <meta name="description" content="Privacy policy of the xGhost Chrome extension: no data ever leaves your browser.">
+  <link rel="icon" type="image/svg+xml" href="../assets/images/icone/xghost-32.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/images/icone/xghost-32.png">
+  <link rel="canonical" href="https://app-buildr.github.io/xghost/en/privacy.html">
+  <link rel="alternate" hreflang="fr" href="https://app-buildr.github.io/xghost/confidentialite.html">
+  <link rel="alternate" hreflang="en" href="https://app-buildr.github.io/xghost/en/privacy.html">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .legal { padding: 56px 0 72px; }
+    .legal h1 { font-size: clamp(32px, 5vw, 44px); margin-bottom: 8px; }
+    .legal .updated { color: var(--text-muted); font-size: 14px; margin-bottom: 32px; }
+    .legal h2 { font-size: 22px; margin: 36px 0 10px; }
+    .legal p, .legal li { font-size: 16px; line-height: 1.65; color: var(--ink); }
+    .legal p + p { margin-top: 10px; }
+    .legal ul { margin: 10px 0 0; padding-left: 22px; }
+    .legal li + li { margin-top: 6px; }
+    .legal code { font-size: 14px; }
+    .legal-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 28px; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <main class="legal">
+    <div class="container container--narrow">
+      <div class="legal-top">
+        <a href="./">← xGhost</a>
+        <a href="../confidentialite.html" hreflang="fr" lang="fr">Version française</a>
+      </div>
+
+      <h1>Privacy policy</h1>
+      <p class="updated">Last updated: November 4, 2026</p>
+
+      <p>xGhost is a Chrome extension that detects which X accounts stopped following you. This page explains what data it uses, where that data stays, and what it never does with it.</p>
+
+      <h2>In short</h2>
+      <ul>
+        <li>No server, no xGhost account, no analytics, no telemetry, no ads.</li>
+        <li>All data stays in your browser. It is never sold, shared or sent to anyone.</li>
+        <li>Uninstalling the extension deletes all of its data.</li>
+      </ul>
+
+      <h2>Data used and stored</h2>
+      <p>xGhost stores the following only in your browser's local storage (<code>chrome.storage.local</code>):</p>
+      <ul>
+        <li>your settings (check frequency, alerts, charts shown);</li>
+        <li>the X accounts you track with xGhost: ID, @handle, name, profile picture URL and the follower count announced by X;</li>
+        <li>your follower list: ID, @handle, name and profile picture URL of each follower;</li>
+        <li>the history of unfollows and new followers, and the follower count recorded each day.</li>
+      </ul>
+
+      <h2>x.com cookies</h2>
+      <p>xGhost reads the x.com session cookies locally (<code>auth_token</code>, <code>ct0</code>, <code>twid</code>) only to know whether you are signed in to X and with which account. Only your account ID is kept. No cookie value is stored, logged or transmitted.</p>
+
+      <h2>Connections</h2>
+      <p>xGhost does not connect to any server of its own. To read your follower list, it opens x.com in a pinned tab, scrolls the list, then closes the tab. It reads the responses the x.com page itself receives, with your own session: it sends no requests of its own and uses no API.</p>
+      <p>Profile pictures are loaded from X's image servers (<code>pbs.twimg.com</code>, <code>abs.twimg.com</code>), which therefore see your IP address, just as when you browse x.com.</p>
+
+      <h2>Backup</h2>
+      <p>The "Export my data" feature creates a file on your computer containing your follower list and history. xGhost never sends it anywhere. Keep it to yourself.</p>
+
+      <h2>Report a bug</h2>
+      <p>The "Report a bug" link opens a pre-filled GitHub page with the xGhost version and your browser name. Nothing is sent unless you submit the report on GitHub yourself.</p>
+
+      <h2>Deleting your data</h2>
+      <ul>
+        <li>"Remove this account", in the xGhost settings, deletes the data of one account.</li>
+        <li>Uninstalling the extension deletes all of its data.</li>
+      </ul>
+
+      <h2>Limited use</h2>
+      <p>The data is used only for the extension's single purpose: showing you who stopped following you on X and notifying you. It is never sold, transferred to third parties, or used for advertising or creditworthiness. Nobody reads it, since it never leaves your browser.</p>
+
+      <h2>Contact</h2>
+      <p>For any question, open an issue on <a href="https://github.com/app-buildr/xghost/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+
+      <p style="margin-top: 32px; color: var(--text-muted); font-size: 14px;">xGhost is an independent open-source project, not affiliated with X Corp.</p>
+    </div>
+  </main>
+
+</body>
+</html>

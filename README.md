@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://app-buildr.github.io/xghost/"><strong>Site et guide d'utilisation</strong></a> ·
+  <a href="https://app-buildr.github.io/xghost/en/"><strong>Website (English)</strong></a> ·
   <a href="https://chromewebstore.google.com/">Ajouter à Chrome</a>
 </p>
 
@@ -20,12 +21,14 @@
 
 ## Documentation
 
-Tout est expliqué, captures à l'appui, sur le site de l'extension :
-**[app-buildr.github.io/xghost](https://app-buildr.github.io/xghost/)**
+Tout est expliqué, captures à l'appui, sur le site de l'extension, en français et en anglais :
 
-- [Présentation](https://app-buildr.github.io/xghost/) : à quoi sert l'extension, en images
-- [Installation](https://app-buildr.github.io/xghost/#installation) : depuis le Chrome Web Store
-- [Mise à jour](https://app-buildr.github.io/xghost/#mise-a-jour) : automatique
+| 🇫🇷 Français | 🇬🇧 English |
+| --- | --- |
+| [Présentation](https://app-buildr.github.io/xghost/) : à quoi sert l'extension, en images | [Overview](https://app-buildr.github.io/xghost/en/): what the extension does, with screenshots |
+| [Installation](https://app-buildr.github.io/xghost/#installation) : depuis le Chrome Web Store | [Install](https://app-buildr.github.io/xghost/en/#install): from the Chrome Web Store |
+| [Mise à jour](https://app-buildr.github.io/xghost/#mise-a-jour) : automatique | [Updates](https://app-buildr.github.io/xghost/en/#updates): automatic |
+| [Questions fréquentes](https://app-buildr.github.io/xghost/#questions) | [FAQ](https://app-buildr.github.io/xghost/en/#faq) |
 
 ## Fonctionnalités
 
@@ -111,7 +114,10 @@ pnpm dev        # Chrome avec l'extension chargée et rechargement à chaud
 Charger le build à la main : `chrome://extensions` → mode développeur → « Charger l'extension non
 empaquetée » → `dist`.
 
-Le site (`docs/`) est publié par GitHub Pages (branche principale, dossier `/docs`).
+Le site (`docs/`) est publié par GitHub Pages (branche principale, dossier `/docs`). Version
+française : `docs/index.html` ; version anglaise : `docs/en/index.html`, avec ses visuels dans
+`docs/assets/images/en/`. Les deux pages partagent `docs/style.css` : toute modification de contenu
+se fait dans les deux.
 
 ## Publier une nouvelle version
 

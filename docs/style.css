@@ -74,13 +74,15 @@ section[id] { scroll-margin-top: 80px; }
 
 /* --- Header --- */
 .header { position: sticky; top: 0; z-index: 10; background: rgba(245, 246, 248, .92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
-.header__inner { max-width: 1120px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; }
+.header__inner { max-width: 1120px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font: 800 19px var(--display); }
 .logo:hover { color: var(--ink); }
-.menu { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.menu { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .menu a { color: var(--text-subtle); text-decoration: none; font-size: 14px; }
 .menu a:hover { color: var(--ink); }
 .header__actions { display: flex; align-items: center; gap: 10px; }
+.lang { padding: 8px 6px; border-radius: 10px; color: var(--text-subtle); font-size: 14px; font-weight: 600; text-decoration: none; transition: background .15s, color .15s; }
+.lang:hover { background: var(--surface-muted); color: var(--ink); }
 
 /* --- Hero --- */
 .hero { padding: 72px 0 64px; }

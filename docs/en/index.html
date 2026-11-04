@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>xGhost, see who unfollowed you on X</title>
+  <meta name="description" content="Free Chrome extension, no sign-up, no tracking.">
+  <link rel="icon" type="image/svg+xml" href="../assets/images/icone/xghost-32.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/images/icone/xghost-32.png">
+  <link rel="apple-touch-icon" href="../assets/images/icone/xghost-180.png">
+  <link rel="canonical" href="https://app-buildr.github.io/xghost/en/">
+  <link rel="alternate" hreflang="fr" href="https://app-buildr.github.io/xghost/">
+  <link rel="alternate" hreflang="en" href="https://app-buildr.github.io/xghost/en/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="See who unfollowed you on X">
+  <meta property="og:description" content="Free Chrome extension, no sign-up, no tracking.">
+  <meta property="og:url" content="https://app-buildr.github.io/xghost/en/">
+  <meta property="og:image" content="https://app-buildr.github.io/xghost/assets/images/en/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preload" href="../assets/fonts/manrope-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header__inner">
+      <a class="logo" href="#top">
+        <img src="../assets/images/icone/xghost-32.svg" width="32" height="32" alt="">
+        <span>xGhost</span>
+      </a>
+      <nav class="menu" aria-label="Page sections">
+        <a href="#how-it-works">How it works</a>
+        <a href="#preview">Preview</a>
+        <a href="#install">Install</a>
+        <a href="#updates">Updates</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="header__actions">
+        <a class="lang" href="../" hreflang="fr" lang="fr" title="Version française">FR</a>
+        <a class="btn-share" href="https://x.com/intent/post?text=Who%20unfollowed%20you%20on%20X%3F%20%F0%9F%91%BB%20xGhost%20tells%20you!%0AxGhost%20is%20an%20open%20source%20Chrome%20extension&amp;url=https%3A%2F%2Fapp-buildr.github.io%2Fxghost%2Fen%2F" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Share
+        </a>
+        <!-- Chrome Web Store listing URL to set once the extension is published. -->
+        <a class="btn btn--primary btn--small" href="https://chromewebstore.google.com/" target="_blank" rel="noopener">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Add to Chrome
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero" id="top">
+      <div class="container hero__inner">
+        <div class="hero__text">
+          <p class="tag">Chrome extension · open source</p>
+          <h1>See who <span class="hl">unfollowed</span> you on X.</h1>
+          <p class="hero__lead">Free Chrome extension, no sign-up, no tracking.</p>
+          <div class="hero__actions">
+            <!-- Chrome Web Store listing URL to set once the extension is published. -->
+            <a class="btn btn--primary btn--large" href="https://chromewebstore.google.com/" target="_blank" rel="noopener">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Add to Chrome
+            </a>
+            <a class="btn btn--secondary btn--large" href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">View the code on GitHub</a>
+          </div>
+        </div>
+        <img class="hero__card" src="../assets/images/en/hero-card.png" width="400" height="333" alt="xGhost card: 3 new unfollows since your last visit, Marie Lefèvre, Julien Bernard and Studio Dune.">
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section section--surface" id="how-it-works">
+      <div class="container">
+        <p class="eyebrow">How it works</p>
+        <h2>xGhost syncs your followers automatically.</h2>
+        <div class="cards cards--how">
+          <article class="how">
+            <div class="how__head">
+              <span class="how__num">1</span>
+              <h3>Initial scan</h3>
+            </div>
+            <p>Once installed, xGhost fetches your follower list. That's the baseline<a class="note-ref" href="#note-retroactive" aria-describedby="note-retroactive">*</a>.</p>
+          </article>
+          <article class="how">
+            <div class="how__head">
+              <span class="how__num">2</span>
+              <h3>Regular checks</h3>
+            </div>
+            <p>Every 6, 12 or 24 hours, as you choose, it checks who joined and who left.</p>
+          </article>
+          <article class="how">
+            <div class="how__head">
+              <span class="how__num">3</span>
+              <h3>An alert for every unfollow</h3>
+            </div>
+            <p>As soon as someone leaves, the icon lets you know.</p>
+            <img src="../assets/images/fonctionnement-icone-alerte.png" width="315" height="47" alt="Chrome address bar, the xGhost icon shows a red badge.">
+          </article>
+        </div>
+        <p class="note" id="note-retroactive"><span aria-hidden="true">*</span> xGhost can't see the past: it counts unfollows and new followers <strong>from the moment it's installed</strong>. Unfollows that happened before will never show up.</p>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="section" id="preview">
+      <div class="container">
+        <p class="eyebrow">Preview</p>
+        <h2>Everything you need, nothing more.</h2>
+        <div class="cards cards--preview">
+          <figure class="preview">
+            <div class="preview__shot"><img class="preview__img--popup" src="../assets/images/en/apercu/popup.png" width="380" height="620" alt="xGhost popup with the latest unfollows"></div>
+            <figcaption><h3>The popup</h3><p>Your latest unfollows, one click on the icon away.</p></figcaption>
+          </figure>
+          <figure class="preview">
+            <div class="preview__shot"><img src="../assets/images/en/apercu/dashboard.png" width="788" height="541" alt="List of the latest unfollows in the dashboard"></div>
+            <figcaption><h3>The dashboard</h3><p>All your unfollows and new followers, in one place.</p></figcaption>
+          </figure>
+          <figure class="preview">
+            <div class="preview__shot"><img src="../assets/images/en/apercu/sync.png" width="496" height="406" alt="Follower sync card in the x.com tab"></div>
+            <figcaption><h3>The sync</h3><p>In an x.com tab that closes by itself.</p></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section class="section section--surface" id="install">
+      <div class="container split">
+        <div class="split__intro">
+          <p class="eyebrow">Install</p>
+          <h2>Installed in 30 seconds.</h2>
+          <p class="split__text">Available on the Chrome Web Store, for Chrome, Brave, Edge and other Chromium-based browsers, on desktop.</p>
+          <!-- Chrome Web Store listing URL (…/detail/xghost/<id>) to set once the extension is published. -->
+          <a class="btn btn--primary btn--large" href="https://chromewebstore.google.com/" target="_blank" rel="noopener">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Add to Chrome
+          </a>
+        </div>
+        <ol class="steps">
+          <li class="step">
+            <span class="step__num">1</span>
+            <div class="step__body">
+              <h3>Open the Chrome Web Store listing</h3>
+              <p>With the "Add to Chrome" button, right here on the left.</p>
+            </div>
+          </li>
+          <li class="step">
+            <span class="step__num">2</span>
+            <div class="step__body">
+              <h3>Click "Add to Chrome"</h3>
+              <p>Then confirm with "Add extension" in the Chrome window.</p>
+            </div>
+          </li>
+          <li class="step">
+            <span class="step__num">3</span>
+            <div class="step__body">
+              <h3>Pin the icon</h3>
+              <p>Click the puzzle piece in the Chrome toolbar, then the pin next to xGhost.</p>
+            </div>
+          </li>
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>You're all set!</h3>
+              <p>The xGhost welcome page opens: start a new sync or import your backup.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Updates -->
+    <section class="section" id="updates">
+      <div class="container split">
+        <div class="split__intro">
+          <p class="eyebrow">Updates</p>
+          <h2>Always up to date, hands-free.</h2>
+          <p class="split__text">Like every extension on the Chrome Web Store, xGhost updates automatically.</p>
+        </div>
+        <ul class="steps">
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>Automatic updates</h3>
+              <p>Chrome installs every new version by itself, in the background.</p>
+            </div>
+          </li>
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>Your data stays put</h3>
+              <p>Your history, accounts and settings are kept from one version to the next.</p>
+            </div>
+          </li>
+          <li class="step step--done">
+            <span class="step__num"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+            <div class="step__body">
+              <h3>An extra backup</h3>
+              <p>For peace of mind, export a .json backup from the xGhost settings.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section section--dark" id="privacy">
+      <div class="container">
+        <p class="eyebrow">Privacy</p>
+        <h2>Your data stays with you.</h2>
+        <div class="cards cards--privacy">
+          <article class="privacy"><h3>No server</h3><p>No API, no third-party server: xGhost reads what x.com displays, with your own session. Nothing is sent anywhere but X.</p></article>
+          <article class="privacy"><h3>No tracking</h3><p>No analytics, no third-party cookies, no telemetry.</p></article>
+          <article class="privacy"><h3>No sign-up</h3><p>No xGhost account to create. Install it, that's it.</p></article>
+          <article class="privacy"><h3>Backup</h3><p>Your data stays on your computer. Export it to a file to get it back after reinstalling.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container container--narrow">
+        <p class="eyebrow">FAQ</p>
+        <h2>Frequently asked questions</h2>
+        <div class="faq">
+          <details>
+            <summary>Why does an x.com tab open by itself?</summary>
+            <p>X only shows your follower list on its own page. So xGhost opens a pinned tab, scrolls through the list, then closes it. Don't close it during the scan.</p>
+          </details>
+          <details>
+            <summary>Is my X account at risk?</summary>
+            <p>xGhost just scrolls through your follower list, like you would yourself, and respects the pauses X imposes. The risk is low, but no unofficial extension can guarantee it's zero.</p>
+          </details>
+          <details>
+            <summary>Does xGhost see unfollows from before it was installed?</summary>
+            <p>No. X keeps no history of who followed you and then left. xGhost starts from your follower list at the initial scan: stats only begin from there, there's no going back in time.</p>
+          </details>
+          <details>
+            <summary>Why doesn't the scan reach 100%?</summary>
+            <p>X counts accounts it doesn't show (suspended, restricted) in your total. From 99%, the scan counts as complete.</p>
+          </details>
+          <details>
+            <summary>Why "followed since Oct 12 or earlier"?</summary>
+            <p>X never says how long someone has been following you. xGhost only knows what it has seen: the date of your first scan, or the date a new follower arrived.</p>
+          </details>
+          <details>
+            <summary>Does it work with several accounts?</summary>
+            <p>Yes. Log in to another account on x.com, xGhost detects it and tracks it separately.</p>
+          </details>
+          <details>
+            <summary>What about Firefox or mobile?</summary>
+            <p>No, only Chrome and Chromium-based browsers, on desktop.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__left">
+        <span class="footer__logo"><img src="../assets/images/icone/xghost-32.svg" width="20" height="20" alt=""> xGhost</span>
+        <span>Open source.</span>
+        <span>Independent project, not affiliated with X Corp.</span>
+      </div>
+      <div class="footer__links">
+        <a href="../" hreflang="fr" lang="fr">Version française</a>
+        <a href="https://x.com/intent/post?text=Who%20unfollowed%20you%20on%20X%3F%20%F0%9F%91%BB%20xGhost%20tells%20you!%0AxGhost%20is%20an%20open%20source%20Chrome%20extension&amp;url=https%3A%2F%2Fapp-buildr.github.io%2Fxghost%2Fen%2F" target="_blank" rel="noopener">Share on X</a>
+        <a href="https://github.com/app-buildr/xghost" target="_blank" rel="noopener">GitHub</a>
+        <a href="privacy.html">Privacy</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -380,15 +380,17 @@
 }
 
 /* --- Toasts --- */
+/* Toasts en bas à droite, empilés ; entrée et sortie en glissant depuis la droite. */
 .xg-toasts {
   position: fixed;
-  left: 50%;
+  right: 24px;
   bottom: 24px;
   z-index: 50;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
-  transform: translateX(-50%);
+  max-width: calc(100vw - 48px);
 }
 .xg-toast {
   display: flex;
@@ -400,6 +402,28 @@
   color: var(--xg-surface);
   font-size: 14px;
   box-shadow: 0 8px 24px rgba(17, 19, 24, 0.2);
+}
+@keyframes xg-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+.xg-toast {
+  animation: xg-toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.xg-toast.is-leaving {
+  opacity: 0;
+  transform: translateX(16px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-toast {
+    animation: none;
+    transition: none;
+  }
 }
 .xg-toast button {
   border: 0;
@@ -492,6 +516,11 @@
 }
 
 /* --- Bandeau d'état --- */
+.xg-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .xg-banner {
   display: flex;
   align-items: center;
@@ -551,6 +580,19 @@
   .xg-spin {
     animation: none;
   }
+}
+
+/* --- Liste qui défile : barre masquée, fondu en bas tant qu'il reste des lignes (useScrollFade) --- */
+.xg-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.xg-scroll::-webkit-scrollbar {
+  display: none;
+}
+.xg-scroll.xg-scroll-fade {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
 
 /* --- Bulle d'information (Tooltip) --- */

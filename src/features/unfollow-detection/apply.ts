@@ -4,6 +4,7 @@ import { eventId } from '@/features/events/codec';
 import { loadEvents, updateEvents } from '@/features/events/repository';
 import { isVisible, missingMovements, newMovements } from '@/features/events/selectors';
 import {
+  recordTotal,
   clearPartial,
   loadProfiles,
   loadSnapshot,
@@ -286,6 +287,7 @@ async function updateAccountAfterScan(
   isBaseline: boolean,
 ): Promise<void> {
   const current = (await loadAccounts())[accountId];
+  await recordTotal(accountId, followersCount, at);
   await patchAccount(accountId, {
     lastScanAt: at,
     followersCount,
@@ -356,6 +358,8 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   // Écart à identifier enregistré avant l'instantané : si le service worker s'arrête entre
   // les deux, l'écart n'est pas perdu (l'ancien instantané reste la référence).
   const found = !lagging && (quick.missing > 0 || quick.overflow);
+  // Total de X relevé pour la courbe des abonnés (pas quand il est en retard sur la liste).
+  if (!lagging) await recordTotal(accountId, job.expectedTotal, now);
   if (!replayed) await patchAccount(accountId, {
     lastScanAt: now,
     followersCount: job.expectedTotal,

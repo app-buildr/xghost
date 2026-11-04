@@ -3,8 +3,14 @@
 /** Heures entre deux vérifications automatiques ; 0 = manuel uniquement (aucune vérification programmée). */
 export type Frequency = 0 | 1 | 6 | 12 | 24;
 
+/** Graphiques du tableau de bord, chacun masquable dans les réglages. */
+export const DASHBOARD_CHARTS = ['followers', 'activity', 'net', 'duration', 'retention'] as const;
+export type DashboardChart = (typeof DASHBOARD_CHARTS)[number];
+
 export interface Settings {
   frequencyHours: Frequency;
+  /** Graphiques masqués du tableau de bord (tous affichés par défaut). */
+  hiddenCharts: DashboardChart[];
   /** Reporté en v2 (« Suivre aussi mes abonnements »). */
   trackFollowing: boolean;
   badge: boolean;
@@ -13,6 +19,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   frequencyHours: 6,
+  hiddenCharts: [],
   trackFollowing: false,
   badge: true,
   notifications: true,
@@ -161,6 +168,10 @@ export interface ScanJob {
   lastProgressAt?: number;
   /** Dernier clic sur « Réessayer » dans la page. */
   retriedAt?: number;
+  /** Réponses en erreur de x.com pour la liste depuis la dernière page reçue. */
+  failedPages?: number;
+  /** x.com affiche son bouton « Réessayer » (chargement refusé) depuis la dernière page reçue. */
+  xError?: boolean;
   /** Scan terminé : analyse en cours (l'onglet est déjà fermé). */
   finishing?: boolean;
   /** Ids dans l'ordre reçu de x.com (les clés de `collected` ne gardent pas l'ordre). */

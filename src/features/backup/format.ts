@@ -1,4 +1,5 @@
 import { compactEventsOf, isCompactEvent } from '@/features/events/codec';
+import { MAX_TOTALS } from '@/features/followers-sync/repository';
 import { sanitizeSettings } from '@/features/settings/repository';
 import { isNewer } from '@/shared/utils/version';
 import { AVATAR, HANDLE, ID } from '@/features/x-api/parse';
@@ -174,6 +175,7 @@ const ACCOUNT_KEYS: Record<string, (v: unknown) => unknown> = {
   profiles,
   partial,
   suspicious: (v) => (count(v) <= 100 ? v : fail()),
+  totals: (v) => list(v, (p) => (Array.isArray(p) && p.length === 2 ? [finite(p[0]), count(p[1])] : fail()), MAX_TOTALS),
   visit: finite,
 };
 

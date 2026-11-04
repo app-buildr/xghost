@@ -1,13 +1,15 @@
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { isOnboarded } from '@/features/accounts/repository';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
 import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
 import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
 import { useAppState } from '@/features/app-state/useAppState';
-import { DisplayedContext, useMarkDisplayed } from '@/features/app-state/useSeenOnView';
+import { DisplayedContext, useMarkVisible } from '@/features/app-state/useSeenOnView';
+import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { currentDepartures, statsSince } from '@/features/events/selectors';
 import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
+import { oldestEventAt } from '@/features/stats/selectors';
 import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { joinParts } from '@/features/events/ui/display';
 import { departureMeta } from '@/features/events/ui/DeparturesPanel';
@@ -22,14 +24,10 @@ import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
 import type { FollowEvent } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
-import { ChevronDown, RefreshCw, Settings } from 'lucide-react';
+import { ChevronDown, RefreshCw, Settings, X } from 'lucide-react';
 import { Logo, StatTile, Segmented } from '@/shared/ui/primitives';
 import { formatAgo, formatNumber, formatPercent, formatSigned } from '@/shared/utils/format';
 import './popup.css';
-
-/** Date du plus ancien mouvement (repli de « Tout » quand le compte n'a pas de référence). */
-const oldestAt = (events: readonly { at: number }[]): number | undefined =>
-  events.length ? Math.min(...events.map((e) => e.at)) : undefined;
 
 /** Ouvre une section des options (onglet réutilisé s'il existe), puis ferme la popup. */
 async function openOptions(section: 'dashboard' | 'settings'): Promise<void> {
@@ -61,7 +59,14 @@ function usePreviousVisit(accountId: string | undefined): number | null | undefi
   return previous;
 }
 
-/** Derniers départs de la popup (lignes compactes), signalés comme affichés. */
+/** Lignes visibles sans défiler ; les suivantes (jusqu'à `POPUP_LATEST`) s'atteignent en défilant. */
+const VISIBLE_ROWS = 3;
+const POPUP_LATEST = 10;
+
+/**
+ * Derniers départs de la popup (lignes compactes) : trois visibles, la suite en défilant dans la
+ * liste. Seules les lignes réellement passées à l'écran sont signalées comme affichées (vues).
+ */
 function LatestDepartures({
   events,
   latest,
@@ -75,10 +80,34 @@ function LatestDepartures({
   baselineAt?: number;
   now: number;
 }) {
-  useMarkDisplayed(latest);
+  const list = useRef<HTMLUListElement>(null);
+  const [height, setHeight] = useState<number>();
+  useMarkVisible(list, latest, { scrolls: true });
+  const fade = useScrollFade(list, height);
+
+  // Hauteur de la liste : jusqu'au bas de la troisième ligne (les lignes n'ont pas toutes la même hauteur).
+  // Mesure refaite une fois les polices chargées (elles changent la hauteur des lignes).
+  useLayoutEffect(() => {
+    let live = true;
+    const measure = () => {
+      const row = list.current?.children[VISIBLE_ROWS - 1] as HTMLElement | undefined;
+      if (live) setHeight(latest.length > VISIBLE_ROWS && row ? row.offsetTop + row.offsetHeight : undefined);
+    };
+    measure();
+    void document.fonts.ready.then(measure);
+    return () => {
+      live = false;
+    };
+  }, [latest]);
+
   if (latest.length === 0) return <p className="xg-popup__empty">{t('dashboard.departures.empty')}</p>;
   return (
-    <ul className="xg-dep-list">
+    <ul
+      ref={list}
+      className={`xg-dep-list xg-scroll xg-popup__latest${fade.more ? ' xg-scroll-fade' : ''}`}
+      style={{ maxHeight: height }}
+      onScroll={fade.onScroll}
+    >
       {latest.map((e) => (
         <EventRow
           key={e.id}
@@ -104,16 +133,20 @@ export function PopupApp() {
   const { start, busy } = useStartScan();
 
   const list = useMemo(() => (data ? currentDepartures(data.events, ctx) : []), [data, ctx]);
-  const latest = useMemo(() => list.slice(0, 5), [list]);
+  const latest = useMemo(() => list.slice(0, POPUP_LATEST), [list]);
   // Bilan sur la période choisie (24 h / 7 j / 30 j / Tout), mémorisée d'une ouverture à l'autre.
   const [period, setPeriod] = useStoredChoice<PopupPeriod>('xg.popupPeriod', POPUP_PERIODS, '7d');
-  const since = periodStart(period, now, account?.baselineAt ?? oldestAt(data?.events ?? []));
+  const since = periodStart(period, now, account?.baselineAt ?? oldestEventAt(data?.events ?? []));
   const stats = useMemo(() => statsSince(data?.events ?? [], ctx, since), [data?.events, ctx, since]);
   // `list` ne contient déjà que les comptes toujours absents.
   const fresh = useMemo(
     () => list.filter((e) => !e.seen && (previousVisit == null || e.at > previousVisit)).length,
     [list, previousVisit],
   );
+
+  // Alerte « nouveaux départs » fermée par l'utilisateur : se replie en douceur, puis disparaît.
+  // Inutile de s'en souvenir : à la prochaine ouverture, ces départs ne sont plus nouveaux.
+  const [alert, setAlert] = useState<'open' | 'closing' | 'closed'>('open');
 
   // Tant que la première synchronisation n'est pas terminée, un clic sur l'icône
   // ouvre l'écran de synchronisation plutôt que la popup.
@@ -182,14 +215,31 @@ export function PopupApp() {
 
         <ScanStatusBanner account={account} progress={data?.progress} status={app.status} now={now} compact />
 
-        {fresh > 0 && (
-          <div className="xg-popup__alert" role="status">
-            <strong>{formatNumber(fresh)}</strong>
-            <span>
-              <b>{t('popup.fresh', { count: fresh })}</b>
-              <br />
-              {t('popup.sinceLastVisit')}
-            </span>
+        {fresh > 0 && alert !== 'closed' && (
+          <div
+            className={`xg-collapse${alert === 'closing' ? ' is-closing' : ''}`}
+            onTransitionEnd={(e) => {
+              if (e.target === e.currentTarget && e.propertyName === 'grid-template-rows') setAlert('closed');
+            }}
+          >
+            <div className="xg-collapse__inner">
+              <div className="xg-popup__alert" role="status">
+                <strong>{formatNumber(fresh)}</strong>
+                <span>
+                  <b>{t('popup.fresh', { count: fresh })}</b>
+                  <br />
+                  {t('popup.sinceLastVisit')}
+                </span>
+                <button
+                  type="button"
+                  className="xg-popup__alert-close"
+                  aria-label={t('common.actions.close')}
+                  onClick={() => setAlert(matchMedia('(prefers-reduced-motion: reduce)').matches ? 'closed' : 'closing')}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

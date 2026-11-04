@@ -28,7 +28,8 @@
     "empty": "La courbe apparaîtra après la première vérification.",
     "tip_one": "{{n}} abonné",
     "tip_other": "{{n}} abonnés",
-    "aria": "Courbe du nombre d’abonnés, de {{from}} à {{to}}"
+    "aria": "Courbe du nombre d’abonnés, de {{from}} à {{to}}",
+    "noData": "Avant le début du suivi"
   },
   "activity": {
     "title": "Arrivées et départs",
@@ -36,13 +37,22 @@
     "byWeek": "Par semaine",
     "weekOf": "Semaine du {{date}}",
     "netDay": "Solde du jour : {{net}}",
-    "netWeek": "Solde de la semaine : {{net}}"
+    "netWeek": "Solde de la semaine : {{net}}",
+    "arrivals": "Arrivées",
+    "departures": "Départs",
+    "aria": "{{title}} : {{arrivals}}, {{departures}}",
+    "tipArrivals_one": "{{n}} arrivée",
+    "tipArrivals_other": "{{n}} arrivées",
+    "tipDepartures_one": "{{n}} départ",
+    "tipDepartures_other": "{{n}} départs",
+    "noData": "Pas de donnée : xGhost ne suivait pas encore ce compte."
   },
   "net": {
     "titleWeek": "Solde net par semaine",
     "titleMonth": "Solde net par mois",
     "sub": "Arrivées moins départs",
-    "aria": "{{period}} : solde {{net}}"
+    "aria": "{{period}} : solde {{net}}",
+    "noData": "{{period}} : pas de donnée, xGhost ne suivait pas encore ce compte."
   },
   "duration": {
     "title": "Départs par durée de suivi",
@@ -52,14 +62,17 @@
     "m1to3": "1 à 3 mois",
     "gt3m": "Plus de 3 mois",
     "before": "Depuis le {{date}} ou avant",
-    "empty": "Aucun départ sur la période."
+    "empty": "Aucun départ sur la période.",
+    "tooEarly": "Pas encore assez de recul"
   },
   "retention": {
     "title": "Rétention des arrivées",
     "sub": "Nouveaux abonnés encore là après…",
     "days": "{{n}} jours",
-    "none": "—",
     "noneHint": "Pas encore assez de recul",
     "value": "{{pct}} encore là après {{days}} jours"
-  }
+  },
+  "none": "—",
+  "hide": "Cacher cet élément",
+  "hidden": "Graphique masqué. Tu peux le réafficher dans les réglages."
 }

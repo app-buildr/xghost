@@ -28,7 +28,20 @@
     "notificationsHint": "A Chrome notification after each check that finds unfollows",
     "mutualsOnly": "Follow-backs only",
     "mutualsOnlyHint": "Only alert if I was following them",
-    "mutualsOnlyHintAccount": "Only alert if I was following them (@{{handle}})"
+    "mutualsOnlyHintAccount": "Only alert if I was following them (@{{handle}})",
+    "charts": "Dashboard charts",
+    "chart": {
+      "followers": "Followers",
+      "followersHint": "Follower count curve",
+      "activity": "New followers and unfollows",
+      "activityHint": "Bars per day or per week",
+      "net": "Net change",
+      "netHint": "New followers minus unfollows, per week or month",
+      "duration": "Unfollows by follow duration",
+      "durationHint": "How long they stayed",
+      "retention": "New follower retention",
+      "retentionHint": "New followers still there after 7, 14 and 30 days"
+    }
   },
   "account": {
     "ignoredTitle": "Ignored accounts",

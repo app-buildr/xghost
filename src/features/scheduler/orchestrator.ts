@@ -21,6 +21,8 @@ import { clearPartial, loadJob, loadSnapshot } from '@/features/followers-sync/r
 import {
   abortQuick,
   cancelScan,
+  giveUpIfStalled,
+  interruptScan,
   isScanActive,
   settleAnalyses,
   recoverFinishing,
@@ -259,6 +261,12 @@ function scanReason(
  * « Arrêter » (onboarding) : ferme l'onglet de scan et abandonne le scan, sans rien garder
  * (ni scan partiel, ni couverture) : l'utilisateur peut ensuite importer une sauvegarde.
  */
+/** « Arrêter le scan » du tableau de bord : arrêt immédiat, abonnés gardés pour le continuer. */
+export async function stopScan(accountId: string): Promise<void> {
+  await interruptScan(accountId);
+  await updateStatus();
+}
+
 export async function abandonScan(accountId: string): Promise<void> {
   const hadBaseline = !!(await loadAccounts())[accountId]?.baselineAt;
   const epoch = importEpoch();
@@ -294,6 +302,8 @@ async function resumeIfDue(accountId?: string): Promise<void> {
     await recoverFinishing(id); // analyse interrompue par l'arrêt du service worker
     return void (await updateStatus());
   }
+  // Plus aucune page depuis longtemps : arrêt d'office, gardé comme incomplet (jamais bloqué sans fin).
+  if (await giveUpIfStalled(id)) return void (await updateStatus());
   const due =
     job.status === 'paused' &&
     job.pausedReason !== 'needs-focus' &&

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { send } from '@/shared/messaging/client';
 import type { FollowEvent } from '@/shared/types';
 
@@ -58,4 +58,35 @@ export function useMarkDisplayed(events: readonly FollowEvent[]) {
   useEffect(() => {
     if (key) markDisplayed(key.split(','));
   }, [key, markDisplayed]);
+}
+
+/**
+ * Comme `useMarkDisplayed`, mais seules les lignes réellement passées à l'écran (aux deux tiers)
+ * comptent : une liste qui défile (`scrolls`, la liste elle-même fait défiler ses lignes) ou une
+ * longue page ne marque pas comme vu ce qu'on n'a pas fait défiler. Chaque ligne de `list` porte
+ * l'id de son événement dans `data-id`.
+ */
+export function useMarkVisible(
+  list: RefObject<HTMLElement | null>,
+  events: readonly FollowEvent[],
+  { scrolls = false }: { scrolls?: boolean } = {},
+) {
+  const [visible, setVisible] = useState<ReadonlySet<string>>(new Set());
+  useMarkDisplayed(useMemo(() => events.filter((e) => visible.has(e.id)), [events, visible]));
+  useEffect(() => {
+    const root = list.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const ids = entries
+          .filter((entry) => entry.isIntersecting)
+          .map((entry) => (entry.target as HTMLElement).dataset.id)
+          .filter((id): id is string => !!id);
+        if (ids.length) setVisible((prev) => (ids.every((id) => prev.has(id)) ? prev : new Set([...prev, ...ids])));
+      },
+      { root: scrolls ? root : null, threshold: 0.66 },
+    );
+    for (const row of root.children) observer.observe(row);
+    return () => observer.disconnect();
+  }, [list, events, scrolls]);
 }

@@ -7,8 +7,6 @@ export interface VisibilityContext {
   mutualsOnly: boolean;
 }
 
-const DAY = 24 * 3600_000;
-
 export function isVisible(e: FollowEvent, ctx: VisibilityContext): boolean {
   if (ctx.ignored.has(e.profileId)) return false;
   if (e.type === 'arrival') return true;
@@ -28,7 +26,7 @@ export const arrivals = (events: FollowEvent[], ctx: VisibilityContext) =>
  * au lieu de reparcourir tout l'historique pour chaque ligne affichée.
  */
 const indexCache = new WeakMap<readonly FollowEvent[], Map<string, FollowEvent[]>>();
-function byProfile(events: readonly FollowEvent[]): Map<string, FollowEvent[]> {
+export function byProfile(events: readonly FollowEvent[]): Map<string, FollowEvent[]> {
   let index = indexCache.get(events);
   if (!index) {
     index = new Map();
@@ -82,7 +80,7 @@ export interface PeriodStats {
  * Bilan d'un compte sur une période (ses mouvements dans l'ordre chronologique) : son dernier
  * mouvement s'il change sa situation, rien s'il est revenu à son état de départ.
  */
-function netMovement(inPeriod: readonly FollowEvent[]): FollowEvent | undefined {
+export function netMovement(inPeriod: readonly FollowEvent[]): FollowEvent | undefined {
   const first = inPeriod[0];
   const last = inPeriod[inPeriod.length - 1];
   return first && last && first.type === last.type ? last : undefined;
@@ -107,52 +105,6 @@ export function statsSince(events: FollowEvent[], ctx: VisibilityContext, since:
     }
   }
   return { departures: departuresCount, unseen, arrivals: arrivalsCount, net: arrivalsCount - departuresCount };
-}
-
-export const stats7d = (events: FollowEvent[], ctx: VisibilityContext, now = Date.now()) =>
-  statsSince(events, ctx, now - 7 * DAY);
-
-export interface DayBucket {
-  day: number;
-  arrivals: number;
-  departures: number;
-}
-
-/**
- * Arrivées et départs par jour (local) sur les `days` derniers jours, du plus ancien au plus récent.
- * Même règle que le bilan sur 7 jours, appliquée à chaque journée : un compte parti puis revenu
- * le même jour ne compte pas ce jour-là.
- */
-export function dailyBuckets(events: FollowEvent[], ctx: VisibilityContext, days = 30, now = Date.now()): DayBucket[] {
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - (days - 1));
-  const buckets: DayBucket[] = Array.from({ length: days }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return { day: d.getTime(), arrivals: 0, departures: 0 };
-  });
-  const dayIndex = (at: number) => {
-    const d = new Date(at);
-    d.setHours(0, 0, 0, 0);
-    return Math.round((d.getTime() - start.getTime()) / DAY);
-  };
-  for (const list of byProfile(events).values()) {
-    const perDay = new Map<number, FollowEvent[]>();
-    for (const e of list) {
-      if (e.at < start.getTime() || !isVisible(e, ctx)) continue;
-      const i = dayIndex(e.at);
-      perDay.set(i, [...(perDay.get(i) ?? []), e]);
-    }
-    for (const [i, dayEvents] of perDay) {
-      const last = netMovement(dayEvents);
-      const bucket = buckets[i];
-      if (!last || !bucket) continue;
-      if (last.type === 'arrival') bucket.arrivals++;
-      else bucket.departures++;
-    }
-  }
-  return buckets;
 }
 
 /**

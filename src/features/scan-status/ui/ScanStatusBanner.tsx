@@ -8,6 +8,7 @@ import { X_LOGIN_URL } from '@/shared/x-urls';
 import { pauseMessage, scanTabHint, stallText } from '../messages';
 import { ScanProgressBar } from './ScanProgressBar';
 import { ShowScanTabButton } from './ShowScanTabButton';
+import { StopScanButton } from './StopScanButton';
 import { useStartScan } from './useStartScan';
 
 /** Bandeau d'état : session, scan en cours, pause (limite, onglet requis, autre compte). */
@@ -61,7 +62,10 @@ export function ScanStatusBanner({
     return (
       <div className="xg-banner xg-banner--warn" role="status">
         <span>{stallText()}</span>
-        <ShowScanTabButton accountId={account.id} />
+        <span className="xg-banner__actions">
+          <ShowScanTabButton accountId={account.id} />
+          <StopScanButton accountId={account.id} />
+        </span>
       </div>
     );
   }

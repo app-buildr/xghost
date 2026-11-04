@@ -22,10 +22,8 @@
     "noChange": "aucun changement."
   },
   "kpi": {
-    "departures": "Départs, 7 jours",
     "new_one": "dont {{n}} nouveau",
     "new_other": "dont {{n}} nouveaux",
-    "arrivals": "Arrivées, 7 jours",
     "net": "Solde net {{net}}"
   },
   "latestDepartures": "Derniers départs",
@@ -43,18 +41,6 @@
     "fullScanTitle": "Relire toute la liste des abonnés",
     "result": "Contrôle terminé : {{summary}}",
     "quickStarted": "Vérification lancée"
-  },
-  "chart": {
-    "title": "30 derniers jours",
-    "arrivals": "Arrivées",
-    "departures": "Départs",
-    "aria": "30 derniers jours : {{arrivals}}, {{departures}}",
-    "tipArrivals_one": "{{n}} arrivée",
-    "tipArrivals_other": "{{n}} arrivées",
-    "tipDepartures_one": "{{n}} départ",
-    "tipDepartures_other": "{{n}} départs",
-    "tipNet": "Solde du jour : {{net}}",
-    "tipNoData": "Pas de donnée : xGhost ne suivait pas encore ce compte."
   },
   "coverage": {
     "reasons": {
@@ -92,7 +78,8 @@
     "stoppedAt": "arrêté après {{n}} : la suite n’avait pas changé",
     "hiddenAccounts": "X compte aussi des comptes qu’il n’affiche pas (suspendus, restreints).",
     "firstNotDone": "Le premier scan n’est pas encore terminé.",
-    "newScanPct": "Nouveau scan : {{progress}} ({{pct}})"
+    "newScanPct": "Nouveau scan : {{progress}} ({{pct}})",
+    "autoStop": "Sans reprise, xGhost l’arrêtera vers {{time}} ; les abonnés déjà lus sont gardés pour continuer plus tard."
   },
   "departures": {
     "filterLabel": "Filtrer les départs",

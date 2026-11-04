@@ -1,8 +1,9 @@
 import { send } from '@/shared/messaging/client';
 import { t } from '@/shared/i18n';
-import type { Frequency, Settings, TrackedAccount } from '@/shared/types';
+import { DASHBOARD_CHARTS, type Frequency, type Settings, type TrackedAccount } from '@/shared/types';
 import { Segmented, Toggle } from '@/shared/ui/primitives';
 import { frequencyOptions } from '../model';
+import { useChartVisibility } from '../useChartVisibility';
 import './settings.css';
 
 function Row({
@@ -39,6 +40,7 @@ export function SettingsPanel({
   account?: TrackedAccount;
   onUpdate: (patch: Partial<Settings>) => void;
 }) {
+  const setChartShown = useChartVisibility(settings.hiddenCharts);
   return (
     <div className="xg-settings">
       <section className="xg-card">
@@ -50,6 +52,19 @@ export function SettingsPanel({
           value={settings.frequencyHours}
           onChange={(frequencyHours) => onUpdate({ frequencyHours })}
         />
+      </section>
+
+      <section className="xg-card">
+        <h2 className="xg-card__title">{t('options.settings.charts')}</h2>
+        {DASHBOARD_CHARTS.map((chart) => (
+          <Row
+            key={chart}
+            title={t(`options.settings.chart.${chart}`)}
+            hint={t(`options.settings.chart.${chart}Hint`)}
+            checked={!settings.hiddenCharts.includes(chart)}
+            onChange={(shown) => setChartShown(chart, shown)}
+          />
+        ))}
       </section>
 
       <section className="xg-card">

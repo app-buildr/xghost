@@ -22,10 +22,8 @@
     "noChange": "no change."
   },
   "kpi": {
-    "departures": "Unfollows, 7 days",
     "new_one": "{{n}} new",
     "new_other": "{{n}} new",
-    "arrivals": "New followers, 7 days",
     "net": "Net {{net}}"
   },
   "latestDepartures": "Latest unfollows",
@@ -43,18 +41,6 @@
     "fullScanTitle": "Read the whole follower list again",
     "result": "Check done: {{summary}}",
     "quickStarted": "Check started"
-  },
-  "chart": {
-    "title": "Last 30 days",
-    "arrivals": "New followers",
-    "departures": "Unfollows",
-    "aria": "Last 30 days: {{arrivals}}, {{departures}}",
-    "tipArrivals_one": "{{n}} new follower",
-    "tipArrivals_other": "{{n}} new followers",
-    "tipDepartures_one": "{{n}} unfollow",
-    "tipDepartures_other": "{{n}} unfollows",
-    "tipNet": "Net for the day: {{net}}",
-    "tipNoData": "No data: xGhost wasn’t tracking this account yet."
   },
   "coverage": {
     "reasons": {
@@ -92,7 +78,8 @@
     "stoppedAt": "stopped after {{n}}: the rest hadn’t changed",
     "hiddenAccounts": "X also counts accounts it doesn’t show (suspended, restricted).",
     "firstNotDone": "The first scan isn’t finished yet.",
-    "newScanPct": "New scan: {{progress}} ({{pct}})"
+    "newScanPct": "New scan: {{progress}} ({{pct}})",
+    "autoStop": "If it doesn’t resume, xGhost will stop it around {{time}}; followers already read are kept to continue later."
   },
   "departures": {
     "filterLabel": "Filter unfollows",

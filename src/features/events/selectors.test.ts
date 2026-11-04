@@ -1,8 +1,9 @@
+import { movementBuckets } from '@/features/stats/selectors';
 import { describe, expect, it } from 'vitest';
 import type { FollowEvent } from '@/shared/types';
 import { eventId } from './codec';
 import { followDurationLabel } from './labels';
-import { currentArrivals, currentDepartures, dailyBuckets, followDuration, newMovements, missingMovements, stats7d, unseenDepartures, type VisibilityContext } from './selectors';
+import { currentArrivals, currentDepartures, followDuration, newMovements, missingMovements, statsSince, unseenDepartures, type VisibilityContext } from './selectors';
 
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 9, 12, 10);
@@ -101,24 +102,24 @@ describe('stats7d : bilan par compte', () => {
     ({ id: `${type}-${profileId}-${hoursAgo}`, type, profileId, handle: profileId, at: now - hoursAgo * 3600_000, status: 'active', mutual: false, seen: true }) as const;
 
   it('départ, retour, départ : un seul départ, aucune arrivée', () => {
-    const s = stats7d([ev('departure', 'p', 1), ev('arrival', 'p', 2), ev('departure', 'p', 3), ev('departure', 'q', 4)], ctx, now);
+    const s = statsSince([ev('departure', 'p', 1), ev('arrival', 'p', 2), ev('departure', 'p', 3), ev('departure', 'q', 4)], ctx, now - 7 * 24 * 3600_000);
     expect(s).toMatchObject({ departures: 2, arrivals: 0, net: -2 });
   });
 
   it('arrivé puis reparti dans la période : rien', () => {
-    expect(stats7d([ev('departure', 'p', 1), ev('arrival', 'p', 2)], ctx, now)).toMatchObject({ departures: 0, arrivals: 0 });
+    expect(statsSince([ev('departure', 'p', 1), ev('arrival', 'p', 2)], ctx, now - 7 * 24 * 3600_000)).toMatchObject({ departures: 0, arrivals: 0 });
   });
 
   it('graphe : même règle par journée, le total du jour concorde avec le bilan', () => {
     // Le même jour : p part puis revient (ne compte pas), q part, r arrive.
     const events = [ev('arrival', 'p', 1), ev('departure', 'p', 2), ev('departure', 'q', 3), ev('arrival', 'r', 4)];
-    const today = dailyBuckets(events, ctx, 30, now).at(-1);
+    const today = movementBuckets(events, ctx, 'day', now - 30 * 24 * 3600_000, now).at(-1);
     expect(today).toMatchObject({ arrivals: 1, departures: 1 });
-    expect(stats7d(events, ctx, now)).toMatchObject({ arrivals: 1, departures: 1 });
+    expect(statsSince(events, ctx, now - 7 * 24 * 3600_000)).toMatchObject({ arrivals: 1, departures: 1 });
   });
 
   it('graphe : un départ un jour et un retour un autre jour restent visibles', () => {
-    const buckets = dailyBuckets([ev('departure', 'p', 72), ev('arrival', 'p', 1)], ctx, 30, now);
+    const buckets = movementBuckets([ev('departure', 'p', 72), ev('arrival', 'p', 1)], ctx, 'day', now - 30 * 24 * 3600_000, now);
     expect(buckets.reduce((n, b) => n + b.departures, 0)).toBe(1);
     expect(buckets.reduce((n, b) => n + b.arrivals, 0)).toBe(1);
   });

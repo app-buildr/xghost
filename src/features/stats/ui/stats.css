@@ -1,0 +1,445 @@
+/* Cartes de statistiques du tableau de bord (§ 3.4). */
+
+/* Rangées de graphiques côte à côte (tableau de bord) ; une carte seule prend toute la largeur. */
+.xg-stats__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  align-items: stretch;
+}
+.xg-stats__row--1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.xg-stats__row--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.xg-stats__row--wide {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+@media (max-width: 1100px) {
+  .xg-stats__row,
+  .xg-stats__row--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.xg-stat {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.xg-stat__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.xg-stat__head--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.xg-stat__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--xg-ink);
+}
+.xg-stat__head--row .xg-stat__title {
+  display: inline;
+  margin-right: 12px;
+}
+.xg-stat__sub {
+  font-size: 13px;
+  color: var(--xg-text-muted);
+}
+.xg-stat__delta {
+  flex: none;
+  font-family: var(--xg-font-display);
+  font-size: 22px;
+  color: var(--xg-primary);
+}
+.xg-stat__delta.is-down {
+  color: var(--xg-danger-text);
+}
+.xg-stat__empty {
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--xg-text-muted);
+}
+.xg-stat__plot {
+  position: relative;
+}
+.xg-stat__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--xg-text-muted);
+}
+
+/* Courbe des abonnés */
+.xg-followers__svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+.xg-followers__area {
+  fill: var(--xg-primary-soft);
+  opacity: 0.55;
+}
+.xg-followers__line {
+  fill: none;
+  stroke: var(--xg-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.xg-followers__placeholder {
+  fill: none;
+  stroke: var(--xg-border);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+.xg-followers__cursor {
+  stroke: var(--xg-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.xg-followers__cursor.is-visible {
+  opacity: 0.6;
+}
+
+/* Solde net */
+.xg-net {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  height: 150px;
+}
+.xg-net__col {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  /* Colonne bornée : une date plus large que la barre déborde au lieu d'élargir la barre. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr 0fr auto;
+  transition: opacity 0.2s ease;
+}
+.xg-net.has-negative .xg-net__col {
+  grid-template-rows: 1fr 1fr auto;
+}
+.xg-net__col.is-dim {
+  opacity: 0.4;
+}
+.xg-net__half {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  min-height: 0;
+  /* Place réservée au chiffre au-dessus (ou au-dessous) de la plus grande barre. */
+  padding-top: 20px;
+}
+.xg-net__half--down {
+  justify-content: flex-start;
+  padding-top: 0;
+  padding-bottom: 20px;
+}
+.xg-net.is-dense {
+  gap: 6px;
+}
+.xg-net__bar {
+  position: relative;
+  display: block;
+  min-height: 3px;
+  border-radius: 4px 4px 0 0;
+  background: var(--xg-primary);
+}
+.xg-net.is-dense .xg-net__bar {
+  border-radius: 2px 2px 0 0;
+}
+.xg-net__bar--down,
+.xg-net.is-dense .xg-net__bar--down {
+  border-radius: 0 0 4px 4px;
+  background: var(--xg-chart-departure);
+}
+/* Chiffre posé au-dessus de la barre (au-dessous si négatif), sans prendre de place dans la colonne. */
+/* Tranche antérieure au premier scan : petite barre grise, la date reste affichée. */
+.xg-net__bar--empty,
+.xg-net.is-dense .xg-net__bar--empty {
+  height: 4px;
+  min-height: 0;
+  border-radius: 2px;
+  background: var(--xg-border);
+}
+.xg-net__value {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 0;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--xg-primary);
+}
+.xg-net__value.is-down {
+  top: 100%;
+  bottom: auto;
+  color: var(--xg-danger-text);
+}
+.xg-net__value--zero {
+  position: static;
+  transform: none;
+  text-align: center;
+}
+.xg-net__label {
+  /* Hauteur fixe : une colonne sans date (90 jours, une sur quatre) garde sa base au même niveau. */
+  box-sizing: border-box;
+  height: 26px;
+  line-height: 18px;
+  padding-top: 8px;
+  overflow: visible;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--xg-text-muted);
+}
+.xg-net.is-dense .xg-net__label {
+  text-align: left;
+}
+
+/* Départs par durée de suivi */
+.xg-duration {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.xg-duration__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  font-size: 14px;
+}
+.xg-duration__count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.xg-duration__track,
+.xg-retention__track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--xg-surface-muted);
+  overflow: hidden;
+}
+.xg-duration__bar,
+.xg-retention__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--xg-chart-departure);
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Tranche pas encore couverte par le suivi : grisée. */
+.xg-duration__row.is-pending,
+.xg-retention__tile.is-pending .xg-retention__value {
+  color: var(--xg-text-muted);
+}
+.xg-duration__row.is-pending .xg-duration__count {
+  font-weight: 500;
+}
+
+/* Rétention des arrivées */
+.xg-retention {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.xg-retention__tile {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: var(--xg-background);
+}
+.xg-retention__days {
+  font-size: 13px;
+  color: var(--xg-text-muted);
+}
+.xg-retention__value {
+  font-family: var(--xg-font-display);
+  font-size: 22px;
+  white-space: nowrap;
+  color: var(--xg-primary);
+}
+.xg-retention__bar {
+  background: var(--xg-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xg-followers__cursor,
+  .xg-net__col,
+  .xg-duration__bar,
+  .xg-retention__bar {
+    transition: none;
+  }
+}
+
+/* Briques communes : légende, zones de survol, infobulle (chart.tsx), barres d'activité. */
+.xg-chart__legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.xg-chart__legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+.xg-chart__swatch--arrival {
+  background: var(--xg-primary);
+}
+.xg-chart__swatch--departure {
+  background: var(--xg-chart-departure);
+}
+.xg-chart__svg {
+  display: block;
+  width: 100%;
+  height: 92px;
+}
+.xg-chart__hits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.xg-chart__hits span {
+  flex: 1;
+  cursor: default;
+}
+.xg-chart__tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 170px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--xg-ink);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(17, 19, 24, 0.18);
+  --tip-x: -50%;
+  transform: translate(var(--tip-x), 4px);
+  opacity: 0;
+  /* Fondu à l'apparition et à la disparition ; l'infobulle glisse d'un jour à l'autre. */
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    left 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.xg-chart__tip.is-visible {
+  opacity: 1;
+  transform: translate(var(--tip-x), 0);
+}
+.xg-chart__tip--start {
+  --tip-x: -12px;
+}
+.xg-chart__tip--end {
+  --tip-x: calc(-100% + 12px);
+}
+.xg-chart__day,
+.xg-chart__hl {
+  transition: opacity 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-chart__tip,
+  .xg-chart__day,
+  .xg-chart__hl {
+    transition: none;
+  }
+}
+.xg-chart__tip strong {
+  font-weight: 600;
+}
+.xg-chart__tip strong::first-letter {
+  text-transform: uppercase;
+}
+.xg-chart__tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.xg-chart__tip-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.xg-chart__tip-net {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: #c9ced6;
+}
+.xg-chart__foot {
+  margin: 0;
+  font-size: 12px;
+  color: var(--xg-text-muted);
+}
+
+/* Bouton « Cacher » d'une carte de graphique : en haut à droite, visible au survol ou au clavier. */
+.xg-stat-card {
+  position: relative;
+}
+.xg-stat-card .xg-stat__head {
+  padding-right: 24px;
+}
+.xg-stat-card__hide {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.xg-stat-card:hover .xg-stat-card__hide,
+.xg-stat-card__hide:focus-within {
+  opacity: 1;
+}
+.xg-stat-card__hide .xg-icon-btn {
+  width: 30px;
+  height: 30px;
+  color: var(--xg-text-muted);
+}
+.xg-stat-card__hide .xg-icon-btn:hover {
+  color: var(--xg-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .xg-stat-card__hide {
+    transition: none;
+  }
+}

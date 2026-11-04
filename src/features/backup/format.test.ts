@@ -20,6 +20,7 @@ const data = () => ({
   'acc:42:partial': { kind: 'check', at: 1, expectedTotal: 5, collected: {} },
   'acc:42:suspicious': 1,
   'acc:42:visit': 1,
+  'acc:42:totals': [[1, 10], [2, 12]],
 });
 const valid = () => ({ app: 'xghost', format: 2, version: '1.0.0', exportedAt: 1, data: data() as Record<string, unknown> });
 
@@ -112,6 +113,13 @@ describe('validateBackup', () => {
     expect(refused('acc:42:profiles', profile({ name: 5 })).ok).toBe(false);
     expect(refused('acc:42:profiles', profile({ avatar: 'https://attacker.tld/p.gif' })).ok).toBe(false);
     expect(refused('acc:42:profiles', profile({ avatar: 'javascript:alert(1)' })).ok).toBe(false);
+  });
+
+  it('garde les graphiques masqués du tableau de bord', () => {
+    const b = valid();
+    b.data.settings = { frequencyHours: 6, hiddenCharts: ['net', 'retention'] };
+    const res = validateBackup(b, '1.0.0');
+    expect(res.ok && res.backup.data.settings).toEqual({ frequencyHours: 6, hiddenCharts: ['net', 'retention'] });
   });
 
   it('nettoie les réglages au lieu de les recopier (§3)', () => {

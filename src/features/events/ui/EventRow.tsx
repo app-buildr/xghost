@@ -44,7 +44,7 @@ export function EventRow({
 
   if (variant === 'compact') {
     return (
-      <li className={`xg-dep-compact${inactive ? ' is-inactive' : ''}`}>
+      <li data-id={event.id} className={`xg-dep-compact${inactive ? ' is-inactive' : ''}`}>
         {avatar}
         <div className="xg-dep__body">
           <div className="xg-dep__name">{name}</div>
@@ -61,7 +61,7 @@ export function EventRow({
   }
 
   return (
-    <li className={`xg-dep${inactive ? ' is-inactive' : ''}`}>
+    <li data-id={event.id} className={`xg-dep${inactive ? ' is-inactive' : ''}`}>
       {avatar}
       <div className="xg-dep__body">
         <div className="xg-dep__title">

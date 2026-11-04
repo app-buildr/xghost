@@ -1,5 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { useMarkDisplayed } from '@/features/app-state/useSeenOnView';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMarkVisible } from '@/features/app-state/useSeenOnView';
+import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { t } from '@/shared/i18n';
 import type { FollowEvent } from '@/shared/types';
 import { Segmented } from '@/shared/ui/primitives';
@@ -10,6 +11,8 @@ type Filter = 'all' | 'follow-back';
 /**
  * Carte de liste de mouvements (départs, nouveaux abonnés) : titre, filtre « Tous / Follow back »,
  * états vides, et lien « Voir tout l'historique » quand la liste est limitée.
+ * `fill` : la carte prend la hauteur de son conteneur et la liste défile à l'intérieur.
+ * Une ligne compte comme vue quand elle passe réellement à l'écran.
  */
 export function EventListPanel({
   title,
@@ -22,6 +25,7 @@ export function EventListPanel({
   limit,
   onShowAll,
   showAllLabel,
+  fill = false,
 }: {
   title: string;
   filterLabel: string;
@@ -34,6 +38,7 @@ export function EventListPanel({
   limit?: number;
   onShowAll?: () => void;
   showAllLabel?: (count: number) => string;
+  fill?: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>('all');
   const filtered = useMemo(
@@ -41,10 +46,12 @@ export function EventListPanel({
     [items, filter, followsBack],
   );
   const shown = useMemo(() => (limit ? filtered.slice(0, limit) : filtered), [filtered, limit]);
-  useMarkDisplayed(shown);
+  const list = useRef<HTMLUListElement>(null);
+  useMarkVisible(list, shown, { scrolls: fill });
+  const fade = useScrollFade(list, shown);
 
   return (
-    <section className="xg-card xg-dep-panel" aria-label={title}>
+    <section className={`xg-card xg-dep-panel${fill ? ' xg-dep-panel--fill' : ''}`} aria-label={title}>
       <div className="xg-dep-panel__head">
         <h2>{title}</h2>
         <Segmented<Filter>
@@ -64,7 +71,12 @@ export function EventListPanel({
         </p>
       ) : (
         // Clé du filtre : la liste est recréée, ses lignes rejouent leur apparition en cascade.
-        <ul key={filter} className="xg-dep-list xg-list-in">
+        <ul
+          key={filter}
+          ref={list}
+          className={`xg-dep-list xg-list-in${fill ? ' xg-scroll' : ''}${fill && fade.more ? ' xg-scroll-fade' : ''}`}
+          onScroll={fill ? fade.onScroll : undefined}
+        >
           {shown.map(renderRow)}
         </ul>
       )}

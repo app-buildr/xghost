@@ -2,7 +2,7 @@ import { localKv } from '@/shared/storage/kv';
 import { isRecord } from '@/shared/utils/guards';
 import { FREQUENCIES } from './model';
 import { keys } from '@/shared/storage/keys';
-import { DEFAULT_SETTINGS, type Frequency, type Settings } from '@/shared/types';
+import { DASHBOARD_CHARTS, DEFAULT_SETTINGS, type DashboardChart, type Frequency, type Settings } from '@/shared/types';
 
 /** Réglages enregistrés, nettoyés : une valeur absente ou invalide reprend sa valeur par défaut. */
 export async function loadSettings(): Promise<Settings> {
@@ -20,6 +20,9 @@ export function sanitizeSettings(raw: unknown): Partial<Settings> {
   for (const key of ['trackFollowing', 'badge', 'notifications'] as const) {
     const value = patch[key];
     if (typeof value === 'boolean') clean[key] = value;
+  }
+  if (Array.isArray(patch.hiddenCharts)) {
+    clean.hiddenCharts = DASHBOARD_CHARTS.filter((c) => (patch.hiddenCharts as unknown[]).includes(c as DashboardChart));
   }
   return clean;
 }

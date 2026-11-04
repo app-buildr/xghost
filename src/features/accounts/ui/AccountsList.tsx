@@ -37,7 +37,7 @@ export function AccountsList({
                   aria-current={a.id === selectedId ? 'true' : undefined}
                   onClick={() => onSelect(a.id)}
                 >
-                  <Avatar id={a.id} name={a.handle} size={40} />
+                  <Avatar id={a.id} name={a.handle} src={a.avatar} size={40} />
                   <span className="xg-account__text">
                     <span className="xg-account__handle">@{a.handle}</span>
                     <span className={`xg-account__state${active ? ' is-active' : ''}`}>

@@ -1,6 +1,7 @@
 /** Modèles du domaine partagés par le service worker et les interfaces. */
 
-export type Frequency = 1 | 6 | 12 | 24;
+/** Heures entre deux vérifications automatiques ; 0 = manuel uniquement (aucune vérification programmée). */
+export type Frequency = 0 | 1 | 6 | 12 | 24;
 
 export interface Settings {
   frequencyHours: Frequency;
@@ -21,6 +22,8 @@ export interface TrackedAccount {
   id: string;
   handle: string;
   name?: string;
+  /** Photo de profil du compte (serveur d'images de X), lue avec son profil. */
+  avatar?: string;
   addedAt: number;
   /** Date du scan initial (référence), en ms. */
   baselineAt?: number;

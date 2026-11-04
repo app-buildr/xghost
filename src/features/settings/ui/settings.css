@@ -32,8 +32,12 @@
   align-items: center;
   gap: 12px;
 }
-.xg-ignored li span {
+/* Seul le @handle prend la place restante (l'avatar, lui aussi un <span>, garde sa taille). */
+.xg-ignored__handle {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .xg-settings .xg-card > .xg-btn {
   margin-top: 16px;

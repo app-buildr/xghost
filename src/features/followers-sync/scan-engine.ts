@@ -370,11 +370,17 @@ export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
 async function onProfile(job: ScanJob, account: TrackedAccount, tabId: number, body: string): Promise<void> {
   const profile = parseJson(body, parseUserLookup)?.profile;
   if (profile?.id !== job.accountId) return;
-  // Identité à jour (handle, nom, total annoncé par X) : § 4.3, changement de @handle.
+  // Identité à jour (handle, nom, photo, total annoncé par X) : § 4.3, changement de @handle.
   // Écriture seulement si quelque chose change (évite une écriture de la liste des comptes à chaque profil).
   const followersCount = profile.followersCount ?? account.followersCount;
-  if (profile.handle !== account.handle || profile.name !== account.name || followersCount !== account.followersCount) {
-    await patchAccount(job.accountId, { handle: profile.handle, name: profile.name, followersCount });
+  const avatar = profile.avatar ?? account.avatar;
+  if (
+    profile.handle !== account.handle ||
+    profile.name !== account.name ||
+    avatar !== account.avatar ||
+    followersCount !== account.followersCount
+  ) {
+    await patchAccount(job.accountId, { handle: profile.handle, name: profile.name, avatar, followersCount });
   }
   if (profile.followersCount !== undefined) {
     job.expectedTotal = profile.followersCount;

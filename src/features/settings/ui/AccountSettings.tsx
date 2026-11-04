@@ -27,7 +27,7 @@ export function IgnoredAccounts({ account, data }: { account: TrackedAccount; da
             return (
               <li key={id}>
                 <Avatar id={id} name={data.profiles[id]?.name ?? handle} src={data.profiles[id]?.avatar} size={36} />
-                <span>@{handle}</span>
+                <span className="xg-ignored__handle">@{handle}</span>
                 <button
                   type="button"
                   className="xg-btn xg-btn--secondary"

@@ -1,4 +1,4 @@
-import { installedVersion } from '@/features/updates/version';
+import { installedVersion } from '@/shared/utils/version';
 import { BACKUP_APP, BACKUP_FORMAT, backupItems, type Backup } from './format';
 
 /**

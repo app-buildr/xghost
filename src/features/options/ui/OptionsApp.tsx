@@ -13,10 +13,8 @@ import { DeparturesPanel } from '@/features/events/ui/DeparturesPanel';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { AccountSettings } from '@/features/settings/ui/AccountSettings';
 import { SettingsPanel } from '@/features/settings/ui/SettingsPanel';
-import { UpdateBanner } from '@/features/updates/ui/UpdateBanner';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
-import { send } from '@/shared/messaging/client';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
 import { Logo } from '@/shared/ui/primitives';
@@ -75,8 +73,6 @@ const Guard = ({ children, resetKey }: { children: ReactNode; resetKey?: unknown
 );
 
 export function OptionsApp() {
-  // Ouverture des options : on relève tout de suite la dernière version publiée.
-  useEffect(() => void send('update:check', undefined).catch(() => undefined), []);
   const app = useAppState();
   const now = useNow();
   const [section, go] = useSection();
@@ -125,7 +121,6 @@ export function OptionsApp() {
         </aside>
 
         <main className="xg-options__main">
-          <UpdateBanner />
           {app.loading ? null : !account ? (
             <EmptyState statusBanner={<ScanStatusBanner status={app.status} now={now} />} />
           ) : !data ? null : section === 'dashboard' ? (

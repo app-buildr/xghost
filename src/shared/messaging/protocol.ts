@@ -25,8 +25,6 @@ export interface Requests {
    * toutes les données, après validation complète du fichier.
    */
   'data:import': { req: { backup: unknown }; res: ImportResult };
-  /** Relève la dernière version publiée (à l'ouverture des options). */
-  'update:check': { req: void; res: void };
 }
 
 export type RequestType = keyof Requests;

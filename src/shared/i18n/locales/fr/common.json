@@ -53,13 +53,7 @@
     "scanning": "vérification en cours",
     "unseen_one": "{{count}} départ non vu",
     "unseen_other": "{{count}} départs non vus",
-    "update": "version {{version}} disponible",
     "title": "xGhost : {{parts}}"
-  },
-  "update": {
-    "title": "Nouvelle version de xGhost disponible",
-    "text": "Version {{latest}} publiée, tu as la {{installed}}.",
-    "howTo": "Comment mettre à jour"
   },
   "scanStatus": {
     "noSession": "Aucune session X trouvée. Connecte-toi à X pour reprendre la vérification.",

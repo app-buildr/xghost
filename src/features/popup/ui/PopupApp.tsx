@@ -12,7 +12,6 @@ import { EventRow } from '@/features/events/ui/EventRow';
 import { scanCoverage } from '@/features/scan-status/progress';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
-import { UpdateBanner } from '@/features/updates/ui/UpdateBanner';
 import { focusOrOpenExtensionPage } from '@/shared/browser/tabs';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
@@ -197,8 +196,6 @@ export function PopupApp() {
             </span>
           </button>
         )}
-
-        <UpdateBanner />
 
         {account && data && (
           <section>

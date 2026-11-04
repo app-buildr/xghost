@@ -6,14 +6,6 @@ export default defineConfig({
   outDir: 'dist',
   outDirTemplate: '',
   modules: ['@wxt-dev/module-react'],
-  // Simulation d'une release plus récente, voir features/updates/check.ts.
-  vite: () => ({
-    define: {
-      __FAKE_LATEST_VERSION__: JSON.stringify(
-        (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.FAKE_LATEST_VERSION ?? '',
-      ),
-    },
-  }),
   manifest: {
     // Nom et description traduits par Chrome (public/_locales), anglais par défaut.
     name: '__MSG_extName__',

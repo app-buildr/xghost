@@ -8,8 +8,6 @@ export const keys = {
   selectedAccount: 'sel',
   status: 'status',
   scanTab: 'scanTab',
-  /** Dernière version publiée sur GitHub (mise à jour maison). */
-  latestVersion: 'latestVersion',
   /** Historique complet (départs et arrivées, format compact). */
   events: (accountId: string) => `acc:${accountId}:events`,
   ignored: (accountId: string) => `acc:${accountId}:ign`,

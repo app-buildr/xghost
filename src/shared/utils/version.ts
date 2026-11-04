@@ -23,6 +23,3 @@ export function isNewer(latest: string | null | undefined, current: string): boo
 
 /** Version de l'extension installée. */
 export const installedVersion = () => chrome.runtime.getManifest().version;
-
-/** Une mise à jour de l'extension installée est disponible. */
-export const updateAvailable = (latest: string | null | undefined): boolean => isNewer(latest, installedVersion());

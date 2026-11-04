@@ -8,7 +8,6 @@ import type { GlobalStatus, ScanJob } from '@/shared/types';
 import { t } from '@/shared/i18n';
 import { COLORS } from '@/shared/ui/tokens';
 import { formatBadgeCount } from '@/shared/utils/format';
-import { updateAvailable } from '@/features/updates/version';
 
 /**
  * Icône et badge (§ 3.1) : au calme, alerte, scan en cours, déconnecté.
@@ -63,16 +62,11 @@ async function applyBadge(): Promise<void> {
   await chrome.action.setIcon({ path: iconSet(scanning ? 'icon-scan' : 'icon') });
 
   const unseen = settings.badge ? await totalUnseen(accounts) : 0;
-  // Nouvelle version publiée (mise à jour maison) : flèche teal, sauf si des départs sont à voir.
-  const latest = await localKv.get<string>(keys.latestVersion);
-  const update = updateAvailable(latest);
-  const showUpdate = update && unseen === 0;
-  await chrome.action.setBadgeBackgroundColor({ color: showUpdate ? COLORS.primary : COLORS.danger });
+  await chrome.action.setBadgeBackgroundColor({ color: COLORS.danger });
   await chrome.action.setBadgeTextColor({ color: COLORS.surface });
-  await chrome.action.setBadgeText({ text: showUpdate ? '↑' : formatBadgeCount(unseen) });
+  await chrome.action.setBadgeText({ text: formatBadgeCount(unseen) });
   const parts = [
     scanning ? t('common.badge.scanning') : unseen ? t('common.badge.unseen', { count: unseen }) : undefined,
-    update ? t('common.badge.update', { version: latest }) : undefined,
   ].filter(Boolean);
   await chrome.action.setTitle({ title: parts.length ? t('common.badge.title', { parts: parts.join(' · ') }) : t('common.appName') });
 }

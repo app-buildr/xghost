@@ -1,6 +1,6 @@
 import { compactEventsOf, isCompactEvent } from '@/features/events/codec';
 import { sanitizeSettings } from '@/features/settings/repository';
-import { isNewer } from '@/features/updates/version';
+import { isNewer } from '@/shared/utils/version';
 import { AVATAR, HANDLE, ID } from '@/features/x-api/parse';
 import { keys } from '@/shared/storage/keys';
 import { isRecord } from '@/shared/utils/guards';
@@ -38,10 +38,10 @@ export type BackupCheck = { ok: true; backup: Backup } | { ok: false; error: Bac
 
 /**
  * État propre à cette installation, jamais exporté ni écrasé par un import : scan en cours,
- * onglet de scan, statut, dernière version relevée.
+ * onglet de scan, statut.
  */
 const TRANSIENT_SUFFIXES = [':job', ':progress'];
-const TRANSIENT_KEYS = new Set<string>([keys.scanTab, keys.status, keys.latestVersion]);
+const TRANSIENT_KEYS = new Set<string>([keys.scanTab, keys.status]);
 export const isTransientKey = (key: string) =>
   TRANSIENT_KEYS.has(key) || TRANSIENT_SUFFIXES.some((suffix) => key.endsWith(suffix));
 

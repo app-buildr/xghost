@@ -5,7 +5,7 @@ import { settleSeen } from '@/features/events/commands';
 import { cancelScan, settleAnalyses } from '@/features/followers-sync/scan-engine';
 import { settleWrites as settleEvents } from '@/features/events/repository';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
-import { installedVersion } from '@/features/updates/version';
+import { installedVersion } from '@/shared/utils/version';
 import { isTransientKey, MAX_BACKUP_BYTES, validateBackup, type BackupError } from './format';
 import { withImportLock } from './lock';
 

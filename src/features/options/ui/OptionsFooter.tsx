@@ -1,5 +1,5 @@
-import { NEW_ISSUE_URL, REPO_URL } from '@/features/updates/config';
-import { installedVersion } from '@/features/updates/version';
+import { NEW_ISSUE_URL, REPO_URL } from '@/shared/project';
+import { installedVersion } from '@/shared/utils/version';
 import { t } from '@/shared/i18n';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
 

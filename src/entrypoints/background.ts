@@ -1,5 +1,4 @@
 import { t } from '@/shared/i18n';
-import { ALARM_UPDATE, checkLatestVersion, scheduleUpdateChecks } from '@/features/updates/check';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
 import { importBackup } from '@/features/backup/backup';
 import { loadAccounts, patchAccount, setIgnored, setSelectedAccountId, updateAccounts } from '@/features/accounts/repository';
@@ -43,7 +42,6 @@ const refuseDuringImport = (type: RequestType) =>
 export default defineBackground(() => {
   chrome.runtime.onInstalled.addListener(async ({ reason }) => {
     await setupAlarms();
-    void scheduleUpdateChecks(); // une installation change la version installée
     if (reason === 'install') {
       await chrome.tabs.create({ url: chrome.runtime.getURL('/onboarding.html') });
     }
@@ -53,13 +51,11 @@ export default defineBackground(() => {
 
   chrome.runtime.onStartup.addListener(async () => {
     await setupAlarms();
-    void scheduleUpdateChecks();
     await handleSessionChange();
   });
 
   chrome.alarms.onAlarm.addListener(({ name }) => {
-    if (name === ALARM_UPDATE) void checkLatestVersion();
-    else void handleAlarm(name);
+    void handleAlarm(name);
   });
 
   let sessionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -73,7 +69,6 @@ export default defineBackground(() => {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    if (keys.latestVersion in changes) void refreshBadge(); // nouvelle version publiée
     // Un scan démarre, se met en pause ou se termine : l'icône « scan en cours » suit.
     const statusChanged = Object.entries(changes).some(
       ([k, c]) =>
@@ -106,9 +101,6 @@ export default defineBackground(() => {
       await setupAlarms().catch((err) => console.error(err));
       await handleSessionChange().catch((err) => console.error(err));
       return result;
-    },
-    async 'update:check'() {
-      await checkLatestVersion();
     },
     async 'session:detect'() {
       const session = await readSession();

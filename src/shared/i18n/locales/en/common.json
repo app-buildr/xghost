@@ -53,13 +53,7 @@
     "scanning": "check in progress",
     "unseen_one": "{{count}} unseen unfollow",
     "unseen_other": "{{count}} unseen unfollows",
-    "update": "version {{version}} available",
     "title": "xGhost: {{parts}}"
-  },
-  "update": {
-    "title": "A new version of xGhost is available",
-    "text": "Version {{latest}} is out, you have {{installed}}.",
-    "howTo": "How to update"
   },
   "scanStatus": {
     "noSession": "No X session found. Log in to X to resume checking.",

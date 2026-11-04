@@ -2,7 +2,7 @@
   "name": "xghost",
   "description": "Extension Chrome qui détecte les comptes X qui ont arrêté de te suivre.",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",

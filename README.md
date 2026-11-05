@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://app-buildr.github.io/xghost/"><strong>Site et guide d'utilisation</strong></a> ·
   <a href="https://app-buildr.github.io/xghost/en/"><strong>Website (English)</strong></a> ·
-  <a href="https://chromewebstore.google.com/">Ajouter à Chrome</a>
+  <a href="https://chromewebstore.google.com/detail/xghost/igahhgiihlalnmlcdcaoeminiggaomin">Ajouter à Chrome</a>
 </p>
 
 <p align="center">
@@ -64,7 +64,7 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension, en françai
 
 ## Installation
 
-1. Ouvre la [fiche xGhost sur le Chrome Web Store](https://chromewebstore.google.com/) et clique sur **Ajouter à Chrome**,
+1. Ouvre la [fiche xGhost sur le Chrome Web Store](https://chromewebstore.google.com/detail/xghost/igahhgiihlalnmlcdcaoeminiggaomin) et clique sur **Ajouter à Chrome**,
    puis confirme avec **Ajouter l'extension**. Fonctionne aussi sur Brave, Edge et les navigateurs
    basés sur Chromium, sur ordinateur.
 2. Épingle l'icône : pièce de puzzle à droite de la barre d'adresse, puis l'épingle à côté de xGhost.

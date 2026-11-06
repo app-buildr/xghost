@@ -71,6 +71,11 @@
   gap: 24px;
   min-width: 0;
 }
+/* Pages « Tous les départs » et « Nouveaux abonnés » : la liste occupe la hauteur de la fenêtre
+   qui reste sous l'en-tête, et défile à l'intérieur de la carte. */
+.xg-options__content--list {
+  --xg-dep-list-max: max(420px, calc(100vh - 280px));
+}
 .xg-options__title {
   font-size: 40px;
 }

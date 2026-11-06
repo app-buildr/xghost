@@ -9,12 +9,14 @@
   },
   "kpi": {
     "departures": {
+      "24h": "Unfollows, 24 hours",
       "7d": "Unfollows, 7 days",
       "30d": "Unfollows, 30 days",
       "90d": "Unfollows, 90 days",
       "all": "Unfollows, all time"
     },
     "arrivals": {
+      "24h": "New followers, 24 hours",
       "7d": "New followers, 7 days",
       "30d": "New followers, 30 days",
       "90d": "New followers, 90 days",

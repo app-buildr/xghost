@@ -119,6 +119,12 @@
   padding: 0;
   container-type: inline-size;
 }
+/* La liste ne grandit pas sans fin : au-delà du plafond, elle défile dans la carte. Dans la page,
+   arrivé en bas de la liste, le défilement se poursuit sur la page (jusqu'au pied). */
+.xg-dep-list {
+  max-height: var(--xg-dep-list-max, 640px);
+  overscroll-behavior: auto;
+}
 /* Hauteur imposée par le conteneur : en-tête et pied fixes, la liste défile entre les deux. */
 .xg-dep-panel--fill {
   display: flex;

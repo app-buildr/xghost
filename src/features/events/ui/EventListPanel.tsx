@@ -11,7 +11,8 @@ type Filter = 'all' | 'follow-back';
 /**
  * Carte de liste de mouvements (départs, nouveaux abonnés) : titre, filtre « Tous / Follow back »,
  * états vides, et lien « Voir tout l'historique » quand la liste est limitée.
- * `fill` : la carte prend la hauteur de son conteneur et la liste défile à l'intérieur.
+ * La liste défile à l'intérieur de la carte : plafonnée en hauteur (`--xg-dep-list-max`), ou,
+ * avec `fill`, à la hauteur de son conteneur.
  * Une ligne compte comme vue quand elle passe réellement à l'écran.
  */
 export function EventListPanel({
@@ -47,7 +48,8 @@ export function EventListPanel({
   );
   const shown = useMemo(() => (limit ? filtered.slice(0, limit) : filtered), [filtered, limit]);
   const list = useRef<HTMLUListElement>(null);
-  useMarkVisible(list, shown, { scrolls: fill });
+  // Racine : la fenêtre, dont l'intersection tient aussi compte du défilement de la liste.
+  useMarkVisible(list, shown);
   const fade = useScrollFade(list, shown);
 
   return (
@@ -74,8 +76,8 @@ export function EventListPanel({
         <ul
           key={filter}
           ref={list}
-          className={`xg-dep-list xg-list-in${fill ? ' xg-scroll' : ''}${fill && fade.more ? ' xg-scroll-fade' : ''}`}
-          onScroll={fill ? fade.onScroll : undefined}
+          className={`xg-dep-list xg-list-in xg-scroll${fade.more ? ' xg-scroll-fade' : ''}`}
+          onScroll={fade.onScroll}
         >
           {shown.map(renderRow)}
         </ul>

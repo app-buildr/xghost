@@ -9,12 +9,14 @@
   },
   "kpi": {
     "departures": {
+      "24h": "Départs, 24 heures",
       "7d": "Départs, 7 jours",
       "30d": "Départs, 30 jours",
       "90d": "Départs, 90 jours",
       "all": "Départs, depuis le début"
     },
     "arrivals": {
+      "24h": "Arrivées, 24 heures",
       "7d": "Arrivées, 7 jours",
       "30d": "Arrivées, 30 jours",
       "90d": "Arrivées, 90 jours",

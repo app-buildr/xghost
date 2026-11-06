@@ -10,7 +10,7 @@ import { ArrivalsPanel } from '@/features/events/ui/ArrivalsPanel';
 import { DeparturesPanel } from '@/features/events/ui/DeparturesPanel';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { t } from '@/shared/i18n';
-import type { DashboardChart, GlobalStatus, TrackedAccount } from '@/shared/types';
+import { DEFAULT_SETTINGS, type DashboardChart, type GlobalStatus, type TrackedAccount } from '@/shared/types';
 import { StatTile } from '@/shared/ui/primitives';
 import { formatNumber, formatSigned } from '@/shared/utils/format';
 import { DashboardHeader } from './DashboardHeader';
@@ -30,7 +30,7 @@ interface Props {
 }
 
 /**
- * Tableau de bord (§ 3.4), sur la période choisie (7 j / 30 j / 90 j / Tout, mémorisée) :
+ * Tableau de bord (§ 3.4), sur la période choisie (24 h / 7 j / 30 j / 90 j / Tout, mémorisée) :
  * - en haut, dernier scan et chiffres de la période ;
  * - les derniers départs, en grand à gauche ; à droite, arrivées et départs, départs par durée
  *   de suivi et rétention, empilés ;
@@ -38,7 +38,7 @@ interface Props {
  * - enfin, les nouveaux abonnés.
  * Un graphique masqué dans les réglages libère sa place.
  */
-export function Dashboard({ account, data, ctx, status, now, hiddenCharts = [], onShowAllDepartures, onShowAllArrivals }: Props) {
+export function Dashboard({ account, data, ctx, status, now, hiddenCharts = DEFAULT_SETTINGS.hiddenCharts, onShowAllDepartures, onShowAllArrivals }: Props) {
   const [period, setPeriod] = useStoredChoice<DashboardPeriod>('xg.dashboardPeriod', DASHBOARD_PERIODS, '30d');
   // Sans date de référence (cas rare), « Tout » part du plus ancien mouvement connu.
   const floor = account.baselineAt ?? oldestEventAt(data.events);

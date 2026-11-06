@@ -113,7 +113,8 @@ export function followerSeries(
   const days = bucketStarts('day', from, now);
   const net = new Map<number, number>();
   for (const e of events) {
-    if (e.at < days[0]!) continue;
+    // Depuis `from` (et non minuit du premier jour) : sur 24 h glissantes, même fenêtre que les chiffres.
+    if (e.at < from) continue;
     const day = startOfDay(e.at);
     net.set(day, (net.get(day) ?? 0) + (e.type === 'arrival' ? 1 : -1));
   }

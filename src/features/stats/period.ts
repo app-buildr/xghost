@@ -1,13 +1,13 @@
 /**
  * Périodes des statistiques (§ 3.2, § 3.4) : popup (24 h / 7 j / 30 j / Tout) et tableau de bord
- * (7 j / 30 j / 90 j / Tout). Fonctions pures, testées dans stats.test.ts.
+ * (24 h / 7 j / 30 j / 90 j / Tout). Fonctions pures, testées dans stats.test.ts.
  */
 
 import { DAY, daysBefore } from '@/shared/utils/time';
 
 export type Period = '24h' | '7d' | '30d' | '90d' | 'all';
 export const POPUP_PERIODS = ['24h', '7d', '30d', 'all'] as const satisfies readonly Period[];
-export const DASHBOARD_PERIODS = ['7d', '30d', '90d', 'all'] as const satisfies readonly Period[];
+export const DASHBOARD_PERIODS = ['24h', '7d', '30d', '90d', 'all'] as const satisfies readonly Period[];
 export type PopupPeriod = (typeof POPUP_PERIODS)[number];
 export type DashboardPeriod = (typeof DASHBOARD_PERIODS)[number];
 

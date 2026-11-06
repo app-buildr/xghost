@@ -141,7 +141,7 @@ export function OptionsApp() {
               </Guard>
             </div>
           ) : section === 'departures' ? (
-            <div className="xg-options__content">
+            <div className="xg-options__content xg-options__content--list">
               <Guard resetKey={data}>
                 <DashboardHeader account={account} progress={data.progress} now={now} />
                 <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />
@@ -156,7 +156,7 @@ export function OptionsApp() {
               </Guard>
             </div>
           ) : section === 'arrivals' ? (
-            <div className="xg-options__content">
+            <div className="xg-options__content xg-options__content--list">
               <Guard resetKey={data}>
                 <DashboardHeader account={account} progress={data.progress} now={now} />
                 <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />

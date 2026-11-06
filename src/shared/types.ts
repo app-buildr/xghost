@@ -9,7 +9,7 @@ export type DashboardChart = (typeof DASHBOARD_CHARTS)[number];
 
 export interface Settings {
   frequencyHours: Frequency;
-  /** Graphiques masqués du tableau de bord (tous affichés par défaut). */
+  /** Graphiques masqués du tableau de bord (par défaut, seule la rétention des arrivées l'est). */
   hiddenCharts: DashboardChart[];
   /** Reporté en v2 (« Suivre aussi mes abonnements »). */
   trackFollowing: boolean;
@@ -19,7 +19,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   frequencyHours: 6,
-  hiddenCharts: [],
+  hiddenCharts: ['retention'],
   trackFollowing: false,
   badge: true,
   notifications: true,

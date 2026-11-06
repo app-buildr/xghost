@@ -4,11 +4,12 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+    "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "types": ["chrome"]
   },
-  "exclude": ["node_modules", "dist", "resources", "vitest.config.ts", "scripts", "src/shared/i18n/no-hardcoded-text.test.ts"]
+  "exclude": ["node_modules", "dist", "resources", "vitest.config.ts", "vitest.browser.config.ts", "scripts", "src/shared/i18n/no-hardcoded-text.test.ts", "src/shared/manifest.test.ts", "src/shared/ui/tokens.test.ts"]
 }

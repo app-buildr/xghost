@@ -44,7 +44,7 @@ Tout est expliqué, captures à l'appui, sur le site de l'extension, en françai
   l'étiquette « Nouveau » jusqu'à ce que tu quittes la page.
 - **Nouveaux abonnés** : les arrivées, dans un panneau à part. Les deux listes se filtrent sur les
   **follow back** (les comptes que tu suis aussi).
-- **Graphique sur 30 jours** : arrivées et départs jour par jour, détail au survol.
+- **Graphiques** de 24 h à tout l'historique : arrivées et départs, solde, abonnés, durée de suivi.
 - **Vérifications automatiques** : xGhost contrôle tes abonnés à intervalles réguliers, sans que tu
   aies à y penser. **Vérifier maintenant** lance un contrôle à la demande.
 - **Alertes** : un badge sur l'icône et une notification groupée par vérification.
@@ -109,10 +109,11 @@ pnpm dev        # Chrome avec l'extension chargée et rechargement à chaud
 | ---------------- | ---------------------------------------------------------- |
 | `pnpm dev`       | mode dev (WXT), rechargement à chaud                       |
 | `pnpm build`     | build de production dans `dist/`                           |
-| `pnpm package`   | build puis archive `xghost.zip` (dossier `xGhost`)         |
-| `pnpm release`   | archive `release/xghost.zip` (script local `release.sh`)   |
+| `pnpm release`   | archive `release/xghost-<version>.zip` (script local `release.sh`) |
 | `pnpm test`      | tests unitaires (Vitest)                                   |
+| `pnpm test:browser` | tests de mise en page, dans le Chrome installé (Vitest) |
 | `pnpm typecheck` | vérifie les types                                          |
+| `pnpm lint`      | ESLint : promesses, hooks, frontières entre modules        |
 | `pnpm icons`     | régénère les icônes PNG (normale, scan, déconnecté)        |
 
 Charger le build à la main : `chrome://extensions` → mode développeur → « Charger l'extension non
@@ -127,8 +128,9 @@ se fait dans les deux.
 
 1. Monte la version dans `package.json` (elle devient celle du manifeste), par exemple `1.0.1`,
    puis committe et pousse sur `main`.
-2. `pnpm release --dry-run` : vérifie les types et les tests, puis produit `release/xghost.zip`
-   (dossier `xGhost/`). `release.sh` est un script local, ignoré par git.
+2. `pnpm release` : vérifie les types et les tests, puis produit `release/xghost-<version>.zip`,
+   avec `manifest.json` à la racine. `release.sh` est un script local, ignoré par git : la CI
+   (`.github/workflows/ci.yml`) vérifie types, lint, tests et build à chaque push.
 3. Envoie l'archive dans la [console développeur du Chrome Web Store](https://chrome.google.com/webstore/devconsole)
    et soumets la nouvelle version à la validation. Chrome met ensuite les extensions installées à
    jour tout seul.
@@ -141,30 +143,33 @@ sur l'icône) est conservée sur la branche `feature/self-update`, au cas où.
 ```
 src/
 ├── entrypoints/           # WXT : background, scripts x.com (page + isolé), popup, options, onboarding
+├── domain/                # règles pures : comparaison, événements, comptes (ni Chrome, ni stockage)
 ├── features/
 │   ├── x-api/             # session (cookies), lecture et validation des réponses GraphQL de x.com
-│   ├── followers-sync/    # moteur de scan par onglet, instantanés, profils, estimation du temps restant
+│   ├── followers-sync/    # moteur de scan (`scan-*.ts`), instantanés, profils, estimation du temps restant
 │   ├── hidden-render/     # rendu simulé de l'onglet de scan quand il est caché
-│   ├── scan-veil/         # overlay de l'onglet de scan (titre, favicon de progression)
-│   ├── unfollow-detection/# comparaison, contrôle léger, arrêt anticipé, garde-fous, réparation de l'historique
-│   ├── events/            # historique (format compact), sélecteurs, commandes + listes départs/arrivées (ui/)
+│   ├── scan-veil/         # overlay de l'onglet de scan (favicon de progression)
+│   ├── unfollow-detection/# exploitation des scans, garde-fous, réparation et nettoyage de l'historique
+│   ├── events/            # historique, commandes + listes départs/arrivées (ui/)
 │   ├── accounts/          # comptes suivis (multi-comptes), comptes ignorés
 │   ├── settings/          # réglages (modèle, stockage, interface)
-│   ├── scheduler/         # alarmes, ajout automatique des comptes
+│   ├── scheduler/         # alarmes, choix du scan à lancer, ajout automatique des comptes
 │   ├── alerts/            # badge/icône et notifications
 │   ├── backup/            # sauvegarde : export, validation stricte, import atomique, verrou
 │   ├── app-state/         # hooks React d'accès aux données (état global, compte, « vu à l'affichage »)
 │   ├── scan-status/       # textes et composants d'état du scan partagés
+│   ├── stats/             # chiffres et graphiques du tableau de bord
 │   └── dashboard/ popup/ options/ onboarding/   # écrans
 └── shared/                # stockage local (+ conversion des sauvegardes 1.0), i18n, messagerie typée, composants, utilitaires
 ```
 
-Le service worker est le seul à écrire. Les interfaces lisent le stockage directement et envoient
-leurs commandes par messages typés (`shared/messaging/protocol.ts`), acceptés uniquement depuis les
-pages de l'extension.
+Le service worker est le seul à écrire (règle ESLint sur les fonctions d'écriture). Les interfaces
+lisent le stockage directement et envoient leurs commandes par messages typés
+(`shared/messaging/protocol.ts`), acceptés uniquement depuis les pages de l'extension.
 
 Tout est dans `chrome.storage.local` (la synchronisation Chrome, limitée à 100 Ko, a été
-abandonnée). Pas de migration automatique des données de la 1.0 : on les récupère en réimportant
+abandonnée). Les grosses valeurs (historique, profils, scan en cours) sont stockées en texte JSON ;
+les deux formats sont lus, et le fichier de sauvegarde ne change pas. Pas de migration automatique des données de la 1.0 : on les récupère en réimportant
 une sauvegarde 1.0, convertie à l'import (`shared/storage/legacy.ts`).
 
 ## Traductions
@@ -180,18 +185,24 @@ dans le code. Nom et description de l'extension : `public/_locales`.
 xGhost ne fabrique **aucune requête** vers X (pas d'API, pas de forge d'en-tête anti-bot). Il ouvre x.com et lit les
 réponses que la page reçoit elle-même.
 
-- **Onglet de scan** ouvert avec le fragment `#xghost` : seul cet onglet est instrumenté. Le script de
-  page (monde MAIN) y lit les réponses `Followers`, `UserByScreenName` et `UserByRestId`, et les
-  transmet au script isolé par un `MessageChannel` privé, échangé avant tout code de x.com. Les autres
-  onglets x.com ne sont pas touchés.
+- **Onglet de scan** ouvert avec un fragment (`SCAN_MARKER`) : seul cet onglet est instrumenté. Le
+  script de page (monde MAIN) y lit les réponses `Followers`, `UserByScreenName` et `UserByRestId`, et
+  les transmet au script isolé par un `MessageChannel` privé, échangé avant tout code de x.com. Le
+  fragment n'est pas secret : le service worker, qui connaît l'onglet de scan par son id, confirme
+  avant tout relais, et ailleurs le script de page retire ce qu'il a installé. Les autres onglets
+  x.com ne sont pas touchés.
 - **Contrôle léger** (« Vérifier maintenant », alarmes) : onglet épinglé en arrière-plan, sans défilement. Total annoncé
-  + 50 premiers abonnés → arrivées, départs récents (comparés à l'ordre enregistré), écart restant.
+  + première page d'abonnés → arrivées, départs récents (comparés à l'ordre enregistré), écart
+  restant.
   Total X en retard : nouvelle vérification 10 min plus tard.
 - **Scan complet** (écart inexpliqué, « Scan complet », référence, contrôle tous les 10 contrôles
   légers) : onglet épinglé en arrière-plan avec overlay. S'arrête dès que les départs annoncés sont
   trouvés quand il est déclenché par un écart.
-- **Couverture** : complet à 99 % du total X. Un scan incomplet n'est jamais comparé ; ses abonnés sont
-  gardés pour « Continuer le scan ».
+- **Couverture** : complet à 99 % du total X, ou si une reprise relit la liste sans rien ajouter (à
+  partir de 90 %). Les départs trouvés doivent aussi être expliqués par la baisse du total X. Un scan
+  incomplet n'est jamais comparé ; ses abonnés sont gardés pour « Continuer le scan ».
+- **Nettoyage** : un lot de départs de même date revenu d'un coup est une erreur de scan des versions
+  précédentes. Il est retiré de l'historique et conservé à part (`acc:<id>:repaired`).
 - **Limite de X** (429, erreur 88, `x-rate-limit-remaining: 0`) : pause jusqu'à l'heure annoncée, puis
   reprise automatique.
 

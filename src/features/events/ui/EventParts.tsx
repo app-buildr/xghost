@@ -2,7 +2,7 @@ import { Tooltip } from '@/shared/ui/Tooltip';
 import { t } from '@/shared/i18n';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
 import { formatAgo, formatAgoShort, formatDateTime } from '@/shared/utils/format';
-import { profileUrl } from '@/shared/x-urls';
+import { profileUrl, userIdUrl } from '@/shared/x-urls';
 
 /** Date d'un mouvement (forme courte dans la popup), avec la date complète au survol. */
 export function EventTime({
@@ -32,11 +32,11 @@ export function EventTime({
 }
 
 /** Bouton « Voir le profil », avec le @handle dans le nom accessible (un libellé distinct par ligne). */
-export function ProfileLink({ handle }: { handle: string }) {
+export function ProfileLink({ handle, profileId }: { handle: string; profileId: string }) {
   return (
     <ExternalLink
       className="xg-btn xg-btn--secondary"
-      href={profileUrl(handle)}
+      href={handle === profileId ? userIdUrl(profileId) : profileUrl(handle)}
       aria-label={t('dashboard.row.viewProfileOf', { handle })}
     >
       {t('dashboard.row.viewProfile')}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeSettings } from './repository';
+import { sanitizeSettings } from './sanitize';
 
 describe('réglages', () => {
   it('ne garde que les graphiques connus, dans l’ordre du tableau de bord', () => {

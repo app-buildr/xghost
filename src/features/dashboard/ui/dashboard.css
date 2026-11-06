@@ -1,8 +1,36 @@
+/* L'en-tête reste en haut de la fenêtre au défilement : titre, période et « Vérifier maintenant »
+   restent accessibles. Le fond opaque cache le contenu qui passe dessous ; le padding, compensé
+   par les marges négatives, laisse de l'air sans décaler la page au repos. */
 .xg-dash__header {
+  --xg-dash-header-pad: 12px;
+  position: sticky;
+  top: 0;
+  z-index: var(--xg-z-sticky);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--xg-gap-section);
+  margin-block: calc(-1 * var(--xg-dash-header-pad));
+  padding-block: var(--xg-dash-header-pad);
+  background: var(--xg-background);
+}
+/* Fondu sous l'en-tête : invisible au repos (même couleur que la page), il adoucit la coupure
+   quand le contenu défile dessous. */
+.xg-dash__header::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--xg-dash-header-pad);
+  background: linear-gradient(var(--xg-background), transparent);
+  pointer-events: none;
+}
+/* Fenêtre très basse : l'en-tête figé mangerait la place du contenu. */
+@media (max-height: 560px) {
+  .xg-dash__header {
+    position: relative;
+  }
 }
 /* Le titre et ses lignes prennent la place restante : les boutons restent collés à droite. */
 .xg-dash__heading {
@@ -11,7 +39,7 @@
 }
 .xg-dash__result {
   margin: 4px 0 0;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
   color: var(--xg-text-muted);
 }
 .xg-dash__header .xg-check {
@@ -30,14 +58,14 @@
 }
 .xg-dash__sub {
   margin: 6px 0 0;
-  font-size: 16px;
+  font-size: var(--xg-text-lg);
   color: var(--xg-text-muted);
 }
 
 .xg-kpis {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  gap: var(--xg-gap-section);
 }
 
 /* Derniers départs à gauche, colonne de graphiques à droite (empilés). La colonne de droite
@@ -45,7 +73,7 @@
 .xg-dash__main {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 24px;
+  gap: var(--xg-gap-section);
 }
 .xg-dash__departures {
   position: relative;
@@ -68,7 +96,7 @@
 .xg-dash__side {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--xg-gap-section);
   min-width: 0;
 }
 @media (max-width: 1240px) {
@@ -121,7 +149,7 @@
 }
 .xg-coverage__date {
   margin-left: auto;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
   color: var(--xg-text-muted);
 }
 .xg-coverage__figures {
@@ -133,7 +161,7 @@
   flex-direction: column;
 }
 .xg-coverage__label {
-  font-size: 14px;
+  font-size: var(--xg-text-md);
   color: var(--xg-text-muted);
 }
 .xg-coverage__foot {
@@ -146,7 +174,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
 }
 .xg-coverage__foot > .xg-coverage__actions {
   flex: none;
@@ -183,7 +211,7 @@
   gap: 6px;
 }
 .xg-check .xg-link {
-  font-size: 14px;
+  font-size: var(--xg-text-md);
 }
 /* Limite d'abonnés dépassée (§ 4.9) : bouton gris, et non vert pâli, pour dire « arrêté ». */
 .xg-check .xg-btn.is-stopped {
@@ -194,7 +222,7 @@
 }
 /* Pause imposée par X : barre grisée, comme l'overlay (§ 3.5). */
 .xg-coverage.is-paused .xg-progress {
-  background: var(--xg-surface-muted);
+  background: var(--xg-track);
 }
 .xg-coverage.is-paused .xg-progress__bar {
   background: var(--xg-disabled-icon);

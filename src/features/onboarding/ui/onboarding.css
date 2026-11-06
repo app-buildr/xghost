@@ -15,7 +15,7 @@
 .xg-onb__lead {
   max-width: 980px;
   margin: 12px 0 24px;
-  font-size: 17px;
+  font-size: var(--xg-text-xl);
   line-height: 1.55;
   color: var(--xg-text-muted);
 }
@@ -27,7 +27,7 @@
   display: flex;
   gap: 20px;
   padding: 14px 20px;
-  border-radius: 16px;
+  border-radius: var(--xg-radius-xl);
 }
 .xg-step.is-current:not(:last-child) {
   background: var(--xg-primary-tint);
@@ -43,7 +43,7 @@
   background: var(--xg-surface-muted);
   color: var(--xg-text-subtle);
   font-weight: 600;
-  font-size: 18px;
+  font-size: var(--xg-text-2xl);
 }
 .xg-step.is-current .xg-step__num {
   background: var(--xg-primary);
@@ -70,7 +70,7 @@
   gap: 16px;
 }
 .xg-step__title {
-  font-size: 18px;
+  font-size: var(--xg-text-2xl);
   font-weight: 600;
 }
 .xg-step__count {
@@ -79,7 +79,7 @@
   font-variant-numeric: tabular-nums;
 }
 .xg-step__hint {
-  font-size: 16px;
+  font-size: var(--xg-text-lg);
   color: var(--xg-text-muted);
 }
 .xg-onb__freq {
@@ -92,9 +92,9 @@
   min-height: 48px;
   padding: 0 20px;
   border: 1px solid var(--xg-border);
-  border-radius: 12px;
+  border-radius: var(--xg-radius-lg);
   background: var(--xg-surface);
-  font-size: 17px;
+  font-size: var(--xg-text-xl);
   cursor: pointer;
 }
 .xg-onb__freq button[aria-checked='true'] {
@@ -128,24 +128,24 @@
   gap: 8px;
   padding: 18px 20px;
   border: 1px solid var(--xg-border);
-  border-radius: 16px;
+  border-radius: var(--xg-radius-xl);
   background: var(--xg-surface);
 }
-.xg-onb__choice h3 {
+.xg-onb__choice h2 {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0;
-  font-size: 18px;
+  font-size: var(--xg-text-2xl);
   font-weight: 600;
 }
-.xg-onb__choice h3 svg {
+.xg-onb__choice h2 svg {
   color: var(--xg-primary);
 }
 .xg-onb__choice p {
   flex: 1;
   margin: 0 0 4px;
-  font-size: 15px;
+  font-size: var(--xg-text-base);
   line-height: 1.5;
   color: var(--xg-text-muted);
 }
@@ -156,12 +156,12 @@
 .xg-onb__cta .xg-btn--lg {
   min-height: 64px;
   padding: 0 32px;
-  font-size: 18px;
-  border-radius: 14px;
+  font-size: var(--xg-text-2xl);
+  border-radius: var(--xg-radius-block);
 }
 .xg-onb__cta p {
   margin: 16px 0 0;
-  font-size: 15px;
+  font-size: var(--xg-text-base);
   color: var(--xg-text-muted);
 }
 
@@ -186,7 +186,7 @@
 .xg-onb__cta--limit .xg-btn--lg {
   min-height: 52px;
   padding: 0 24px;
-  font-size: 17px;
+  font-size: var(--xg-text-xl);
 }
 
 @media (max-width: 700px) {

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { ENTRY_FOLLOWER_LIMIT } from '@/features/accounts/limit';
-import { hasKnownHandle } from '@/features/accounts/model';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ENTRY_FOLLOWER_LIMIT } from '@/domain/accounts/limit';
+import { hasKnownHandle } from '@/domain/accounts/model';
 import '@/features/accounts/ui/accounts.css';
 import { useBackupImport } from '@/features/backup/ui/useBackupImport';
 import { useAccountData } from '@/features/app-state/useAccountData';
@@ -10,6 +10,7 @@ import type { ScanProgress } from '@/features/followers-sync/model';
 import { pauseMessage, scanTabHint } from '@/features/scan-status/messages';
 import { scanCoverage } from '@/features/scan-status/progress';
 import { LastScanBar, ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
+import { ContinueScanButton } from '@/features/scan-status/ui/ContinueScanButton';
 import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { frequencyOptions } from '@/features/settings/model';
@@ -19,7 +20,7 @@ import { send } from '@/shared/messaging/client';
 import type { Frequency, TrackedAccount } from '@/shared/types';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
 import { Check, RefreshCw, TriangleAlert, Upload, X } from 'lucide-react';
-import { Logo, Segmented } from '@/shared/ui/primitives';
+import { Brand, Segmented } from '@/shared/ui/primitives';
 import { formatNumber, formatPercent, formatProgressCount } from '@/shared/utils/format';
 import { X_LOGIN_URL } from '@/shared/x-urls';
 import './onboarding.css';
@@ -63,10 +64,7 @@ function FollowerLimitScreen({ account, handle }: { account: TrackedAccount; han
   const count = account.limit?.count ?? account.followersCount ?? 0;
   return (
     <main className="xg-onb">
-      <div className="xg-brand">
-        <Logo size={56} />
-        <span>{t('common.appName')}</span>
-      </div>
+      <Brand logoSize={56} />
       <h1>{t('onboarding.limit.title')}</h1>
 
       <div className="xg-limit xg-onb__limit" role="alert">
@@ -78,24 +76,14 @@ function FollowerLimitScreen({ account, handle }: { account: TrackedAccount; han
       </div>
 
       <ol className="xg-boxlist xg-onb__steps">
-        <li className="xg-step is-done">
-          <span className="xg-step__num">
-            <Check size={18} />
-          </span>
-          <div>
-            <div className="xg-step__title">{t('onboarding.session.detected')}</div>
-            <div className="xg-step__hint">{t('onboarding.session.loggedInAs', { handle })}</div>
-          </div>
-        </li>
-        <li className="xg-step is-blocked">
-          <span className="xg-step__num">
-            <X size={18} />
-          </span>
-          <div>
-            <div className="xg-step__title">{t('onboarding.scan.title')}</div>
-            <div className="xg-step__hint">{t('onboarding.limit.unavailable', { limit })}</div>
-          </div>
-        </li>
+        <Step state="done" marker={<Check size={18} />}>
+          <div className="xg-step__title">{t('onboarding.session.detected')}</div>
+          <div className="xg-step__hint">{t('onboarding.session.loggedInAs', { handle })}</div>
+        </Step>
+        <Step state="blocked" marker={<X size={18} />}>
+          <div className="xg-step__title">{t('onboarding.scan.title')}</div>
+          <div className="xg-step__hint">{t('onboarding.limit.unavailable', { limit })}</div>
+        </Step>
       </ol>
 
       <div className="xg-onb__cta xg-onb__cta--limit">
@@ -109,6 +97,27 @@ function FollowerLimitScreen({ account, handle }: { account: TrackedAccount; han
         <p>{t('onboarding.limit.otherAccount', { limit })}</p>
       </div>
     </main>
+  );
+}
+
+/** Étape de l'écran de démarrage : pastille (numéro ou icône) et contenu. */
+function Step({
+  state,
+  marker,
+  body = false,
+  children,
+}: {
+  state?: 'done' | 'current' | 'blocked';
+  marker: ReactNode;
+  /** Le contenu prend toute la largeur, en colonne. */
+  body?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <li className={`xg-step${state ? ` is-${state}` : ''}`}>
+      <span className="xg-step__num">{marker}</span>
+      <div className={body ? 'xg-step__body' : undefined}>{children}</div>
+    </li>
   );
 }
 
@@ -128,7 +137,7 @@ export function OnboardingApp() {
   const session = useSessionDetection();
   const account = app.accounts.find((a) => a.id === session?.accountId);
   const { data } = useAccountData(account?.id);
-  const { start, busy } = useStartScan();
+  const { start, busy } = useStartScan(account?.id);
   const backup = useBackupImport();
   const fileInput = useRef<HTMLInputElement>(null);
   const [stopping, setStopping] = useState(false);
@@ -178,17 +187,12 @@ export function OnboardingApp() {
 
   return (
     <main className="xg-onb">
-      <div className="xg-brand">
-        <Logo size={56} />
-        <span>{t('common.appName')}</span>
-      </div>
+      <Brand logoSize={56} />
       <h1>{t('onboarding.title')}</h1>
       <p className="xg-onb__lead">{t('onboarding.lead')}</p>
 
       <ol className="xg-boxlist xg-onb__steps">
-        <li className={`xg-step${session?.loggedIn ? ' is-done' : ' is-current'}`}>
-          <span className="xg-step__num">{session?.loggedIn ? <Check size={18} /> : 1}</span>
-          <div>
+        <Step state={session?.loggedIn ? 'done' : 'current'} marker={session?.loggedIn ? <Check size={18} /> : 1}>
             <div className="xg-step__title">
               {session?.loggedIn ? t('onboarding.session.detected') : t('onboarding.session.connect')}
             </div>
@@ -206,12 +210,9 @@ export function OnboardingApp() {
                 <ExternalLink href={X_LOGIN_URL}>{t('common.openX')}</ExternalLink>
               </div>
             )}
-          </div>
-        </li>
+        </Step>
 
-        <li className={`xg-step${done ? ' is-done' : session?.loggedIn ? ' is-current' : ''}`}>
-          <span className="xg-step__num">{done ? <Check size={18} /> : 2}</span>
-          <div className="xg-step__body">
+        <Step state={done ? 'done' : session?.loggedIn ? 'current' : undefined} marker={done ? <Check size={18} /> : 2} body>
             <div className="xg-step__row">
               <span className="xg-step__title">{step2Title}</span>
               {scanning && progress && (
@@ -240,14 +241,7 @@ export function OnboardingApp() {
                   {t('onboarding.scan.incomplete', { pct: formatPercent(scanCoverage(account.lastScan)) })}
                 </div>
                 <div className="xg-onb__actions">
-                  <button
-                    type="button"
-                    className="xg-btn xg-btn--primary"
-                    disabled={busy}
-                    onClick={() => void start({ full: true, announce: false })}
-                  >
-                    {t('common.continueScan')}
-                  </button>
+                  <ContinueScanButton accountId={account.id} />
                   <button type="button" className="xg-btn xg-btn--secondary" disabled={stopping} onClick={() => void stop()}>
                     {t('onboarding.scan.stop')}
                   </button>
@@ -258,9 +252,9 @@ export function OnboardingApp() {
                 <div className="xg-step__hint">{t('onboarding.choice.hint')}</div>
                 <div className="xg-onb__choices">
                   <section className="xg-onb__choice">
-                    <h3>
+                    <h2>
                       <RefreshCw size={20} /> {t('onboarding.choice.syncTitle')}
-                    </h3>
+                    </h2>
                     <p>{t('onboarding.choice.syncText')}</p>
                     <button
                       type="button"
@@ -272,9 +266,9 @@ export function OnboardingApp() {
                     </button>
                   </section>
                   <section className="xg-onb__choice">
-                    <h3>
+                    <h2>
                       <Upload size={20} /> {t('onboarding.choice.restoreTitle')}
-                    </h3>
+                    </h2>
                     <p>{t('onboarding.choice.restoreText')}</p>
                     <button
                       type="button"
@@ -298,12 +292,9 @@ export function OnboardingApp() {
                 </div>
               </>
             ) : null}
-          </div>
-        </li>
+        </Step>
 
-        <li className={`xg-step${session?.loggedIn ? ' is-current' : ''}`}>
-          <span className="xg-step__num">3</span>
-          <div className="xg-step__body">
+        <Step state={session?.loggedIn ? 'current' : undefined} marker={3} body>
             <div className="xg-step__title">{t('onboarding.frequency.title')}</div>
             <div className="xg-step__hint">{t('onboarding.frequency.hint')}</div>
             <Segmented<Frequency>
@@ -313,8 +304,7 @@ export function OnboardingApp() {
               value={app.settings.frequencyHours}
               onChange={(frequencyHours) => void app.updateSettings({ frequencyHours })}
             />
-          </div>
-        </li>
+        </Step>
       </ol>
 
       <div className="xg-onb__cta">

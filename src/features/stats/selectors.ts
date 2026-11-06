@@ -1,4 +1,4 @@
-import { byProfile, followDuration, isVisible, netMovement, type VisibilityContext } from '@/features/events/selectors';
+import { arrivals, byProfile, followDuration, isVisible, netMovement, type VisibilityContext } from '@/domain/events/selectors';
 import type { FollowEvent } from '@/shared/types';
 import { DAY, startOfDay } from '@/shared/utils/time';
 
@@ -16,6 +16,9 @@ export function oldestEventAt(events: readonly FollowEvent[]): number | undefine
   for (const e of events) if (oldest === undefined || e.at < oldest) oldest = e.at;
   return oldest;
 }
+
+/** Début du suivi d'un compte : sa référence, ou à défaut le plus ancien mouvement connu. */
+export const trackingFloor = (baselineAt: number | undefined, events: readonly FollowEvent[]) => baselineAt ?? oldestEventAt(events);
 
 /** Début (local) du jour, de la semaine (lundi) ou du mois contenant `at`. */
 export function startOf(unit: Unit, at: number): number {
@@ -135,7 +138,7 @@ export function followerSeries(
 }
 
 /** Tranches de durée de suivi des départs (§ 3.4). `before` : déjà abonné au premier scan. */
-export const DURATION_BUCKETS = ['lt1w', 'w1to3', 'm1to3', 'gt3m', 'before'] as const;
+const DURATION_BUCKETS = ['lt1w', 'w1to3', 'm1to3', 'gt3m', 'before'] as const;
 export type DurationBucket = (typeof DURATION_BUCKETS)[number];
 
 /** Durée minimale de chaque tranche : une tranche plus longue que le suivi est impossible. */
@@ -146,8 +149,11 @@ const BUCKET_MIN: Record<Exclude<DurationBucket, 'before'>, number> = {
   gt3m: 90 * DAY,
 };
 
-const bucketOf = (ms: number): Exclude<DurationBucket, 'before'> =>
-  ms < 7 * DAY ? 'lt1w' : ms < 21 * DAY ? 'w1to3' : ms < 90 * DAY ? 'm1to3' : 'gt3m';
+/** Tranche d'une durée de suivi : la plus longue dont la durée minimale est atteinte. */
+const bucketOf = (ms: number) => {
+  const buckets = Object.keys(BUCKET_MIN) as (keyof typeof BUCKET_MIN)[];
+  return buckets.findLast((bucket) => ms >= BUCKET_MIN[bucket]) ?? 'lt1w';
+};
 
 export interface DurationRow {
   bucket: DurationBucket;
@@ -203,10 +209,10 @@ export function retention(
   now: number,
 ): Record<(typeof RETENTION_DAYS)[number], number | null> {
   const index = byProfile(events);
-  const arrivals = events.filter((e) => e.type === 'arrival' && isVisible(e, ctx));
+  const visible = arrivals(events, ctx);
   const result = {} as Record<(typeof RETENTION_DAYS)[number], number | null>;
   for (const n of RETENTION_DAYS) {
-    const judged = arrivals.filter((a) => a.at >= from - n * DAY && a.at + n * DAY <= now);
+    const judged = visible.filter((a) => a.at >= from - n * DAY && a.at + n * DAY <= now);
     if (judged.length === 0) {
       result[n] = null;
       continue;

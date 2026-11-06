@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { FollowerLimitAlert } from '@/features/accounts/ui/FollowerLimitAlert';
 import type { AccountData } from '@/features/app-state/useAccountData';
-import { statsSince, type VisibilityContext } from '@/features/events/selectors';
+import { statsSince, type VisibilityContext } from '@/domain/events/selectors';
 import { DASHBOARD_PERIODS, periodStart, type DashboardPeriod } from '@/features/stats/period';
-import { oldestEventAt } from '@/features/stats/selectors';
+import { trackingFloor } from '@/features/stats/selectors';
 import { useChartCards } from '@/features/stats/ui/useChartCards';
 import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { ArrivalsPanel } from '@/features/events/ui/ArrivalsPanel';
@@ -41,7 +41,7 @@ interface Props {
 export function Dashboard({ account, data, ctx, status, now, hiddenCharts = DEFAULT_SETTINGS.hiddenCharts, onShowAllDepartures, onShowAllArrivals }: Props) {
   const [period, setPeriod] = useStoredChoice<DashboardPeriod>('xg.dashboardPeriod', DASHBOARD_PERIODS, '30d');
   // Sans date de référence (cas rare), « Tout » part du plus ancien mouvement connu.
-  const floor = account.baselineAt ?? oldestEventAt(data.events);
+  const floor = trackingFloor(account.baselineAt, data.events);
   const from = periodStart(period, now, floor);
   const stats = useMemo(() => statsSince(data.events, ctx, from), [data.events, ctx, from]);
 

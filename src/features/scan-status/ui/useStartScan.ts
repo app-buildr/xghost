@@ -1,27 +1,27 @@
 import { useCallback, useState } from 'react';
 import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
+import type { CheckRefusal } from '@/shared/messaging/protocol';
 import { useToast } from '@/shared/ui/toast';
 
-/** Raisons pour lesquelles le service worker refuse de lancer une vérification. */
-type ScanRefusal = 'disconnected' | 'already-running' | 'rate-limit' | 'follower-limit';
-
-const REFUSALS: Record<ScanRefusal, () => string> = {
+const REFUSALS: Partial<Record<CheckRefusal, () => string>> = {
   disconnected: () => t('dashboard.check.reasons.disconnected'),
   'follower-limit': () => t('dashboard.check.reasons.followerLimit'),
   'already-running': () => t('dashboard.check.reasons.alreadyRunning'),
-  'rate-limit': () => t('dashboard.check.reasons.rateLimit'),
+  'account-switched': () => t('dashboard.check.reasons.accountSwitched'),
+  importing: () => t('common.errors.importing'),
 };
 
-const refusalText = (reason: string | undefined) =>
-  (reason && reason in REFUSALS ? REFUSALS[reason as ScanRefusal]() : undefined) ?? t('dashboard.check.impossible');
+const refusalText = (reason: CheckRefusal | undefined) =>
+  (reason && REFUSALS[reason]?.()) ?? t('dashboard.check.impossible');
 
 /**
  * Lance une vérification (contrôle léger, ou scan complet avec `full`) depuis n'importe quel
  * écran : un seul envoi à la fois, refus et erreurs annoncés par un toast.
- * Renvoie `true` si la vérification a démarré.
+ * Renvoie `true` si la vérification a démarré. `accountId` : compte affiché ; si ce n'est pas
+ * le compte connecté sur x.com, la vérification est refusée au lieu de viser un autre compte.
  */
-export function useStartScan() {
+export function useStartScan(accountId?: string) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -29,7 +29,7 @@ export function useStartScan() {
     async ({ full = false, announce = full }: { full?: boolean; announce?: boolean } = {}) => {
       setBusy(true);
       try {
-        const res = await send('scan:start', { full });
+        const res = await send('scan:start', { accountId, full });
         if (!res.started) {
           toast.show(refusalText(res.reason));
           return false;
@@ -43,7 +43,7 @@ export function useStartScan() {
         setBusy(false);
       }
     },
-    [toast],
+    [accountId, toast],
   );
 
   return { start, busy };

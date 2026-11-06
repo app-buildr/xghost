@@ -16,7 +16,7 @@
     "missing_other": "{{n}} abonnés",
     "overflow": "trop de nouveaux abonnés d’un coup, scan complet lancé.",
     "nothingNew": "rien de nouveau",
-    "stale": "{{seen}}, mais le total affiché par X n’est pas encore à jour : nouvelle vérification dans 10 min.",
+    "stale": "{{seen}}, mais le total affiché par X n’est pas encore à jour : nouvelle vérification dans {{minutes}} min.",
     "missingWithSeen": "{{seen}}, et il manque encore {{missing}}, scan complet lancé pour savoir qui est parti.",
     "missingOnly": "il manque {{missing}}, scan complet lancé pour savoir qui est parti.",
     "seenOnly": "{{seen}}.",
@@ -32,7 +32,7 @@
     "reasons": {
       "disconnected": "Connecte-toi à X pour lancer une vérification",
       "alreadyRunning": "Une vérification est déjà en cours",
-      "rateLimit": "Limite de X atteinte, la vérification reprendra automatiquement",
+      "accountSwitched": "Connecte-toi à ce compte sur x.com pour le vérifier",
       "followerLimit": "Limite d’abonnés dépassée : les vérifications sont arrêtées"
     },
     "impossible": "Vérification impossible pour le moment",
@@ -51,7 +51,7 @@
       "missing": "Le contrôle rapide a vu des abonnés en moins : scan complet pour savoir qui est parti.",
       "overflow": "Trop de nouveaux abonnés pour le contrôle rapide : scan complet.",
       "incomplete": "Le scan précédent était incomplet : on le continue.",
-      "safety": "Scan de contrôle complet (tous les 10 contrôles rapides), pour rattraper ce qui aurait pu échapper.",
+      "safety": "Scan de contrôle complet (tous les {{n}} contrôles rapides), pour rattraper ce qui aurait pu échapper.",
       "recheck": "Le résultat précédent semblait anormal : nouvelle vérification complète avant de l'enregistrer."
     },
     "tag": {

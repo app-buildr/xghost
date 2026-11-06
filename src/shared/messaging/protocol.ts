@@ -1,4 +1,15 @@
-import type { FollowEvent, ImportResult, Settings } from '../types';
+import type { FollowEvent, ImportResult, ScanPauseReason, Settings } from '../types';
+
+/** Pourquoi une vérification n'a pas démarré. */
+export type CheckRefusal =
+  | 'importing'
+  | 'disconnected'
+  | 'account-switched'
+  | 'follower-limit'
+  | 'already-running'
+  | 'awaiting-choice'
+  | 'baseline-backoff'
+  | ScanPauseReason;
 
 /**
  * Messages des interfaces (popup, options, onboarding) vers le service worker.
@@ -7,7 +18,7 @@ import type { FollowEvent, ImportResult, Settings } from '../types';
 export interface Requests {
   'session:detect': { req: { explicit?: boolean } | void; res: { loggedIn: boolean; accountId?: string; handle?: string } };
   /** `full` : scan complet de toute la liste ; sinon contrôle léger des abonnés les plus récents. */
-  'scan:start': { req: { accountId?: string; full?: boolean }; res: { started: boolean; reason?: string } };
+  'scan:start': { req: { accountId?: string; full?: boolean }; res: { started: boolean; reason?: CheckRefusal } };
   'events:mark-seen': { req: { accountId: string; eventIds: string[] }; res: void };
   'events:delete': { req: { accountId: string; eventId: string }; res: { removed?: FollowEvent } };
   'events:restore': { req: { accountId: string; event: FollowEvent }; res: void };
@@ -32,6 +43,29 @@ export interface Requests {
 
 export type RequestType = keyof Requests;
 
+/**
+ * Traitement de chaque requête pendant l'import d'une sauvegarde. Un nouveau type de message
+ * sans politique ne compile pas.
+ * - `write` : refusée pendant l'import, et attendue par lui si elle a commencé avant ;
+ * - `guarded` : se protège elle-même (test du verrou, ou aucune donnée sauvegardée touchée).
+ */
+export const REQUEST_POLICY = {
+  'session:detect': 'guarded',
+  'scan:start': 'guarded',
+  'scan:focus': 'guarded',
+  'data:import': 'guarded',
+  'events:mark-seen': 'write',
+  'events:delete': 'write',
+  'events:restore': 'write',
+  'profile:ignore': 'write',
+  'settings:update': 'write',
+  'account:update': 'write',
+  'account:remove': 'write',
+  'account:select': 'write',
+  'scan:stop': 'write',
+  'scan:interrupt': 'write',
+} as const satisfies Record<RequestType, 'write' | 'guarded'>;
+
 export interface Envelope<K extends RequestType = RequestType> {
   xg: K;
   payload: Requests[K]['req'];
@@ -39,9 +73,13 @@ export interface Envelope<K extends RequestType = RequestType> {
 
 export type Reply<K extends RequestType> = { ok: true; data: Requests[K]['res'] } | { ok: false; error: string };
 
+/** Opérations GraphQL de x.com lues par xGhost. */
+export const WATCHED_OPERATIONS = ['Followers', 'UserByRestId', 'UserByScreenName'] as const;
+export type WatchedOperation = (typeof WATCHED_OPERATIONS)[number];
+
 /** Réponse lue par le script de page x.com (monde MAIN), envoyée au script isolé par le canal privé. */
 export interface HookMessage {
-  op: string;
+  op: WatchedOperation;
   url: string;
   status: number;
   body: string;
@@ -52,15 +90,21 @@ export interface HookMessage {
 
 /** Événements envoyés par les onglets x.com au service worker. */
 export type TabEvent =
-  | { xgTab: 'response'; op: string; url: string; status: number; body: string; rateReset?: number; rateRemaining?: number }
+  | ({ xgTab: 'response' } & HookMessage)
   | { xgTab: 'tick'; visible: boolean; path: string }
   | { xgTab: 'ready'; path: string };
+
+/** Réponse du service worker à `ready` : cet onglet est-il bien l'onglet de scan enregistré ? */
+export interface ReadyReply {
+  scan: boolean;
+}
 
 /**
  * Fragment posé sur l'URL d'ouverture de l'onglet de scan (chargement complet de la page). Le
  * script de page le lit puis l'efface aussitôt, avant tout code de x.com : la page ne le voit
- * jamais. Valeur neutre, sans le nom de l'extension. Ensuite, seul le service worker sait quel
- * onglet scanne (par son id) : rien dans la page ne le signale.
+ * jamais. Valeur neutre, sans le nom de l'extension, mais pas un secret (le code est public) : un
+ * lien peut le porter. Seul le service worker fait foi, par l'id de l'onglet ; ailleurs, le script
+ * de page se retire dès sa réponse.
  */
 export const SCAN_MARKER = 'k3v9q';
 
@@ -70,22 +114,37 @@ export const SCAN_MARKER = 'k3v9q';
  * bon, et les messages postés plus tard par la page ne peuvent pas s'y glisser. Clé neutre.
  */
 export const CHANNEL_PORT = 'k3v9p';
-/** Message du script isolé vers le script de page : faire avancer le rendu simulé. */
-export interface StepMessage {
-  step: 1;
-}
+/**
+ * Messages du script isolé vers le script de page : `step` fait avancer le rendu simulé ; `stop`
+ * retire tout ce que le script de page a installé (onglet ouvert avec le marqueur, mais qui n'est
+ * pas l'onglet de scan).
+ */
+export type HookCommand = { step: 1 } | { stop: 1 };
 
-/** État du scan affiché sur le voile de l'onglet x.com. */
+/**
+ * État du scan affiché sur le voile de l'onglet x.com. Les textes arrivent déjà traduits : le
+ * script isolé tourne sur tous les onglets x.com, il n'embarque ni les langues ni i18next.
+ */
 export interface VeilState {
-  collected: number;
-  /** Abonnés repris d'un scan incomplet (exclus du calcul du temps restant). */
-  seeded: number;
-  expected: number;
-  startedAt: number;
-  handle?: string;
   /** Deux états exclusifs (§ 3.5) : en cours, ou pause imposée par la limite de X. */
   state: 'running' | 'rate-limit';
+  /** Progression, de 0 à 100. */
+  percent: number;
   resumeAt?: number;
+  texts: {
+    brand: string;
+    handle: string;
+    title: string;
+    text: string;
+    count: string;
+    total: string;
+    percent: string;
+    foot: string;
+    /** Reprise : `{{countdown}}` y est remplacé par le compte à rebours, recalculé dans la page. */
+    resume: string;
+    /** Compte à rebours : formes avec `{{m}}` et `{{s}}`. */
+    countdown: { minutesSeconds: string; seconds: string; now: string; unknown: string };
+  };
 }
 
 /**

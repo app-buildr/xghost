@@ -1,8 +1,8 @@
 import { loadAccounts, loadIgnored, patchAccount } from '@/features/accounts/repository';
 import { notifyDepartures } from '@/features/alerts/notifications';
-import { eventId } from '@/features/events/codec';
-import { loadEvents, updateEvents } from '@/features/events/repository';
-import { isVisible, missingMovements, newMovements } from '@/features/events/selectors';
+import { eventId } from '@/domain/events/codec';
+import { loadEvents, loadRemoved, updateEvents } from '@/features/events/repository';
+import { isVisible, missingMovements, newMovements, wasRemoved } from '@/domain/events/selectors';
 import {
   recordTotal,
   clearPartial,
@@ -11,20 +11,24 @@ import {
   savePartial,
   saveProfiles,
   saveSnapshot,
-  type ProfileCache,
 } from '@/features/followers-sync/repository';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
-import type { FollowEvent, ScanCoverage, ScanJob, TrackedAccount } from '@/shared/types';
+import type { FollowEvent, ProfileCache, ScanCoverage, ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
 import {
   assembleOrder,
   assessQuick,
   assessScan,
+  departuresExplained,
   diffFollowers,
   fillUnreadTail,
   isComplete,
+  reachesCoverage,
   SUSPICIOUS_MAX_RETRIES,
-} from './diff';
+  type QuickAssessment,
+} from '@/domain/followers/diff';
+import { cleanFalseMovements } from './cleanup';
+import { SNAPSHOT_TOP_SIZE, STALE_RECHECK_MS } from '@/features/followers-sync/model';
 import { MINUTE } from '@/shared/utils/time';
 
 /**
@@ -34,11 +38,11 @@ import { MINUTE } from '@/shared/utils/time';
  */
 
 const SUSPICIOUS_RETRY_MS = 30 * MINUTE;
-/** Haut de la liste gardé dans l'ordre de x.com, pour le contrôle léger. */
-const SNAPSHOT_TOP_SIZE = 200;
 /** Nombre de contrôles « total X en retard » tolérés avant de lancer un scan complet. */
 const MAX_STALE_RUNS = 3;
-const STALE_RECHECK_MS = 10 * MINUTE;
+/** Entrées de X illisibles tolérées (au moins ce nombre, ou cette part de la liste). */
+const SKIPPED_MIN = 5;
+const SKIPPED_RATIO = 0.001;
 
 export type ApplyOutcome =
   | { kind: 'incomplete'; coverage: ScanCoverage }
@@ -130,7 +134,8 @@ async function repairHistory(
   now: number,
 ): Promise<FollowEvent[]> {
   if (!before) return [];
-  const fixes = missingMovements(await loadEvents(accountId), new Set(followers), before);
+  const removed = await loadRemoved(accountId);
+  const fixes = missingMovements(await loadEvents(accountId), new Set(followers), before).filter((m) => !wasRemoved(m, removed));
   const byId = new Map(fixes.map((m) => [m.profileId, m.from]));
   const added = (['departure', 'arrival'] as const).flatMap((type) =>
     makeEvents(
@@ -152,7 +157,19 @@ const coverageOf = (job: ScanJob, at: number): ScanCoverage => {
   const scanned = job.count ?? Object.keys(job.collected).length;
   const detected = job.expectedTotal;
   // Pages perdues en cours de route (service worker relancé) : jamais complet, à reprendre.
-  const complete = !job.gap && isComplete({ scanned, detected, reachedEnd: job.reachedEnd, seeded: job.seeded, totalKnown: job.totalSeen });
+  // Trop d'entrées illisibles (format de X modifié) : ces abonnés passeraient pour des départs.
+  const unreadable = (job.skipped ?? 0) > Math.max(SKIPPED_MIN, scanned * SKIPPED_RATIO);
+  const complete =
+    !job.gap &&
+    !unreadable &&
+    isComplete({
+      scanned,
+      detected,
+      reachedEnd: job.reachedEnd,
+      seeded: job.seeded,
+      reread: job.top?.length,
+      totalKnown: job.totalSeen,
+    });
   return { at, detected, scanned, complete };
 };
 
@@ -165,7 +182,8 @@ export async function saveIncomplete(job: ScanJob): Promise<ScanCoverage> {
   if (job.kind !== 'quick') {
     await savePartial(job.accountId, {
       kind: job.kind,
-      at: coverage.at,
+      // Date de lecture la plus ancienne : la sauvegarde ne rajeunit pas ces abonnés.
+      at: job.seededAt ?? job.startedAt,
       expectedTotal: job.expectedTotal,
       collected: job.collected,
     });
@@ -181,6 +199,27 @@ function orderedIds(job: ScanJob): string[] {
   return [...order, ...Object.keys(job.collected).filter((id) => !seen.has(id))];
 }
 
+/** Liste d'abonnés issue d'un scan, complétée par l'ancienne liste si besoin (fonction pure). */
+function scanList(job: ScanJob, previous: Snapshot | undefined) {
+  // Arrêt anticipé : la partie relue, puis la suite de l'ancienne liste, inchangée. Refusé si
+  // des pages ont été perdues (`gap`) ou des entrées illisibles : leurs abonnés passeraient pour
+  // des départs.
+  const early = job.earlyStop && previous?.ordered && !job.gap && !job.skipped ? job.earlyStop : undefined;
+  const read = orderedIds(job);
+  // Fin de liste jamais atteinte (chargement bloqué malgré une couverture suffisante), ou annoncée
+  // sous la couverture d'un scan complet : la suite non relue est reprise de l'ancienne liste au
+  // lieu d'être déclarée partie.
+  const coverageReached = job.expectedTotal <= 0 || reachesCoverage(job.count ?? read.length, job.expectedTotal);
+  const tailFilled = !early && !!previous?.ordered && (!job.reachedEnd || !coverageReached);
+  const ids =
+    early && previous
+      ? assembleOrder(previous.ids, read, early.matchedIndex)
+      : tailFilled && previous
+        ? fillUnreadTail(previous.ids, read)
+        : read;
+  return { early, read, tailFilled, ids };
+}
+
 export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   const now = Date.now();
   const accountId = job.accountId;
@@ -190,32 +229,23 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
     loadAccounts(),
   ]);
   const account = accounts[accountId];
-  // Arrêt anticipé : la partie relue, puis la suite de l'ancienne liste, inchangée. Refusé si
-  // des pages ont été perdues (`gap`) : leurs abonnés passeraient pour des départs.
-  const early = job.earlyStop && previous?.ordered && !job.gap ? job.earlyStop : undefined;
-  const read = orderedIds(job);
-  // Fin de liste jamais atteinte (chargement bloqué malgré une couverture suffisante) : la suite
-  // non relue est reprise de l'ancienne liste au lieu d'être déclarée partie.
-  const tailFilled = !early && !job.reachedEnd && !!previous?.ordered;
-  const ids = early
-    ? assembleOrder(previous!.ids, read, early.matchedIndex)
-    : tailFilled
-      ? fillUnreadTail(previous!.ids, read)
-      : read;
+  const { early, read, tailFilled, ids } = scanList(job, previous);
 
   // Un scan incomplet produirait de fausses arrivées puis de faux départs (§ 4.7).
   const coverage: ScanCoverage = early
     ? { at: now, detected: job.expectedTotal, scanned: ids.length, complete: true, stoppedAt: read.length }
     : coverageOf(job, now);
-  if (!coverage.complete) return { kind: 'incomplete', coverage: await saveIncomplete(job) };
+  // Fin de liste non lue et rien pour compléter : les abonnés non lus passeraient pour partis.
+  const unreadEnd = !early && !job.reachedEnd && !tailFilled;
+  if (!coverage.complete || unreadEnd) return { kind: 'incomplete', coverage: await saveIncomplete(job) };
   // Enregistré une fois le résultat accepté (pas pour un résultat suspect, qui sera refait).
   const recordCoverage = () =>
     Promise.all([
       clearPartial(accountId),
       // Scan relu de bout en bout (manuel, de contrôle, de référence…) : le compteur des
-      // contrôles légers repart de zéro. Un arrêt anticipé, ou une fin de liste non relue
-      // (reprise de l'ancienne liste), ne compte pas : le scan de contrôle reste dû.
-      patchAccount(accountId, { lastScan: coverage, ...(early || tailFilled ? {} : { quickSinceFull: 0 }) }),
+      // contrôles légers repart de zéro. Un arrêt anticipé, une fin de liste non relue (reprise de
+      // l'ancienne liste) ou une reprise de scan ne comptent pas : le scan de contrôle reste dû.
+      patchAccount(accountId, { lastScan: coverage, ...(early || tailFilled || job.seeded ? {} : { quickSinceFull: 0 }) }),
     ]);
 
   // Le cache garde aussi les profils partis : on en a besoin pour afficher les départs.
@@ -229,7 +259,8 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
         total: ids.length,
         xTotal: followersCount,
         top: ids.slice(0, SNAPSHOT_TOP_SIZE),
-        ordered: true,
+        // Abonnés repris, ou relecture depuis le haut : l'ordre n'est pas celui de x.com.
+        ordered: !job.seeded && !job.unordered,
       }),
       saveProfiles(accountId, profiles),
       localKv.remove(keys.suspicious(accountId)),
@@ -244,18 +275,33 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   }
 
   const diff = diffFollowers(previous.ids, ids);
-  const verdict = assessScan({
-    previousCount: previous.ids.length,
-    collected: ids.length,
-    expected: job.expectedTotal,
+  // Départs que la baisse du total X n'explique pas : la liste lue est coupée, rien n'est comparé.
+  // Le total de l'instantané a déjà baissé de l'écart en attente repéré par le contrôle léger.
+  const explained = departuresExplained({
+    previousTotal: (previous.xTotal ?? previous.total) + (account.pending?.count ?? 0),
+    currentTotal: job.expectedTotal,
+    arrivals: diff.arrivals.length,
     departures: diff.departures.length,
+    previousCount: previous.ids.length,
   });
-  if (verdict === 'suspicious') {
+  const unexplained = !!job.totalSeen && !explained;
+  const verdict = assessScan({ previousCount: previous.ids.length, departures: diff.departures.length });
+  if (unexplained || verdict === 'suspicious') {
     const runs = ((await localKv.get<number>(keys.suspicious(accountId))) ?? 0) + 1;
-    if (runs < SUSPICIOUS_MAX_RETRIES) {
+    // Sans total lu pendant ce scan, rien ne confirme la variation : jamais acceptée par répétition.
+    if (runs >= SUSPICIOUS_MAX_RETRIES && !job.totalSeen) {
+      return { kind: 'incomplete', coverage: await saveIncomplete(job) };
+    }
+    // X peut garder dans son total des comptes suspendus : le même résultat, relu en entier
+    // plusieurs fois, est réel. Sans cette sortie, la détection resterait figée.
+    const readInFull = !early && !job.seeded;
+    if (runs < SUSPICIOUS_MAX_RETRIES || (unexplained && !readInFull)) {
       // La nouvelle vérification relit toute la liste : pas de reprise d'un scan partiel,
       // dont les abonnés partis depuis masqueraient de vrais départs.
-      await Promise.all([localKv.set({ [keys.suspicious(accountId)]: runs }), clearPartial(accountId)]);
+      await Promise.all([
+        localKv.set({ [keys.suspicious(accountId)]: Math.min(runs, SUSPICIOUS_MAX_RETRIES) }),
+        clearPartial(accountId),
+      ]);
       return { kind: 'retry', reason: 'suspicious', at: now + SUSPICIOUS_RETRY_MS };
     }
     // Même résultat plusieurs fois de suite : la variation est réelle.
@@ -278,6 +324,8 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   await updateAccountAfterScan(accountId, now, followersCount, false);
 
   await notifyVisible(account, [...departures, ...repaired], ignored);
+  // Après la notification : un échec ici n'a pas à remettre en cause le scan.
+  await cleanFalseMovements(accountId).catch((err) => console.error(err));
   return { kind: 'compared', departures: departures.length, arrivals: added.length - departures.length };
 }
 
@@ -293,6 +341,7 @@ async function updateAccountAfterScan(
     lastScanAt: at,
     followersCount,
     pending: undefined,
+    quickFailures: undefined,
     // Référence obtenue : les essais automatiques du scan de référence s'arrêtent là.
     ...(isBaseline ? { baselineRetry: undefined } : {}),
     // La date de référence d'origine est conservée (sauvegarde importée) ; § 4.5.
@@ -303,6 +352,26 @@ async function updateAccountAfterScan(
 // ---------------------------------------------------------------------------
 // Contrôle léger
 // ---------------------------------------------------------------------------
+
+const sameList = (a: readonly string[] | undefined, b: readonly string[] | undefined) =>
+  a === b || (!!a && !!b && a.length === b.length && a.every((id, i) => id === b[i]));
+
+const sameSnapshot = (a: Snapshot, b: Snapshot) => a.xTotal === b.xTotal && sameList(a.ids, b.ids) && sameList(a.top, b.top);
+
+/** Un profil lu diffère de ceux déjà enregistrés. */
+const profilesChanged = (cached: ProfileCache, read: ProfileCache) =>
+  Object.entries(read).some(([id, p]) => {
+    const known = cached[id];
+    return !known || known.handle !== p.handle || known.name !== p.name || known.avatar !== p.avatar || known.following !== p.following;
+  });
+
+/** Compteur X en retard sur la liste (fonction pure) : il faut revérifier plus tard. */
+function isLagging(quick: QuickAssessment, last: TrackedAccount['lastQuick'], currentTotal: number): boolean {
+  const staleRuns = last?.staleRuns ?? 0;
+  if (quick.missing <= 0 || quick.overflow || staleRuns >= MAX_STALE_RUNS) return false;
+  // Revérification : toujours aucun nouveau, et le total X n'a pas baissé depuis le contrôle précédent.
+  return quick.maybeStale || (staleRuns > 0 && quick.arrivals.length === 0 && currentTotal >= (last?.total ?? Infinity));
+}
 
 /**
  * Fin d'un contrôle léger : enregistre les nouveaux abonnés vus en tête de liste et les
@@ -337,8 +406,8 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   // --- Instantané : arrivées en tête, départs identifiés retirés (ordre de x.com conservé) ---
   const departedSet = new Set(quick.departed);
   const remaining = previous.ids.filter((id) => !departedSet.has(id));
-  const ids = [...quick.arrivals, ...remaining];
   const pageSet = new Set(pageIds);
+  const ids = [...quick.arrivals, ...remaining];
 
   // Compteur X en retard sur la liste : on revérifie plus tard au lieu de lancer un scan complet.
   // Le total attendu devient la référence ; si X ne le rattrape pas après quelques contrôles,
@@ -347,14 +416,7 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   // contrôle (écart, compteurs) ; on reprend son verdict au lieu de tout recompter.
   const replayed = account.lastQuick?.job === job.startedAt ? account.lastQuick : undefined;
   const previousStale = account.lastQuick?.staleRuns ?? 0;
-  const lagging = replayed
-    ? replayed.staleRuns !== undefined
-    : quick.missing > 0 &&
-    !quick.overflow &&
-    previousStale < MAX_STALE_RUNS &&
-    (quick.maybeStale ||
-      // Revérification : toujours aucun nouveau, et le total X n'a pas baissé depuis le contrôle précédent.
-      (previousStale > 0 && quick.arrivals.length === 0 && job.expectedTotal >= (account.lastQuick?.total ?? Infinity)));
+  const lagging = replayed ? replayed.staleRuns !== undefined : isLagging(quick, account.lastQuick, job.expectedTotal);
 
   // Écart à identifier enregistré avant l'instantané : si le service worker s'arrête entre
   // les deux, l'écart n'est pas perdu (l'ancien instantané reste la référence).
@@ -362,6 +424,7 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   // Total de X relevé pour la courbe des abonnés (pas quand il est en retard sur la liste).
   if (!lagging) await recordTotal(accountId, job.expectedTotal, now);
   if (!replayed) await patchAccount(accountId, {
+    quickFailures: undefined,
     lastScanAt: now,
     followersCount: job.expectedTotal,
     pending: found
@@ -389,18 +452,20 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
       ...makeEvents('arrival', quick.arrivals, now, job.collected),
     ], ignored),
   );
+  const snapshot: Snapshot = {
+    at: previous.at,
+    ids,
+    total: ids.length,
+    xTotal: lagging ? previousTotal + quick.arrivals.length - quick.departed.length : job.expectedTotal,
+    top: previous.ordered
+      ? [...pageIds, ...remaining.filter((id) => !pageSet.has(id))].slice(0, SNAPSHOT_TOP_SIZE)
+      : [...pageIds],
+    ordered: previous.ordered,
+  };
+  // Ces deux clés font plusieurs Mo : rien n'est réécrit pour un contrôle sans changement.
   await Promise.all([
-    saveSnapshot(accountId, {
-      at: previous.at,
-      ids,
-      total: ids.length,
-      xTotal: lagging ? previousTotal + quick.arrivals.length - quick.departed.length : job.expectedTotal,
-      top: previous.ordered
-        ? [...pageIds, ...remaining.filter((id) => !pageSet.has(id))].slice(0, SNAPSHOT_TOP_SIZE)
-        : [...pageIds],
-      ordered: previous.ordered,
-    }),
-    saveProfiles(accountId, profiles),
+    sameSnapshot(previous, snapshot) ? undefined : saveSnapshot(accountId, snapshot),
+    profilesChanged(cachedProfiles, job.collected) ? saveProfiles(accountId, profiles) : undefined,
   ]);
   const repaired = await repairHistory(accountId, ids, lastCheck(account), ignored, profiles, now);
 

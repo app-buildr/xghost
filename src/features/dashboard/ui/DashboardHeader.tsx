@@ -4,7 +4,7 @@ import { nextCheckAt } from '@/features/scheduler/alarms';
 import { t } from '@/shared/i18n';
 import { DASHBOARD_PERIODS, type DashboardPeriod } from '@/features/stats/period';
 import type { TrackedAccount } from '@/shared/types';
-import { Segmented } from '@/shared/ui/primitives';
+import { PeriodPicker } from '@/features/stats/ui/PeriodPicker';
 import { formatAgo, formatIn, joinParts } from '@/shared/utils/format';
 import { CheckNowButton } from './CheckNowButton';
 import { quickSummary } from './quickSummary';
@@ -58,12 +58,7 @@ export function DashboardHeader({
       </div>
       <div className="xg-dash__actions">
         {period && (
-          <Segmented<DashboardPeriod>
-            label={t('stats.period.label')}
-            value={period.value}
-            onChange={period.onChange}
-            options={DASHBOARD_PERIODS.map((p) => ({ value: p, label: t(`stats.period.${p}`) }))}
-          />
+          <PeriodPicker periods={DASHBOARD_PERIODS} value={period.value} onChange={period.onChange} />
         )}
         <CheckNowButton account={account} progress={progress} />
       </div>

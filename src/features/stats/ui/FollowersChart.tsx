@@ -24,7 +24,7 @@ export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeri
   const end = points.at(-1);
   if (!first || !end) {
     return (
-      <figure className="xg-stat">
+      <figure className="xg-chart-card">
         <StatHead title={t('stats.followers.title')} />
         <p className="xg-empty">{t('stats.followers.empty')}</p>
       </figure>
@@ -65,7 +65,7 @@ export function FollowersChart({ series, all, axisFrom }: { series: FollowerSeri
   });
 
   return (
-    <figure className="xg-stat">
+    <figure className="xg-chart-card">
       <StatHead
         title={t('stats.followers.title')}
         sub={range}

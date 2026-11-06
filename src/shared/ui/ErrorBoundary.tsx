@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { t } from '@/shared/i18n';
+import { Banner } from './primitives';
 
 /**
  * Isole une erreur de rendu (ex. données illisibles) : le reste de la page continue de
@@ -29,9 +30,9 @@ export class ErrorBoundary extends Component<
     if (!this.state.failed) return this.props.children;
     return (
       this.props.fallback ?? (
-        <div className="xg-banner xg-banner--warn" role="alert">
+        <Banner role="alert">
           <span>{t('common.errors.render')}</span>
-        </div>
+        </Banner>
       )
     );
   }

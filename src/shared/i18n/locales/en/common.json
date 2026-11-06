@@ -62,7 +62,8 @@
     "showTab": "Show the x.com tab",
     "progressLabel": "Scan progress",
     "hintWithRemaining": "{{hint}} {{remaining}}.",
-    "stop": "Stop scan"
+    "stop": "Stop scan",
+    "checksFailing": "xGhost can’t read x.com anymore: the latest checks didn’t finish. Run a full scan, or try again later."
   },
   "actions": {
     "copied": "@{{handle}} copied",

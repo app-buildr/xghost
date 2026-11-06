@@ -1,11 +1,11 @@
 import { remainingLabel } from '@/features/followers-sync/estimate';
-import { GIVE_UP_MS, SHOW_STUCK_AFTER_MS, type ScanProgress } from '@/features/followers-sync/model';
+import { GIVE_UP_MS, SAFETY_EVERY, SHOW_STUCK_AFTER_MS, type ScanProgress } from '@/features/followers-sync/model';
 import { pauseMessage, rateLimitText, scanTabHint, stallText } from '@/features/scan-status/messages';
 import { scanCoverage } from '@/features/scan-status/progress';
 import { LastScanBar, ScanProgressBar } from '@/features/scan-status/ui/ScanProgressBar';
+import { ContinueScanButton } from '@/features/scan-status/ui/ContinueScanButton';
 import { ShowScanTabButton } from '@/features/scan-status/ui/ShowScanTabButton';
 import { StopScanButton } from '@/features/scan-status/ui/StopScanButton';
-import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
 import type { ScanReason, TrackedAccount } from '@/shared/types';
@@ -29,7 +29,7 @@ const REASONS: Partial<Record<ScanReason, () => string>> = {
   missing: () => t('dashboard.coverage.reasons.missing'),
   overflow: () => t('dashboard.coverage.reasons.overflow'),
   incomplete: () => t('dashboard.coverage.reasons.incomplete'),
-  safety: () => t('dashboard.coverage.reasons.safety'),
+  safety: () => t('dashboard.coverage.reasons.safety', { n: SAFETY_EVERY }),
   recheck: () => t('dashboard.coverage.reasons.recheck'),
 };
 
@@ -80,7 +80,6 @@ export function ScanCoverageCard({
   progress?: ScanProgress;
   now: number;
 }) {
-  const { start, busy } = useStartScan();
   const live = progress && progress.kind !== 'quick' ? progress : undefined;
   // Horloge propre à la carte pendant un scan : l'état « bloqué » apparaît sans attendre le parent.
   const clock = useNow(5 * SECOND, !!live);
@@ -183,16 +182,7 @@ export function ScanCoverageCard({
             <span>{t('dashboard.coverage.departuresAfterComplete')}</span>
           </div>
           {/* Limite d'abonnés dépassée (§ 4.9) : le scan ne peut plus être continué. */}
-          {!account.limit && (
-            <button
-              type="button"
-              className="xg-btn xg-btn--primary"
-              disabled={busy}
-              onClick={() => void start({ full: true, announce: false })}
-            >
-              {t('common.continueScan')}
-            </button>
-          )}
+          {!account.limit && <ContinueScanButton accountId={account.id} />}
         </div>
       ) : (
         <div className="xg-coverage__foot">

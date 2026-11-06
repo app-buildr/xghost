@@ -7,9 +7,8 @@ export function parseVersion(tag: unknown): string | null {
 }
 
 /**
- * La version publiée `latest` est plus récente que la version installée `current`.
- * Une version installée en avance (en développement) ne déclenche rien, une version
- * illisible non plus.
+ * La version `latest` (celle d'une sauvegarde) est plus récente que la version installée
+ * `current`. Une version illisible ne déclenche rien.
  */
 export function isNewer(latest: string | null | undefined, current: string): boolean {
   const a = parseVersion(latest)?.split('.').map(Number);

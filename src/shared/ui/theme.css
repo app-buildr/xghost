@@ -1,9 +1,9 @@
 /* Polices embarquées (§ 2.2) : aucun appel réseau. */
-@import '@fontsource/inter/latin-400.css';
-@import '@fontsource/inter/latin-500.css';
-@import '@fontsource/inter/latin-600.css';
-@import '@fontsource/manrope/latin-700.css';
-@import '@fontsource/manrope/latin-800.css';
+@font-face { font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 400; src: url('@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 500; src: url('@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 600; src: url('@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-display: swap; font-weight: 700; src: url('@fontsource/manrope/files/manrope-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-display: swap; font-weight: 800; src: url('@fontsource/manrope/files/manrope-latin-800-normal.woff2') format('woff2'); }
 
 /* Jetons du thème (§ 2.1). Aucune couleur en dur ailleurs. */
 :root {
@@ -18,7 +18,6 @@
   --xg-danger-tint: #fdedea;
   --xg-danger-border: #f3c9c1;
   --xg-danger-button-text: #b02a16;
-  --xg-accent: #ff6b4a;
   /* Barres de départ du graphique : corail un peu plus soutenu (contraste ≥ 3:1 sur blanc). */
   --xg-chart-departure: #f4603f;
 
@@ -28,8 +27,10 @@
   --xg-background: #f5f6f8;
   --xg-surface: #ffffff;
   --xg-surface-muted: #f1f2f5;
+  /* Fond de barre en pause : même valeur que le voile de l'onglet de scan. */
+  --xg-track: #eef0f3;
   --xg-border: #e6e8ec;
-  --xg-toggle-off: #d5d9e0;
+  --xg-toggle-off: #8b93a1;
   --xg-success: #1c5c3a;
   --xg-success-tint: #e3f2ea;
   --xg-disabled-icon: #9aa1ad;
@@ -60,11 +61,43 @@
   --xg-font-display: 'Manrope', system-ui, sans-serif;
   --xg-font-text: 'Inter', system-ui, sans-serif;
 
+  --xg-radius-bar-sm: 2px;
+  --xg-radius-bar: 4px;
   --xg-radius-control: 10px;
+  --xg-radius-lg: 12px;
   --xg-radius-block: 14px;
+  --xg-radius-xl: 16px;
   --xg-radius-card: 18px;
+  --xg-radius-pill: 999px;
+
+  /* Tailles de texte. */
+  --xg-text-xs: 12px;
+  --xg-text-sm: 13px;
+  --xg-text-md: 14px;
+  --xg-text-base: 15px;
+  --xg-text-lg: 16px;
+  --xg-text-xl: 17px;
+  --xg-text-2xl: 18px;
+
+  /* Mouvement. */
+  --xg-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --xg-dur-fast: 0.15s;
+  --xg-dur-bubble: 0.18s;
+  --xg-dur-base: 0.2s;
+  --xg-dur-slide: 0.3s;
+
+  /* Empilement. */
+  --xg-z-raised: 5;
+  --xg-z-sticky: 10;
+  --xg-z-menu: 20;
+  --xg-z-tooltip: 30;
+  --xg-z-toast: 50;
+
+  /* Hauteur des contrôles, espace entre les blocs d'une page. */
+  --xg-control-h: 40px;
+  --xg-control-h-lg: 48px;
+  --xg-gap-section: 24px;
   --xg-shadow-selected: 0 1px 2px rgba(17, 19, 24, 0.07);
-  --xg-focus: 0 0 0 3px rgba(15, 118, 110, 0.28);
 }
 
 *,
@@ -107,12 +140,14 @@ a {
 }
 
 :focus-visible {
-  outline: none;
-  box-shadow: var(--xg-focus);
+  outline: 2px solid var(--xg-primary);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
     animation: none !important;
   }

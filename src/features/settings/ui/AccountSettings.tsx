@@ -4,7 +4,7 @@ import { t } from '@/shared/i18n';
 import { send } from '@/shared/messaging/client';
 import type { TrackedAccount } from '@/shared/types';
 import { ConfirmAction } from '@/shared/ui/ConfirmAction';
-import { Avatar } from '@/shared/ui/primitives';
+import { Avatar, Card } from '@/shared/ui/primitives';
 import { useToast } from '@/shared/ui/toast';
 import './settings.css';
 
@@ -16,8 +16,7 @@ export function IgnoredAccounts({ account, data }: { account: TrackedAccount; da
     data.profiles[id]?.handle ?? data.events.find((e) => e.profileId === id)?.handle ?? id;
 
   return (
-    <section className="xg-card">
-      <h2 className="xg-card__title">{t('options.account.ignoredTitle')}</h2>
+    <Card title={t('options.account.ignoredTitle')}>
       {ignored.length === 0 ? (
         <p className="xg-setting__hint">{t('options.account.noIgnored', { handle: account.handle })}</p>
       ) : (
@@ -40,7 +39,7 @@ export function IgnoredAccounts({ account, data }: { account: TrackedAccount; da
           })}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -48,8 +47,7 @@ export function IgnoredAccounts({ account, data }: { account: TrackedAccount; da
 export function RemoveAccount({ account }: { account: TrackedAccount }) {
   const toast = useToast();
   return (
-    <section className="xg-card">
-      <h2 className="xg-card__title">{t('options.account.removeTitle', { handle: account.handle })}</h2>
+    <Card title={t('options.account.removeTitle', { handle: account.handle })}>
       <p className="xg-setting__hint">{t('options.account.removeHint')}</p>
       <ConfirmAction
         danger
@@ -64,6 +62,6 @@ export function RemoveAccount({ account }: { account: TrackedAccount }) {
           }
         }}
       />
-    </section>
+    </Card>
   );
 }

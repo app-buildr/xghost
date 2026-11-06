@@ -8,6 +8,10 @@
   "exportFailed": "Export failed",
   "confirmText": "Import “{{file}}”? All current xGhost data will be replaced with the backup’s.",
   "confirmImport": "Replace my data",
+  "exportFirst": "Export my data first",
+  "summary_one": "This file contains {{accounts}} and {{n}} movement, saved on {{date}}.",
+  "summary_other": "This file contains {{accounts}} and {{n}} movements, saved on {{date}}.",
+  "tooLargeWarning": "Warning: this backup is larger than xGhost can import again. Keep this file and remove an account you no longer need before exporting again.",
   "imported": "Backup imported: xGhost is back to the backup’s state",
   "errors": {
     "invalid": "This file isn’t a valid xGhost backup: nothing was changed",

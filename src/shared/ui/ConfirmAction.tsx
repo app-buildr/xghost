@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { t } from '@/shared/i18n';
 
 /**
- * Action à confirmer (retrait de compte, import…) : un premier bouton, puis « Confirmer / Annuler ».
+ * Action à confirmer (retrait de compte) : un premier bouton, puis « Confirmer / Annuler ».
  * Le bouton de confirmation est désactivé pendant l'action ; une erreur rend la main sans fermer.
  */
 export function ConfirmAction({
@@ -10,13 +10,11 @@ export function ConfirmAction({
   confirmLabel,
   onConfirm,
   danger = false,
-  disabled = false,
 }: {
   label: string;
   confirmLabel: string;
   onConfirm: () => Promise<void>;
   danger?: boolean;
-  disabled?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -24,7 +22,7 @@ export function ConfirmAction({
 
   if (!confirming) {
     return (
-      <button type="button" className={`xg-btn ${tone}`} disabled={disabled} onClick={() => setConfirming(true)}>
+      <button type="button" className={`xg-btn ${tone}`} onClick={() => setConfirming(true)}>
         {label}
       </button>
     );

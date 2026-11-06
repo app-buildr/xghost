@@ -3,6 +3,7 @@ import type { ScanProgress } from '@/features/followers-sync/model';
 import { t } from '@/shared/i18n';
 import type { GlobalStatus, TrackedAccount } from '@/shared/types';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
+import { Banner } from '@/shared/ui/primitives';
 import { formatNumber, formatProgressCount } from '@/shared/utils/format';
 import { X_LOGIN_URL } from '@/shared/x-urls';
 import { pauseMessage, scanTabHint, stallText } from '../messages';
@@ -10,6 +11,9 @@ import { ScanProgressBar } from './ScanProgressBar';
 import { ShowScanTabButton } from './ShowScanTabButton';
 import { StopScanButton } from './StopScanButton';
 import { useStartScan } from './useStartScan';
+
+/** Contrôles légers abandonnés d'affilée à partir desquels l'utilisateur est prévenu. */
+const QUICK_FAILURES_SHOWN = 3;
 
 /** Bandeau d'état : session, scan en cours, pause (limite, onglet requis, autre compte). */
 export function ScanStatusBanner({
@@ -25,15 +29,15 @@ export function ScanStatusBanner({
   now: number;
   compact?: boolean;
 }) {
-  const { start, busy } = useStartScan();
+  const { start, busy } = useStartScan(account?.id);
   if (status?.session === 'disconnected') {
     return (
-      <div className="xg-banner xg-banner--warn" role="status">
+      <Banner>
         <span>{t('common.scanStatus.noSession')}</span>
         <ExternalLink className="xg-btn xg-btn--secondary" href={X_LOGIN_URL}>
           {t('common.openX')}
         </ExternalLink>
-      </div>
+      </Banner>
     );
   }
   // Le contrôle léger dure quelques secondes, en arrière-plan : rien à afficher.
@@ -42,7 +46,7 @@ export function ScanStatusBanner({
   if (!live && account?.pending) {
     const { count, full } = account.pending;
     return (
-      <div className="xg-banner xg-banner--warn" role="status">
+      <Banner>
         <span>
           {count > 0
             ? t('common.scanStatus.pendingCount', { count, n: formatNumber(count) })
@@ -53,20 +57,28 @@ export function ScanStatusBanner({
         <button type="button" className="xg-btn xg-btn--primary" disabled={busy} onClick={() => void start({ full: true })}>
           {t('common.scanStatus.identify')}
         </button>
-      </div>
+      </Banner>
+    );
+  }
+  // Contrôles légers sans réponse d'affilée : la détection est arrêtée, il faut le dire.
+  if (!live && (account?.quickFailures ?? 0) >= QUICK_FAILURES_SHOWN) {
+    return (
+      <Banner>
+        <span>{t('common.scanStatus.checksFailing')}</span>
+      </Banner>
     );
   }
   if (!live) return null;
 
   if (live.status === 'paused' && live.pausedReason === 'needs-focus' && account) {
     return (
-      <div className="xg-banner xg-banner--warn" role="status">
+      <Banner>
         <span>{stallText()}</span>
         <span className="xg-banner__actions">
           <ShowScanTabButton accountId={account.id} />
           <StopScanButton accountId={account.id} />
         </span>
-      </div>
+      </Banner>
     );
   }
 
@@ -75,7 +87,7 @@ export function ScanStatusBanner({
   if (live.status === 'running') {
     const remaining = remainingLabel(live, now);
     return (
-      <div className="xg-banner xg-banner--info xg-banner--stacked" role="status">
+      <Banner tone="info" stacked>
         <div className="xg-banner__row">
           <strong>
             {live.kind === 'baseline' ? t('common.scanStatus.baselineRunning') : t('common.scanStatus.checkRunning')}
@@ -88,13 +100,13 @@ export function ScanStatusBanner({
             ? t('common.scanStatus.hintWithRemaining', { hint: scanTabHint(), remaining })
             : scanTabHint()}
         </span>
-      </div>
+      </Banner>
     );
   }
 
   return (
-    <div className="xg-banner xg-banner--warn" role="status">
+    <Banner>
       <span>{pauseMessage(live, account)}</span>
-    </div>
+    </Banner>
   );
 }

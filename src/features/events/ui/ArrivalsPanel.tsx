@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type { AccountData } from '@/features/app-state/useAccountData';
-import { currentArrivals, type VisibilityContext } from '../selectors';
+import { currentArrivals, type VisibilityContext } from '@/domain/events/selectors';
 import { t } from '@/shared/i18n';
 import type { FollowEvent } from '@/shared/types';
 import { formatNumber } from '@/shared/utils/format';
@@ -44,15 +44,16 @@ export function ArrivalsPanel({
       limit={limit}
       onShowAll={onShowAll}
       showAllLabel={(count) => t('dashboard.arrivals.showAll', { count, n: formatNumber(count) })}
-      renderRow={(event) => (
+      renderRow={(event, rowProps) => (
         <EventRow
           key={event.id}
+          rowProps={rowProps}
           event={event}
           profiles={data.profiles}
           now={now}
           meta={data.profiles[event.profileId]?.name ? `@${event.handle}` : ''}
           newTone="follow"
-          actions={<ProfileLink handle={event.handle} />}
+          actions={<ProfileLink handle={event.handle} profileId={event.profileId} />}
         />
       )}
     />

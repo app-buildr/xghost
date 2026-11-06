@@ -1,37 +1,16 @@
 import { useCallback, useMemo } from 'react';
 import type { AccountData } from '@/features/app-state/useAccountData';
-import { followDurationLabel } from '../labels';
-import { currentDepartures, followDuration, type VisibilityContext } from '../selectors';
+import { departureMeta } from '../labels';
+import { currentDepartures, type VisibilityContext } from '@/domain/events/selectors';
 import { t } from '@/shared/i18n';
 import type { FollowEvent, TrackedAccount } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
 import { Copy, EyeOff, Trash2 } from 'lucide-react';
-import { formatNumber, joinParts } from '@/shared/utils/format';
-import { statusLabel } from './display';
+import { formatNumber } from '@/shared/utils/format';
 import { EventListPanel } from './EventListPanel';
 import { ProfileLink } from './EventParts';
 import { EventRow } from './EventRow';
 import { useEventActions } from './useEventActions';
-
-/**
- * Détails d'un départ : @handle, puis statut du compte, ou follow back (popup) et durée du suivi.
- * Le statut prime : un compte suspendu n'a pas de durée de suivi parlante.
- */
-export function departureMeta(
-  event: FollowEvent,
-  events: readonly FollowEvent[],
-  baselineAt: number | undefined,
-  now: number,
-  withFollowBack: boolean,
-): string {
-  const status = statusLabel(event);
-  if (status) return joinParts([`@${event.handle}`, status]);
-  return joinParts([
-    `@${event.handle}`,
-    withFollowBack && event.mutual ? t('dashboard.row.mutual') : undefined,
-    followDurationLabel(followDuration(event, events, baselineAt), now),
-  ]);
-}
 
 /** Liste « Derniers départs » (§ 3.4) : filtre follow back, étiquette « Nouveau », actions rapides. */
 export function DeparturesPanel({
@@ -71,16 +50,17 @@ export function DeparturesPanel({
       onShowAll={onShowAll}
       fill={fill}
       showAllLabel={(count) => t('dashboard.departures.showAll', { count, n: formatNumber(count) })}
-      renderRow={(event) => (
+      renderRow={(event, rowProps) => (
         <EventRow
           key={event.id}
+          rowProps={rowProps}
           event={event}
           profiles={data.profiles}
           now={now}
           meta={departureMeta(event, data.events, account.baselineAt, now, false)}
           actions={
             <>
-              <ProfileLink handle={event.handle} />
+              <ProfileLink handle={event.handle} profileId={event.profileId} />
               <ActionMenu
                 label={t('dashboard.row.actionsFor', { handle: event.handle })}
                 actions={[

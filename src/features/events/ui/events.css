@@ -2,6 +2,10 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  /* La liste ne grandit pas sans fin : au-delà du plafond, elle défile dans la carte. Dans la page,
+     arrivé en bas de la liste, le défilement se poursuit sur la page (jusqu'au pied). */
+  max-height: var(--xg-dep-list-max, 640px);
+  overscroll-behavior: auto;
 }
 
 .xg-dep__body {
@@ -20,14 +24,14 @@
 }
 .xg-dep__name {
   min-width: 0;
-  font-size: 17px;
+  font-size: var(--xg-text-xl);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .xg-dep__meta {
-  font-size: 14px;
+  font-size: var(--xg-text-md);
   color: var(--xg-text-muted);
 }
 .is-inactive .xg-dep__name {
@@ -43,10 +47,10 @@
   padding: 10px 0;
 }
 .xg-dep-compact .xg-dep__name {
-  font-size: 16px;
+  font-size: var(--xg-text-lg);
 }
 .xg-dep-compact .xg-dep__meta {
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
 }
 .xg-dep-compact__side {
   flex: none;
@@ -55,7 +59,7 @@
   align-items: flex-end;
   gap: 6px;
   min-width: 36px;
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
   color: var(--xg-text-muted);
   /* Les dates restent sur une ligne : c'est la méta qui passe à la ligne. */
   white-space: nowrap;
@@ -72,12 +76,12 @@
 }
 /* Ligne dont le menu d'actions est ouvert : au-dessus des lignes suivantes. */
 .xg-dep:has(.xg-menu) {
-  z-index: 5;
+  z-index: var(--xg-z-raised);
 }
 .xg-dep__date {
   flex: none;
   min-width: 72px;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
   color: var(--xg-text-muted);
   white-space: nowrap;
 }
@@ -119,11 +123,9 @@
   padding: 0;
   container-type: inline-size;
 }
-/* La liste ne grandit pas sans fin : au-delà du plafond, elle défile dans la carte. Dans la page,
-   arrivé en bas de la liste, le défilement se poursuit sur la page (jusqu'au pied). */
-.xg-dep-list {
-  max-height: var(--xg-dep-list-max, 640px);
-  overscroll-behavior: auto;
+/* Liste virtualisée : c'est elle qui compense les lignes montées et retirées au défilement. */
+.xg-dep-panel .xg-dep-list {
+  overflow-anchor: none;
 }
 /* Hauteur imposée par le conteneur : en-tête et pied fixes, la liste défile entre les deux. */
 .xg-dep-panel--fill {
@@ -133,6 +135,12 @@
 .xg-dep-panel--fill > .xg-dep-list {
   flex: 1;
   min-height: 0;
+}
+/* Les deux emplacements de la date : c'est leur conteneur qu'on masque. Masquer la date seule
+   laisserait son enveloppe d'infobulle, qui garde la hauteur d'une ligne de texte. */
+.xg-dep__date--side {
+  flex: none;
+  display: flex;
 }
 .xg-dep__date--inline {
   display: none;
@@ -144,8 +152,11 @@
   }
   .xg-dep__date--inline {
     display: block;
+  }
+  .xg-dep__date--inline .xg-dep__date {
+    margin-left: 0;
     min-width: 0;
-    font-size: 13px;
+    font-size: var(--xg-text-sm);
   }
 }
 

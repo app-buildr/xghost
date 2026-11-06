@@ -6,9 +6,12 @@ import {
   ALARM_RESUME_PREFIX,
   ALARM_RETRY_PREFIX,
   ALARM_WATCHDOG,
+  armQuickTimeout,
+  clearAccountAlarms,
+  clearQuickTimeout,
 } from './alarms';
-import { exceedsFollowerLimit } from '@/features/accounts/limit';
-import { isOnboarded } from '@/features/accounts/model';
+import { exceedsFollowerLimit } from '@/domain/accounts/limit';
+import { isOnboarded } from '@/domain/accounts/model';
 import {
   getSelectedAccountId,
   loadAccounts,
@@ -17,9 +20,10 @@ import {
   updateAccounts,
 } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
-import { importEpoch, isImporting } from '@/shared/storage/import-lock';
+import { importEpoch, isImporting, trackWork } from '@/shared/storage/import-lock';
 import { notifyAccountAdded } from '@/features/alerts/notifications';
-import { clearPartial, loadJob, loadSnapshot } from '@/features/followers-sync/repository';
+import { isStalled } from '@/features/followers-sync/scan-state';
+import { clearPartial, loadJob, loadProgress, loadSnapshot } from '@/features/followers-sync/repository';
 import {
   abortQuick,
   cancelScan,
@@ -36,10 +40,12 @@ import {
 import { loadSettings } from '@/features/settings/repository';
 import { applyQuickCheck, applyScan, saveIncomplete } from '@/features/unfollow-detection/apply';
 import { readSession } from '@/features/x-api/session';
+import type { CheckRefusal } from '@/shared/messaging/protocol';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
-import type { GlobalStatus, ScanKind, ScanReason, TrackedAccount } from '@/shared/types';
-import { HOUR, MINUTE, SECOND } from '@/shared/utils/time';
+import type { GlobalStatus, TrackedAccount } from '@/shared/types';
+import { HOUR, MINUTE } from '@/shared/utils/time';
+import { planCheck, type CheckOrigin } from './check-policy';
 import { loadStatus, saveStatus } from './status';
 
 /**
@@ -47,39 +53,29 @@ import { loadStatus, saveStatus } from './status';
  * vérifications périodiques (§ 4.2), reprises et nouvelles tentatives.
  */
 
-/** Un scan complet de contrôle tous les N contrôles légers. */
-const SAFETY_EVERY = 10;
-/** Durée maximale d'un contrôle léger (chargement de la page et de la première liste). */
-const QUICK_TIMEOUT_MS = 90 * SECOND;
 /** Alarme d'un autre compte que celui connecté sur x.com : reportée de ce délai. */
 const OTHER_ACCOUNT_DELAY_MS = 30 * MINUTE;
 /** Report d'une vérification refusée parce qu'autre chose est en cours. */
 const BUSY_DELAY_MS = 5 * MINUTE;
 /** Attente maximale entre deux reports d'une même vérification. */
 const MAX_DEFER_MS = 12 * HOUR;
-/** Reports successifs par alarme (remis à zéro quand la vérification démarre). */
-const deferrals = new Map<string, number>();
-/** Scan de référence automatique qui n'aboutit pas : attente avant le suivant, doublée à chaque essai. */
-const BASELINE_RETRY_MS = 15 * MINUTE;
-const BASELINE_RETRY_MAX_MS = 12 * HOUR;
+/** Reports successifs par alarme : dans le stockage de session, le service worker s'arrêtant entre deux. */
+const DEFERRALS_KEY = 'deferrals';
+const loadDeferrals = async (): Promise<Record<string, number>> =>
+  ((await chrome.storage.session.get(DEFERRALS_KEY))[DEFERRALS_KEY] as Record<string, number> | undefined) ?? {};
+async function setDeferral(alarm: string, tries: number | undefined): Promise<void> {
+  const all = await loadDeferrals();
+  if (tries === undefined) delete all[alarm];
+  else all[alarm] = tries;
+  await chrome.storage.session.set({ [DEFERRALS_KEY]: all });
+}
 
-/**
- * Origine d'une vérification :
- * - `user` : « Vérifier maintenant » → contrôle léger (abonnés les plus récents + total) ;
- * - `user-full` : « Scan complet », « Continuer le scan » → scan complet ;
- * - `schedule` : alarme périodique → contrôle léger, ou scan complet si le dernier est incomplet ;
- * - `auto` : reprise, nouveau compte, ou départs repérés par le contrôle léger → idem `schedule` ;
- * - `followup` : le contrôle léger a vu le total baisser → scan complet immédiat ;
- * - `retry` : nouvel essai d'un scan complet au résultat suspect → scan complet.
- *
- * Tout scan complet a lieu dans l'onglet x.com épinglé en arrière-plan (§ 4.6).
- */
-export type CheckOrigin = 'user' | 'user-full' | 'schedule' | 'auto' | 'followup' | 'retry';
+type CheckResult = { started: boolean; reason?: CheckRefusal };
 
 setScanHooks({
   async onComplete(job) {
     if (job.kind === 'quick') {
-      await chrome.alarms.clear(`${ALARM_QUICK_TIMEOUT_PREFIX}${job.accountId}`);
+      await clearQuickTimeout(job.accountId);
       const outcome = await applyQuickCheck(job);
       if (outcome.kind === 'recheck') {
         await chrome.alarms.create(`${ALARM_RECHECK_PREFIX}${job.accountId}`, { when: outcome.at });
@@ -103,6 +99,7 @@ setScanHooks({
   },
   async onStateChange() {
     await updateStatus({ badge: true });
+    await syncWatchdog();
   },
   async scheduleResume(accountId, at) {
     await chrome.alarms.create(`${ALARM_RESUME_PREFIX}${accountId}`, { when: at });
@@ -133,11 +130,7 @@ async function markFollowerLimit(accountId: string, count: number): Promise<void
     };
   });
   await clearPartial(accountId);
-  await Promise.all(
-    [ALARM_RETRY_PREFIX, ALARM_RECHECK_PREFIX, ALARM_RESUME_PREFIX, ALARM_QUICK_TIMEOUT_PREFIX].map((prefix) =>
-      chrome.alarms.clear(`${prefix}${accountId}`),
-    ),
-  );
+  await clearAccountAlarms(accountId);
 }
 
 export async function setupAlarms(): Promise<void> {
@@ -149,14 +142,28 @@ export async function setupAlarms(): Promise<void> {
   } else if (existing?.periodInMinutes !== frequencyHours * 60) {
     await chrome.alarms.create(ALARM_CHECK, { periodInMinutes: frequencyHours * 60 });
   }
-  if (!(await chrome.alarms.get(ALARM_WATCHDOG))) {
-    await chrome.alarms.create(ALARM_WATCHDOG, { periodInMinutes: 1 });
-  }
+  await syncWatchdog();
+}
+
+/**
+ * Chien de garde : seulement tant qu'un scan existe (reprise, blocage), ou que le compte connecté
+ * attend un nouvel essai de son scan de référence. Le reste du temps, rien ne réveille le service
+ * worker chaque minute : les cookies signalent les changements de session.
+ */
+async function syncWatchdog(): Promise<void> {
+  // Compte connecté seulement : le scan d'un autre compte ne peut pas reprendre sans lui, et un
+  // changement de compte réveille déjà le service worker.
+  const activeId = (await loadStatus())?.activeAccountId;
+  const active = activeId ? (await loadAccounts())[activeId] : undefined;
+  const needed = !!active && (!!(await loadProgress(active.id)) || (!!active.baselineRetry && !active.baselineAt));
+  const existing = await chrome.alarms.get(ALARM_WATCHDOG);
+  if (needed && !existing) await chrome.alarms.create(ALARM_WATCHDOG, { periodInMinutes: 1 });
+  if (!needed && existing) await chrome.alarms.clear(ALARM_WATCHDOG);
 }
 
 /**
  * État global affiché par l'icône et les interfaces. Écrit seulement s'il change (le chien de
- * garde l'appelle chaque minute) ; l'icône est recalculée à ce moment-là, ou si `badge` le
+ * garde l'appelle chaque minute pendant un scan) ; l'icône est recalculée à ce moment-là, ou si `badge` le
  * demande (état d'un scan changé).
  */
 export async function updateStatus({ badge = false }: { badge?: boolean } = {}): Promise<GlobalStatus> {
@@ -219,17 +226,22 @@ async function addSessionAccount(explicit: boolean): Promise<TrackedAccount | un
  * Lance la vérification du compte connecté (voir `CheckOrigin`). `accountId` : vérification
  * propre à un compte (alarme, enchaînement), sans effet si ce n'est pas le compte connecté.
  */
-export async function triggerCheck(
-  origin: CheckOrigin,
-  accountId?: string,
-): Promise<{ started: boolean; reason?: string }> {
+export function triggerCheck(origin: CheckOrigin, accountId?: string): Promise<CheckResult> {
+  return trackWork(() => runCheck(origin, accountId));
+}
+
+async function runCheck(origin: CheckOrigin, accountId?: string): Promise<CheckResult> {
   if (isImporting()) return { started: false, reason: 'importing' };
+  // Avant tout ajout de compte : un refus ne doit pas réajouter le compte connecté.
+  if (accountId) {
+    const session = await readSession();
+    if (session && session.accountId !== accountId) return { started: false, reason: 'account-switched' };
+  }
   const account = await ensureActiveAccount(origin === 'user' || origin === 'user-full');
   if (!account) {
     await updateStatus();
     return { started: false, reason: 'disconnected' };
   }
-  if (accountId && accountId !== account.id) return { started: false, reason: 'account-switched' };
   const user = origin === 'user' || origin === 'user-full';
 
   const existing = await loadJob(account.id);
@@ -244,8 +256,8 @@ export async function triggerCheck(
     const probe = !!account.baselineAt && (origin === 'schedule' || origin === 'auto');
     if (!probe) return { started: false, reason: 'follower-limit' };
     if (existing?.kind === 'quick' || existing?.finishing) return { started: false, reason: 'already-running' };
+    await armQuickTimeout(account.id);
     await startScan(account, 'quick', 'quick');
-    await chrome.alarms.create(`${ALARM_QUICK_TIMEOUT_PREFIX}${account.id}`, { when: Date.now() + QUICK_TIMEOUT_MS });
     return { started: true };
   }
   // Analyse de fin de scan en cours (ou interrompue par l'arrêt du service worker, reprise ici).
@@ -262,63 +274,23 @@ export async function triggerCheck(
     if (!user && existing.resumeAt && existing.resumeAt > Date.now()) {
       return { started: false, reason: existing.pausedReason };
     }
-    await resumeScan(account.id);
-    return { started: true };
+    if (await resumeScan(account.id)) return { started: true };
+    // Scan trop ancien, écarté : on repart d'une vérification normale.
   }
 
-  const snapshot = await loadSnapshot(account.id);
   // Premier démarrage : rien ne part vers X tant que l'utilisateur n'a pas choisi entre une
   // nouvelle synchronisation et l'import d'une sauvegarde (§ 3.3).
-  if (!user && !isOnboarded(await loadAccounts())) {
-    return { started: false, reason: 'awaiting-choice' };
-  }
-  // Dernier scan incomplet : on le continue (union) au lieu d'un simple contrôle léger (§ 4.7).
-  const incomplete = account.lastScan ? !account.lastScan.complete : false;
-  // Liste classée du plus récent au plus ancien : le contrôle léger suffit tant que le total
-  // ne baisse pas ; sinon il enchaîne lui-même un scan complet (`followup`).
-  // Scan de contrôle : après SAFETY_EVERY contrôles légers sans scan relu de bout en bout
-  // (un scan complet manuel remet le compteur à zéro), pour rattraper ce qui aurait échappé.
-  const safety = origin !== 'user' && (account.quickSinceFull ?? 0) >= SAFETY_EVERY;
-  const full = origin === 'user-full' || origin === 'followup' || origin === 'retry' || incomplete || safety;
-  // Pas de référence (instantané, ou compte sans date de référence) : scan de référence.
-  const kind: ScanKind = !snapshot || !account.baselineAt ? 'baseline' : full ? 'check' : 'quick';
+  const accounts = await loadAccounts();
+  if (!user && !isOnboarded(accounts)) return { started: false, reason: 'awaiting-choice' };
 
-  // Scan de référence automatique : jamais en boucle (onglet fermé par l'utilisateur, compte
-  // inaccessible…). Chaque essai qui n'aboutit pas double l'attente avant le suivant.
-  if (kind === 'baseline' && origin === 'auto') {
-    const retry = account.baselineRetry;
-    const wait = retry ? Math.min(BASELINE_RETRY_MS * 2 ** (retry.attempts - 1), BASELINE_RETRY_MAX_MS) : 0;
-    if (retry && Date.now() - retry.at < wait) return { started: false, reason: 'baseline-backoff' };
-    await patchAccount(account.id, { baselineRetry: { attempts: (retry?.attempts ?? 0) + 1, at: Date.now() } });
-  }
-
-  const reason = scanReason(kind, origin, account, await loadAccounts(), incomplete);
-  // Écart repéré par le contrôle léger : le scan s'arrête dès que ces départs sont trouvés.
-  const target = reason === 'missing' && !account.pending?.full ? account.pending?.count : undefined;
+  const hasSnapshot = !!(await loadSnapshot(account.id));
+  const { kind, reason, target, backoff } = planCheck({ origin, account, accounts, hasSnapshot, now: Date.now() });
+  if (backoff === 'wait') return { started: false, reason: 'baseline-backoff' };
+  if (backoff) await patchAccount(account.id, { baselineRetry: backoff });
+  // Délai armé avant le scan : un arrêt du service worker entre les deux ne le laisse pas sans limite.
+  if (kind === 'quick') await armQuickTimeout(account.id);
   await startScan(account, kind, reason, target);
-  if (kind === 'quick') {
-    await chrome.alarms.create(`${ALARM_QUICK_TIMEOUT_PREFIX}${account.id}`, { when: Date.now() + QUICK_TIMEOUT_MS });
-  }
   return { started: true };
-}
-
-/** Raison affichée d'un scan (tableau de bord), selon son type et son origine. */
-function scanReason(
-  kind: ScanKind,
-  origin: CheckOrigin,
-  account: TrackedAccount,
-  accounts: Record<string, TrackedAccount>,
-  incomplete: boolean,
-): ScanReason {
-  if (kind === 'quick') return 'quick';
-  if (kind === 'baseline') {
-    return Object.values(accounts).some((a) => a.id !== account.id && a.baselineAt) ? 'new-account' : 'baseline';
-  }
-  if (origin === 'user-full') return 'user';
-  if (origin === 'followup') return account.pending?.count ? 'missing' : 'overflow';
-  if (origin === 'retry') return 'recheck';
-  if (incomplete) return 'incomplete';
-  return 'safety'; // scan de contrôle périodique
 }
 
 /** « Arrêter le scan » du tableau de bord : arrêt immédiat, abonnés gardés pour le continuer. */
@@ -362,45 +334,58 @@ async function resumeIfDue(accountId?: string): Promise<void> {
   const session = await readSession();
   const id = accountId ?? session?.accountId;
   if (!session || !id || id !== session.accountId) return void (await updateStatus());
-  const job = await loadJob(id);
+  // État léger : le scan complet fait plusieurs Mo, cette fonction tourne chaque minute pendant un scan.
+  const job = await loadProgress(id);
   if (!job) return void (await updateStatus());
   if (job.finishing) {
     await recoverFinishing(id); // analyse interrompue par l'arrêt du service worker
     return void (await updateStatus());
   }
   // Plus aucune page depuis longtemps : arrêt d'office, gardé comme incomplet (jamais bloqué sans fin).
-  if (await giveUpIfStalled(id)) return void (await updateStatus());
+  if (isStalled(job, Date.now()) && (await giveUpIfStalled(id))) return void (await updateStatus());
   const due =
     job.status === 'paused' &&
     job.pausedReason !== 'needs-focus' &&
     (!job.resumeAt || job.resumeAt <= Date.now());
   const orphan = job.status === 'running' && !(await isScanActive(id));
-  if (due || orphan) await resumeScan(id);
+  if (due || orphan) await resumeScan(id).then(() => undefined);
   else await updateStatus();
 }
 
-export async function handleAlarm(name: string): Promise<void> {
+export function handleAlarm(name: string): Promise<void> {
+  return trackWork(() => onAlarm(name));
+}
+
+/** Contrôle léger sans réponse de la page : compté, pour le signaler s'il se répète. */
+async function onQuickTimeout(accountId: string): Promise<void> {
+  if (!(await abortQuick(accountId))) return;
+  await updateAccounts((all) => {
+    const account = all[accountId];
+    if (account) all[accountId] = { ...account, quickFailures: (account.quickFailures ?? 0) + 1 };
+  });
+}
+
+async function onAlarm(name: string): Promise<void> {
   if (isImporting()) return; // l'import relance lui-même la planification
   if (name === ALARM_CHECK) await triggerCheck('schedule');
-  // Le chien de garde rattrape aussi une session ouverte avant l'installation.
   else if (name === ALARM_WATCHDOG) await handleSessionChange();
   else if (name.startsWith(ALARM_RESUME_PREFIX)) await resumeIfDue(name.slice(ALARM_RESUME_PREFIX.length));
   else if (name.startsWith(ALARM_RETRY_PREFIX)) await checkAccount('retry', name.slice(ALARM_RETRY_PREFIX.length), name);
   else if (name.startsWith(ALARM_RECHECK_PREFIX)) await checkAccount('auto', name.slice(ALARM_RECHECK_PREFIX.length), name);
-  else if (name.startsWith(ALARM_QUICK_TIMEOUT_PREFIX)) await abortQuick(name.slice(ALARM_QUICK_TIMEOUT_PREFIX.length));
+  else if (name.startsWith(ALARM_QUICK_TIMEOUT_PREFIX)) await onQuickTimeout(name.slice(ALARM_QUICK_TIMEOUT_PREFIX.length));
 }
 
 /** Vérification propre à un compte : reportée tant qu'un autre compte est connecté sur x.com. */
 async function checkAccount(origin: CheckOrigin, accountId: string, alarm: string): Promise<void> {
   const res = await triggerCheck(origin, accountId);
-  if (res.started) return void deferrals.delete(alarm);
+  if (res.started) return setDeferral(alarm, undefined);
   // Choix de démarrage pas encore fait, ou limite d'abonnés : rien à vérifier, l'alarme n'a plus d'objet.
-  if (res.reason === 'awaiting-choice' || res.reason === 'follower-limit') return void deferrals.delete(alarm);
+  if (res.reason === 'awaiting-choice' || res.reason === 'follower-limit') return setDeferral(alarm, undefined);
   // Vérification refusée pour l'instant (autre compte connecté, scan déjà en cours, import,
   // pause…) : reportée plutôt que perdue, avec une attente qui double à chaque refus (un compte
   // qui ne se reconnecte plus ne réveille pas le service worker toutes les 30 min indéfiniment).
-  const tries = deferrals.get(alarm) ?? 0;
-  deferrals.set(alarm, tries + 1);
+  const tries = (await loadDeferrals())[alarm] ?? 0;
+  await setDeferral(alarm, tries + 1);
   const base = res.reason === 'account-switched' || res.reason === 'disconnected' ? OTHER_ACCOUNT_DELAY_MS : BUSY_DELAY_MS;
   await chrome.alarms.create(alarm, { when: Date.now() + Math.min(base * 2 ** tries, MAX_DEFER_MS) });
 }
@@ -410,7 +395,15 @@ async function checkAccount(origin: CheckOrigin, accountId: string, alarm: strin
  * fois (réveil, cookies, chien de garde) : les appels passent l'un après l'autre.
  */
 export function handleSessionChange(): Promise<void> {
-  return sessionQueue.run(onSessionChange);
+  return trackWork(() =>
+    sessionQueue.run(async () => {
+      try {
+        await onSessionChange();
+      } finally {
+        await syncWatchdog();
+      }
+    }),
+  );
 }
 const sessionQueue = createSerialQueue();
 
@@ -426,7 +419,7 @@ async function onSessionChange(): Promise<void> {
   // Scan d'un autre compte en cours : X servirait sa liste avec la session du nouveau compte.
   await suspendForeignScan(session.accountId);
   const accounts = await loadAccounts();
-  const job = await loadJob(session.accountId);
+  const job = await loadProgress(session.accountId);
   if (!accounts[session.accountId] || (!job && !(await loadSnapshot(session.accountId)))) {
     // Premier compte : l'onboarding lance le scan de référence, dans un onglet au premier plan.
     const firstSetup = !isOnboarded(accounts);

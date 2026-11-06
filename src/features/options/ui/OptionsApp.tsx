@@ -17,7 +17,7 @@ import { useNow } from '@/shared/hooks/useNow';
 import { t } from '@/shared/i18n';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 import { ExternalLink } from '@/shared/ui/ExternalLink';
-import { Logo, useSlidingIndicator } from '@/shared/ui/primitives';
+import { Brand, useSlidingIndicator } from '@/shared/ui/primitives';
 import { X_LOGIN_URL } from '@/shared/x-urls';
 import { OptionsFooter } from './OptionsFooter';
 import './options.css';
@@ -45,6 +45,9 @@ function useSection(): [OptionSection, (s: OptionSection) => void] {
 }
 
 /**
+ * Chaque section passe par un `ErrorBoundary` : une erreur de rendu n'emporte pas le reste de la
+ * page, et elle est retentée quand les données affichées changent (autre compte, sauvegarde importée).
+ *
  * Page affichée quand les données ne peuvent pas être lues (sauvegarde ou stockage corrompu) :
  * la restauration d'une sauvegarde reste accessible.
  */
@@ -57,14 +60,6 @@ export function OptionsRecovery() {
     </main>
   );
 }
-
-/**
- * OptionSection protégée : une erreur de rendu n'emporte pas le reste de la page. Elle est retentée
- * quand les données affichées changent (autre compte, sauvegarde importée).
- */
-const Guard = ({ children, resetKey }: { children: ReactNode; resetKey?: unknown }) => (
-  <ErrorBoundary resetKey={resetKey}>{children}</ErrorBoundary>
-);
 
 export function OptionsApp() {
   const app = useAppState();
@@ -83,10 +78,7 @@ export function OptionsApp() {
     <DisplayedContext.Provider value={markDisplayed}>
       <div className="xg-options">
         <aside className="xg-options__side">
-          <div className="xg-brand">
-            <Logo size={44} />
-            <span>{t('common.appName')}</span>
-          </div>
+          <Brand logoSize={44} />
           <nav aria-label={t('options.nav.label')} className="xg-nav">
             {/* Pastille de la section courante : elle glisse d'une section à l'autre. */}
             <span className="xg-nav__thumb" style={navThumb} aria-hidden="true" />
@@ -109,7 +101,7 @@ export function OptionsApp() {
               </a>
             ))}
           </nav>
-          <Guard resetKey={data}>
+          <ErrorBoundary resetKey={data}>
             <AccountsList
               accounts={app.accounts}
               selectedId={account?.id}
@@ -118,7 +110,7 @@ export function OptionsApp() {
               now={now}
               onSelect={(id) => void app.select(id)}
             />
-          </Guard>
+          </ErrorBoundary>
         </aside>
 
         <main className="xg-options__main">
@@ -126,7 +118,7 @@ export function OptionsApp() {
             <EmptyState statusBanner={<ScanStatusBanner status={app.status} now={now} />} />
           ) : !data ? null : section === 'dashboard' ? (
             <div className="xg-options__content">
-              <Guard resetKey={data}>
+              <ErrorBoundary resetKey={data}>
                 <Dashboard
                   key={account.id}
                   account={account}
@@ -138,11 +130,11 @@ export function OptionsApp() {
                   onShowAllDepartures={() => go('departures')}
                   onShowAllArrivals={() => go('arrivals')}
                 />
-              </Guard>
+              </ErrorBoundary>
             </div>
           ) : section === 'departures' ? (
             <div className="xg-options__content xg-options__content--list">
-              <Guard resetKey={data}>
+              <ErrorBoundary resetKey={data}>
                 <DashboardHeader account={account} progress={data.progress} now={now} />
                 <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />
                 <DeparturesPanel
@@ -153,27 +145,27 @@ export function OptionsApp() {
                   ctx={ctx}
                   now={now}
                 />
-              </Guard>
+              </ErrorBoundary>
             </div>
           ) : section === 'arrivals' ? (
             <div className="xg-options__content xg-options__content--list">
-              <Guard resetKey={data}>
+              <ErrorBoundary resetKey={data}>
                 <DashboardHeader account={account} progress={data.progress} now={now} />
                 <ScanStatusBanner account={account} progress={data.progress} status={app.status} now={now} />
                 <ArrivalsPanel key={account.id} data={data} ctx={ctx} now={now} />
-              </Guard>
+              </ErrorBoundary>
             </div>
           ) : (
             <div className="xg-options__content">
               <h1 className="xg-options__title">{t('options.settingsTitle')}</h1>
               <div className="xg-options__settings">
-                <Guard resetKey={data}>
+                <ErrorBoundary resetKey={data}>
                   <SettingsPanel settings={app.settings} account={account} onUpdate={(p) => void app.updateSettings(p)} />
-                </Guard>
+                </ErrorBoundary>
                 <div className="xg-settings">
-                  <Guard resetKey={data}>
+                  <ErrorBoundary resetKey={data}>
                     <IgnoredAccounts account={account} data={data} />
-                  </Guard>
+                  </ErrorBoundary>
                   {/* Hors de toute zone dépendant des données : la restauration reste toujours possible. */}
                   <DataPanel />
                   <RemoveAccount account={account} />

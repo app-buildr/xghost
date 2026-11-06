@@ -40,7 +40,7 @@ export function ActivityChart({ buckets, since, unit }: { buckets: Bucket[]; sin
   const tip = active && texts(active, unit);
 
   return (
-    <figure className="xg-stat">
+    <figure className="xg-chart-card">
       <StatHead
         title={title}
         aside={

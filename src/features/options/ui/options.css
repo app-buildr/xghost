@@ -1,3 +1,10 @@
+/* Un élément qui prend le focus au clavier ne reste pas caché derrière l'en-tête figé
+   (voir .xg-dash__header, qui ne fige plus sous cette hauteur de fenêtre). */
+@media (min-height: 561px) {
+  html {
+    scroll-padding-top: 140px;
+  }
+}
 .xg-options {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -6,10 +13,22 @@
   min-height: 100vh;
   padding: 36px 40px 48px;
 }
+/* Le menu reste à l'écran au défilement de la page ; s'il dépasse la hauteur de la fenêtre
+   (beaucoup de comptes), il défile tout seul. Le padding, compensé par la marge négative,
+   évite que ce défilement ne rogne les ombres et les contours de focus. */
 .xg-options__side {
+  position: sticky;
+  top: 32px;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 32px;
+  /* Haut figé (32 px) + marge basse de la page (48 px) : il ne remonte pas en fin de défilement. */
+  max-height: calc(100vh - 80px);
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 .xg-nav {
   position: relative;
@@ -22,12 +41,12 @@
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 12px;
+  border-radius: var(--xg-radius-lg);
   background: var(--xg-surface);
   box-shadow: var(--xg-shadow-selected);
   transition:
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    transform 0.32s var(--xg-ease-out),
+    height 0.32s var(--xg-ease-out);
   pointer-events: none;
 }
 .xg-nav__item {
@@ -38,13 +57,11 @@
   justify-content: space-between;
   min-height: 52px;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: var(--xg-radius-lg);
   color: var(--xg-text-subtle);
-  font-size: 17px;
+  font-size: var(--xg-text-xl);
   text-decoration: none;
-}
-.xg-nav__item {
-  transition: color 0.2s ease;
+  transition: color var(--xg-dur-base) ease;
 }
 .xg-nav__item:hover {
   color: var(--xg-ink);
@@ -52,12 +69,6 @@
 .xg-nav__item.is-current {
   color: var(--xg-ink);
   font-weight: 600;
-}
-@media (prefers-reduced-motion: reduce) {
-  .xg-nav__thumb,
-  .xg-nav__item {
-    transition: none;
-  }
 }
 
 .xg-options__main {
@@ -68,7 +79,7 @@
 .xg-options__content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--xg-gap-section);
   min-width: 0;
 }
 /* Pages « Tous les départs » et « Nouveaux abonnés » : la liste occupe la hauteur de la fenêtre
@@ -81,13 +92,13 @@
 }
 .xg-options__lead {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--xg-text-lg);
   color: var(--xg-text-muted);
 }
 .xg-options__settings {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  gap: var(--xg-gap-section);
   align-items: start;
 }
 
@@ -97,6 +108,14 @@
     grid-template-columns: 1fr;
     gap: 32px;
     padding: 24px 16px 40px;
+  }
+  /* Menu empilé au-dessus du contenu : figé, il recouvrirait la page. */
+  .xg-options__side {
+    position: static;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: visible;
   }
   .xg-options__settings {
     grid-template-columns: 1fr;
@@ -115,7 +134,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px 24px;
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
   color: var(--xg-text-muted);
 }
 .xg-options__footer-links {
@@ -128,9 +147,9 @@
   text-decoration: none;
 }
 .xg-options__footer a:hover {
-  color: var(--xg-ink, inherit);
+  color: var(--xg-ink);
   text-decoration: underline;
 }
 .xg-options__version {
-  font-size: 12px;
+  font-size: var(--xg-text-xs);
 }

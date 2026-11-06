@@ -1,29 +1,30 @@
 import { ChevronDown, RefreshCw, Settings, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { isOnboarded } from '@/features/accounts/model';
+import { isOnboarded } from '@/domain/accounts/model';
 import { FollowerLimitAlert } from '@/features/accounts/ui/FollowerLimitAlert';
 import { UnseenCount } from '@/features/accounts/ui/UnseenCount';
 import { useUnseenByAccount } from '@/features/accounts/ui/useUnseenByAccount';
 import { useAccountData, useVisibilityContext } from '@/features/app-state/useAccountData';
 import { useAppState } from '@/features/app-state/useAppState';
 import { DisplayedContext, useMarkVisible } from '@/features/app-state/useSeenOnView';
-import { currentDepartures, statsSince } from '@/features/events/selectors';
-import { departureMeta } from '@/features/events/ui/DeparturesPanel';
+import { currentDepartures, statsSince } from '@/domain/events/selectors';
+import { departureMeta } from '@/features/events/labels';
 import { EventRow } from '@/features/events/ui/EventRow';
 import { scanCoverage } from '@/features/scan-status/progress';
 import { ScanStatusBanner } from '@/features/scan-status/ui/ScanStatusBanner';
 import { useStartScan } from '@/features/scan-status/ui/useStartScan';
 import { periodStart, POPUP_PERIODS, type PopupPeriod } from '@/features/stats/period';
 import type { OptionSection } from '@/features/options/sections';
-import { oldestEventAt } from '@/features/stats/selectors';
+import { trackingFloor } from '@/features/stats/selectors';
+import { PeriodPicker } from '@/features/stats/ui/PeriodPicker';
 import { focusOrOpenExtensionPage } from '@/shared/browser/tabs';
 import { useNow } from '@/shared/hooks/useNow';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { useStoredChoice } from '@/shared/hooks/useStoredChoice';
 import { t } from '@/shared/i18n';
-import type { FollowEvent } from '@/shared/types';
+import type { FollowEvent, ProfileCache } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
-import { Logo, Segmented, StatTile } from '@/shared/ui/primitives';
+import { Logo, StatTile } from '@/shared/ui/primitives';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { formatAgo, formatNumber, formatPercent, formatSigned, joinParts } from '@/shared/utils/format';
 import './popup.css';
@@ -57,7 +58,7 @@ function LatestDepartures({
 }: {
   events: FollowEvent[];
   latest: FollowEvent[];
-  profiles: Parameters<typeof EventRow>[0]['profiles'];
+  profiles: ProfileCache;
   baselineAt?: number;
   now: number;
 }) {
@@ -110,13 +111,14 @@ export function PopupApp() {
   const { data, markDisplayed } = useAccountData(account?.id, { seenOnView: true });
   const ctx = useVisibilityContext(data, account);
   const unseenByAccount = useUnseenByAccount(app.accounts);
-  const { start, busy } = useStartScan();
+  const { start, busy } = useStartScan(account?.id);
 
-  const list = useMemo(() => (data ? currentDepartures(data.events, ctx) : []), [data, ctx]);
+  const events = data?.events;
+  const list = useMemo(() => (events ? currentDepartures(events, ctx) : []), [events, ctx]);
   const latest = useMemo(() => list.slice(0, POPUP_LATEST), [list]);
   // Bilan sur la période choisie (24 h / 7 j / 30 j / Tout), mémorisée d'une ouverture à l'autre.
   const [period, setPeriod] = useStoredChoice<PopupPeriod>('xg.popupPeriod', POPUP_PERIODS, '7d');
-  const since = periodStart(period, now, account?.baselineAt ?? oldestEventAt(data?.events ?? []));
+  const since = periodStart(period, now, trackingFloor(account?.baselineAt, events ?? []));
   const stats = useMemo(() => statsSince(data?.events ?? [], ctx, since), [data?.events, ctx, since]);
   // Départs pas encore vus (comme le badge de l'icône). `list` ne contient que les comptes
   // toujours absents ; un départ affiché pendant cette visite reste compté jusqu'à la fermeture.
@@ -146,6 +148,7 @@ export function PopupApp() {
   return (
     <DisplayedContext.Provider value={markDisplayed}>
       <div className="xg-popup">
+        <h1 className="xg-sr-only">{t('common.appName')}</h1>
         <header className="xg-popup__head">
           <Logo size={40} />
           <div className="xg-popup__account">
@@ -254,12 +257,7 @@ export function PopupApp() {
 
         {account && (
           <section className="xg-popup__summary" aria-label={t('popup.summary')}>
-            <Segmented<PopupPeriod>
-              label={t('stats.period.label')}
-              value={period}
-              onChange={setPeriod}
-              options={POPUP_PERIODS.map((p) => ({ value: p, label: t(`stats.period.${p}`) }))}
-            />
+            <PeriodPicker periods={POPUP_PERIODS} value={period} onChange={setPeriod} />
             <div className="xg-popup__stats">
               <StatTile size="sm" label={t('popup.departures')} value={formatSigned(-stats.departures)} tone="danger" />
               <StatTile size="sm" label={t('popup.arrivals')} value={formatSigned(stats.arrivals)} tone="primary" />

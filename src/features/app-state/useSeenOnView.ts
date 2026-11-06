@@ -52,7 +52,7 @@ export function useSeenOnView(accountId: string | undefined, stored: FollowEvent
 export const DisplayedContext = createContext<(ids: readonly string[]) => void>(() => undefined);
 
 /** À appeler par une liste avec les événements qu'elle affiche réellement. */
-export function useMarkDisplayed(events: readonly FollowEvent[]) {
+function useMarkDisplayed(events: readonly FollowEvent[]) {
   const markDisplayed = useContext(DisplayedContext);
   const key = events.map((e) => e.id).join(',');
   useEffect(() => {

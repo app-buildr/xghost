@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { t } from '@/shared/i18n';
 import { AVATAR } from '@/shared/x-urls';
 import { initials } from '../utils/format';
 import logoUrl from './logo.svg';
@@ -6,6 +7,45 @@ import logoUrl from './logo.svg';
 /** Logo xGhost (fantôme sur fond noir, point corail). */
 export function Logo({ size = 36 }: { size?: number }) {
   return <img src={logoUrl} width={size} height={size} alt="" style={{ borderRadius: size * 0.23 }} />;
+}
+
+/** Logo et nom de l'extension, en tête de page. */
+export function Brand({ logoSize }: { logoSize: number }) {
+  return (
+    <div className="xg-brand">
+      <Logo size={logoSize} />
+      <span>{t('common.appName')}</span>
+    </div>
+  );
+}
+
+/** Carte de réglages : titre et contenu. */
+export function Card({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="xg-card">
+      <h2 className="xg-card__title">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/** Bandeau d'état. */
+export function Banner({
+  tone = 'warn',
+  stacked = false,
+  role = 'status',
+  children,
+}: {
+  tone?: 'warn' | 'info';
+  stacked?: boolean;
+  role?: 'status' | 'alert';
+  children: ReactNode;
+}) {
+  return (
+    <div className={`xg-banner xg-banner--${tone}${stacked ? ' xg-banner--stacked' : ''}`} role={role}>
+      {children}
+    </div>
+  );
 }
 
 /**

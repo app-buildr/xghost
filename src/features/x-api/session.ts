@@ -1,3 +1,5 @@
+import { X_ORIGIN } from '@/shared/x-urls';
+
 /** Lecture de la session X depuis les cookies (§ 4.6) : `auth_token`, `ct0`, `twid`. */
 
 /** Seul l'id du compte est gardé : aucune valeur de cookie n'est conservée ni transmise. */
@@ -5,10 +7,8 @@ export interface XSession {
   accountId: string;
 }
 
-const X_URL = 'https://x.com';
-
 async function cookie(name: string): Promise<string | undefined> {
-  const c = await chrome.cookies.get({ url: X_URL, name });
+  const c = await chrome.cookies.get({ url: X_ORIGIN, name });
   return c?.value || undefined;
 }
 

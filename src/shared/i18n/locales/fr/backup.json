@@ -8,6 +8,10 @@
   "exportFailed": "Export impossible",
   "confirmText": "Importer « {{file}} » ? Toutes les données actuelles de xGhost seront remplacées par celles de la sauvegarde.",
   "confirmImport": "Remplacer mes données",
+  "exportFirst": "Exporter d’abord mes données",
+  "summary_one": "Ce fichier contient {{accounts}} et {{n}} mouvement, sauvegardés le {{date}}.",
+  "summary_other": "Ce fichier contient {{accounts}} et {{n}} mouvements, sauvegardés le {{date}}.",
+  "tooLargeWarning": "Attention : cette sauvegarde dépasse la taille que xGhost sait réimporter. Garde ce fichier et retire un compte dont tu n’as plus besoin avant de refaire un export.",
   "imported": "Sauvegarde importée : xGhost est revenu à l’état de la sauvegarde",
   "errors": {
     "invalid": "Ce fichier n’est pas une sauvegarde xGhost valide : rien n’a été modifié",

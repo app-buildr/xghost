@@ -1,5 +1,5 @@
 import { t } from '@/shared/i18n';
-import type { Envelope, Reply, RequestType, Requests } from './protocol';
+import { REQUEST_POLICY, type Envelope, type Reply, type RequestType, type Requests } from './protocol';
 
 type Handlers = { [K in RequestType]: (payload: Requests[K]['req']) => Promise<Requests[K]['res']> };
 
@@ -19,24 +19,20 @@ export async function settleWriteRequests(): Promise<void> {
  * Branche les gestionnaires du service worker sur `chrome.runtime.onMessage`.
  * `refuse` : renvoie un message d'erreur pour refuser une requête à ce moment-là (ex. une
  * écriture pendant l'import d'une sauvegarde), sans appeler son gestionnaire.
- * `isWrite` : requêtes qui modifient les données, suivies jusqu'à leur fin (voir ci-dessus).
+ * Les écritures (`REQUEST_POLICY`) sont suivies jusqu'à leur fin (voir ci-dessus).
  */
-export function registerHandlers(
-  handlers: Handlers,
-  options: { refuse?: (type: RequestType) => string | undefined; isWrite?: (type: RequestType) => boolean } = {},
-): void {
-  const { refuse, isWrite } = options;
+export function registerHandlers(handlers: Handlers, refuse: (type: RequestType) => string | undefined): void {
   chrome.runtime.onMessage.addListener((message: Partial<Envelope>, sender, sendResponse) => {
     if (!fromExtensionPage(sender) || !message?.xg || !Object.hasOwn(handlers, message.xg)) return false;
     const type = message.xg as RequestType;
-    const refusal = refuse?.(type);
+    const refusal = refuse(type);
     if (refusal) {
       sendResponse({ ok: false, error: refusal });
       return false;
     }
     const handler = handlers[type] as (payload: unknown) => Promise<unknown>;
     const run = handler(message.payload);
-    if (isWrite?.(type)) {
+    if (REQUEST_POLICY[type] === 'write') {
       writesInFlight.add(run);
       void run.catch(() => undefined).finally(() => writesInFlight.delete(run));
     }

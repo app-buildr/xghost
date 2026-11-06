@@ -33,7 +33,7 @@ export function NetChart({
   const showValue = (i: number) => !dense || hover === i;
 
   return (
-    <figure className="xg-stat">
+    <figure className="xg-chart-card">
       <StatHead title={t(unit === 'week' ? 'stats.net.titleWeek' : 'stats.net.titleMonth')} sub={t('stats.net.sub')} />
       <ol className={`xg-net${hasNegative ? ' has-negative' : ''}${dense ? ' is-dense' : ''}`} onMouseLeave={leave}>
         {buckets.map((b, i) => {

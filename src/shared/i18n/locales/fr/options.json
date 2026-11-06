@@ -40,7 +40,7 @@
       "duration": "Départs par durée de suivi",
       "durationHint": "Combien de temps ils sont restés",
       "retention": "Rétention des arrivées",
-      "retentionHint": "Nouveaux abonnés encore là après 7, 14 et 30 jours"
+      "retentionHint": "Nouveaux abonnés encore là après {{days}} jours"
     }
   },
   "account": {

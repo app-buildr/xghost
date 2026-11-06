@@ -1,3 +1,4 @@
+import { ID_PATTERN } from '@/shared/x-urls';
 import { keys } from './keys';
 
 /**
@@ -5,11 +6,11 @@ import { keys } from './keys';
  * récent dans `storage.sync` (historique découpé en morceaux `acc:<id>:ev:<n>`, compteur
  * `acc:<id>:evn`), historique ancien dans `acc:<id>:archive`, identifiant d'ordinateur
  * `machine`. Conversion vers le format actuel (une clé d'historique par compte), utilisée pour
- * importer une sauvegarde de la 1.0. Pas de migration automatique : l'extension étant en
- * développement, les données 1.0 se récupèrent en réimportant une sauvegarde.
+ * importer une sauvegarde de la 1.0. Pas de migration automatique : les données 1.0 se
+ * récupèrent en réimportant une sauvegarde.
  */
 
-const LEGACY_EVENTS = /^acc:(\d{1,20}):(?:evn|ev:(\d{1,2})|archive)$/;
+const LEGACY_EVENTS = new RegExp(`^acc:(${ID_PATTERN}):(?:evn|ev:(\\d{1,2})|archive)$`);
 const LEGACY_KEYS = new Set(['machine']);
 
 /**

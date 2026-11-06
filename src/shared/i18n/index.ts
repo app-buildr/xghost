@@ -2,7 +2,7 @@ import { createInstance } from 'i18next';
 import { en, fr } from './locales';
 
 /** Langues de l'extension. L'anglais sert de repli pour toute autre langue du navigateur. */
-export const LANGUAGES = ['fr', 'en'] as const;
+const LANGUAGES = ['fr', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 /** Langue de l'interface du navigateur (service worker, pages, scripts de contenu). */
@@ -24,7 +24,7 @@ export const LANGUAGE: Language = pickLanguage(browserLanguage());
 /** Locale des formats Intl (nombres, dates). */
 export const LOCALE = LANGUAGE === 'fr' ? 'fr-FR' : 'en-US';
 
-export const resources = {
+const resources = {
   fr: { translation: fr },
   en: { translation: en },
 } as const;
@@ -40,7 +40,7 @@ declare module 'i18next' {
  * Instance commune au service worker, aux pages et aux scripts de contenu.
  * Initialisée de façon synchrone à l'import : les textes sont embarqués, rien à charger.
  */
-export const i18n = createInstance();
+const i18n = createInstance();
 void i18n.init({
   lng: LANGUAGE,
   fallbackLng: 'en',

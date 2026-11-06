@@ -14,10 +14,10 @@ export function isVisible(e: FollowEvent, ctx: VisibilityContext): boolean {
   return true;
 }
 
-export const departures = (events: FollowEvent[], ctx: VisibilityContext) =>
+const departures = (events: readonly FollowEvent[], ctx: VisibilityContext) =>
   events.filter((e) => e.type === 'departure' && isVisible(e, ctx));
 
-export const arrivals = (events: FollowEvent[], ctx: VisibilityContext) =>
+export const arrivals = (events: readonly FollowEvent[], ctx: VisibilityContext) =>
   events.filter((e) => e.type === 'arrival' && isVisible(e, ctx));
 
 /**
@@ -46,7 +46,7 @@ const movedSince = (event: FollowEvent, events: readonly FollowEvent[], type: Fo
   (byProfile(events).get(event.profileId) ?? []).some((e) => e.type === type && e.at > event.at);
 
 /** Le compte n'est pas revenu depuis ce départ (§ 4.3, « part puis revient »). */
-export const stillAbsent = (departure: FollowEvent, events: readonly FollowEvent[]) =>
+const stillAbsent = (departure: FollowEvent, events: readonly FollowEvent[]) =>
   !movedSince(departure, events, 'arrival');
 
 /** Le compte n'est pas reparti depuis cette arrivée. */
@@ -149,6 +149,19 @@ export function missingMovements(
     if (e.type === 'departure' && present) out.push({ profileId, type: 'arrival', from: e });
   }
   return out;
+}
+
+/**
+ * Mouvement manquant que l'utilisateur a retiré exprès : le dernier mouvement retiré de ce compte
+ * est de ce type, et rien de plus récent n'est arrivé depuis. Une paire retirée par le nettoyage se
+ * termine par une arrivée : elle ne bloque pas un vrai départ arrivé après.
+ */
+export function wasRemoved(
+  fix: { profileId: string; type: FollowEvent['type']; from: FollowEvent },
+  removed: readonly FollowEvent[],
+): boolean {
+  const last = removed.filter((e) => e.profileId === fix.profileId).sort((a, b) => a.at - b.at).at(-1);
+  return !!last && last.type === fix.type && last.at >= fix.from.at;
 }
 
 /**

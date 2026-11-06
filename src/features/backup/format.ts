@@ -1,9 +1,9 @@
-import { compactEventsOf, isCompactEvent } from '@/features/events/codec';
-import { MAX_TOTALS } from '@/features/followers-sync/repository';
-import { sanitizeSettings } from '@/features/settings/repository';
+import { compactEventsOf, isCompactEvent } from '@/domain/events/codec';
+import { MAX_TOTALS } from '@/features/followers-sync/model';
+import { sanitizeSettings } from '@/features/settings/sanitize';
 import { isNewer } from '@/shared/utils/version';
 import { AVATAR, HANDLE, ID } from '@/shared/x-urls';
-import { keys } from '@/shared/storage/keys';
+import { accountIdOfKey, accountSuffixOfKey, isTransientAccountKey, keys, type BackupSuffix } from '@/shared/storage/keys';
 import { isRecord } from '@/shared/utils/guards';
 import { fromLegacyLayout } from '@/shared/storage/legacy';
 import type { BackupError, ScanCoverage, Snapshot, TrackedAccount } from '@/shared/types';
@@ -40,10 +40,8 @@ export type BackupCheck = { ok: true; backup: Backup } | { ok: false; error: Bac
  * État propre à cette installation, jamais exporté ni écrasé par un import : scan en cours,
  * onglet de scan, statut.
  */
-const TRANSIENT_SUFFIXES = [':job', ':progress'];
-const TRANSIENT_KEYS = new Set<string>([keys.scanTab, keys.status, keys.dismissed]);
-export const isTransientKey = (key: string) =>
-  TRANSIENT_KEYS.has(key) || TRANSIENT_SUFFIXES.some((suffix) => key.endsWith(suffix));
+const TRANSIENT_KEYS = new Set<string>([keys.scanTab, keys.status, keys.dismissed, keys.unseen]);
+export const isTransientKey = (key: string) => TRANSIENT_KEYS.has(key) || isTransientAccountKey(key);
 
 // --- Validation des valeurs ---------------------------------------------------------
 
@@ -118,6 +116,7 @@ function account(v: unknown, accountId: string): TrackedAccount {
     pending,
     lastScan: optional(a.lastScan, coverage),
     quickSinceFull: optional(a.quickSinceFull, count),
+    quickFailures: optional(a.quickFailures, count),
     lastQuick,
     baselineRetry: optional(a.baselineRetry, (r) => {
       const v = record(r);
@@ -169,9 +168,10 @@ function partial(v: unknown): unknown {
 const events = (v: unknown, max: number): unknown[] =>
   Array.isArray(v) && v.length <= max && v.every(isCompactEvent) ? compactEventsOf(v) : fail();
 
-/** Validateurs des clés propres à un compte (`acc:<id>:<suffixe>`). */
-const ACCOUNT_KEYS: Record<string, (v: unknown) => unknown> = {
+/** Validateurs des clés propres à un compte (`acc:<id>:<suffixe>`) : une clé sauvegardée oubliée ici ne compile pas. */
+const ACCOUNT_KEYS: Record<BackupSuffix, (v: unknown) => unknown> = {
   events: (v) => events(v, MAX_EVENTS),
+  repaired: (v) => events(v, MAX_EVENTS),
   ign: (v) => list(v, id, 100_000),
   snapshot,
   profiles,
@@ -181,8 +181,6 @@ const ACCOUNT_KEYS: Record<string, (v: unknown) => unknown> = {
   visit: finite,
 };
 
-const ACCOUNT_KEY = /^acc:(\d{1,20}):([a-z]+)$/;
-
 /**
  * Clé que xGhost sauvegarde : réglages, comptes, compte sélectionné et données de compte connues.
  * Toute autre clé (ancienne version, état passager) reste hors du fichier.
@@ -190,21 +188,27 @@ const ACCOUNT_KEY = /^acc:(\d{1,20}):([a-z]+)$/;
 export function isBackupKey(key: string): boolean {
   if (isTransientKey(key)) return false;
   if (key === keys.settings || key === keys.accounts || key === keys.selectedAccount) return true;
-  const suffix = ACCOUNT_KEY.exec(key)?.[2];
+  const suffix = accountSuffixOfKey(key);
   return suffix !== undefined && Object.hasOwn(ACCOUNT_KEYS, suffix);
 }
 
+/** Scan incomplet : jetable, et aussi lourd que le cache des profils. Accepté à l'import, jamais exporté. */
+const isPartialKey = (key: string) => key.endsWith(':partial');
+
 /** Clés du stockage retenues pour la sauvegarde. */
 export const backupItems = (items: Record<string, unknown>): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(items).filter(([key]) => isBackupKey(key)));
+  Object.fromEntries(Object.entries(items).filter(([key]) => isBackupKey(key) && !isPartialKey(key)));
+
+/** Taille réelle en octets d'une sauvegarde sérialisée. */
+export const byteLength = (json: string): number => new TextEncoder().encode(json).length;
 
 /** Valide une clé et sa valeur ; renvoie la valeur nettoyée. */
 function item(key: string, value: unknown): unknown {
   if (key === keys.settings) return sanitizeSettings(record(value));
   if (key === keys.accounts) return accounts(value);
   if (key === keys.selectedAccount) return id(value);
-  const suffix = ACCOUNT_KEY.exec(key)?.[2];
-  const check = suffix && Object.hasOwn(ACCOUNT_KEYS, suffix) ? ACCOUNT_KEYS[suffix] : undefined;
+  const suffix = accountSuffixOfKey(key);
+  const check = suffix && Object.hasOwn(ACCOUNT_KEYS, suffix) ? ACCOUNT_KEYS[suffix as BackupSuffix] : undefined;
   return check ? check(value) : fail();
 }
 
@@ -215,7 +219,33 @@ function data(items: Record<string, unknown>): Record<string, unknown> {
     if (isTransientKey(key)) continue;
     clean[key] = item(key, value);
   }
+  // L'import remplace tout : un fichier sans compte effacerait toutes les données.
+  const tracked = clean[keys.accounts];
+  if (!isRecord(tracked) || Object.keys(tracked).length === 0) fail();
+  // Données d'un compte retiré : inaccessibles, elles ne font pas refuser le fichier.
+  for (const key of Object.keys(clean)) {
+    const accountId = accountIdOfKey(key);
+    if (accountId !== undefined && !Object.hasOwn(tracked as object, accountId)) delete clean[key];
+  }
   return clean;
+}
+
+export interface BackupSummary {
+  handles: string[];
+  events: number;
+  exportedAt: number;
+}
+
+/** Contenu d'une sauvegarde lue, pour décider en connaissance de cause. `undefined` si elle est illisible. */
+export function summarizeBackup(raw: unknown, installed: string): BackupSummary | undefined {
+  const check = validateBackup(raw, installed);
+  if (!check.ok) return undefined;
+  const { data: items, exportedAt } = check.backup;
+  const events = Object.entries(items)
+    .filter(([key]) => key.endsWith(':events'))
+    .reduce((sum, [, list]) => sum + (list as unknown[]).length, 0);
+  const handles = Object.values(items[keys.accounts] as Record<string, TrackedAccount>).map((a) => a.handle);
+  return { handles, events, exportedAt };
 }
 
 /**

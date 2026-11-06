@@ -3,8 +3,7 @@
 /* Rangées de graphiques côte à côte (tableau de bord) ; une carte seule prend toute la largeur. */
 .xg-stats__row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  gap: var(--xg-gap-section);
   align-items: stretch;
 }
 .xg-stats__row--1 {
@@ -13,17 +12,13 @@
 .xg-stats__row--2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.xg-stats__row--wide {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-}
 @media (max-width: 1100px) {
-  .xg-stats__row,
-  .xg-stats__row--wide {
+  .xg-stats__row--2 {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.xg-stat {
+.xg-chart-card {
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -44,7 +39,7 @@
 }
 .xg-stat__title {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--xg-text-xl);
   font-weight: 600;
   color: var(--xg-ink);
 }
@@ -53,7 +48,7 @@
   margin-right: 12px;
 }
 .xg-stat__sub {
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
   color: var(--xg-text-muted);
 }
 .xg-stat__delta {
@@ -71,7 +66,7 @@
 .xg-stat__axis {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--xg-text-xs);
   color: var(--xg-text-muted);
 }
 
@@ -102,7 +97,7 @@
   stroke-width: 1;
   stroke-dasharray: 3 3;
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity var(--xg-dur-bubble) ease;
 }
 .xg-followers__cursor.is-visible {
   opacity: 0.6;
@@ -124,7 +119,7 @@
   /* Colonne bornée : une date plus large que la barre déborde au lieu d'élargir la barre. */
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr 0fr auto;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--xg-dur-base) ease;
 }
 .xg-net.has-negative .xg-net__col {
   grid-template-rows: 1fr 1fr auto;
@@ -170,7 +165,7 @@
 .xg-net.is-dense .xg-net__bar--empty {
   height: 4px;
   min-height: 0;
-  border-radius: 2px;
+  border-radius: var(--xg-radius-bar-sm);
   background: var(--xg-border);
 }
 .xg-net__value {
@@ -179,7 +174,7 @@
   left: 50%;
   transform: translateX(-50%);
   padding: 2px 0;
-  font-size: 12px;
+  font-size: var(--xg-text-xs);
   font-style: normal;
   font-weight: 600;
   white-space: nowrap;
@@ -202,7 +197,7 @@
   line-height: 18px;
   padding-top: 8px;
   overflow: visible;
-  font-size: 12px;
+  font-size: var(--xg-text-xs);
   text-align: center;
   white-space: nowrap;
   color: var(--xg-text-muted);
@@ -224,7 +219,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 6px 12px;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
 }
 .xg-duration__count {
   font-weight: 600;
@@ -235,7 +230,7 @@
   grid-column: 1 / -1;
   display: block;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--xg-radius-pill);
   background: var(--xg-surface-muted);
   overflow: hidden;
 }
@@ -245,7 +240,7 @@
   height: 100%;
   border-radius: inherit;
   background: var(--xg-chart-departure);
-  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 0.4s var(--xg-ease-out);
 }
 
 /* Tranche pas encore couverte par le suivi : grisée. */
@@ -272,11 +267,11 @@
   flex-direction: column;
   gap: 6px;
   padding: 14px 12px;
-  border-radius: 12px;
+  border-radius: var(--xg-radius-lg);
   background: var(--xg-background);
 }
 .xg-retention__days {
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
   color: var(--xg-text-muted);
 }
 .xg-retention__value {
@@ -289,20 +284,12 @@
   background: var(--xg-primary);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .xg-followers__cursor,
-  .xg-net__col,
-  .xg-duration__bar,
-  .xg-retention__bar {
-    transition: none;
-  }
-}
 
 /* Briques communes : légende, zones de survol, infobulle (chart.tsx), barres d'activité. */
 .xg-chart__legend {
   display: flex;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--xg-text-xs);
   white-space: nowrap;
 }
 .xg-chart__legend i {
@@ -310,7 +297,7 @@
   width: 9px;
   height: 9px;
   margin-right: 6px;
-  border-radius: 2px;
+  border-radius: var(--xg-radius-bar-sm);
 }
 .xg-chart__swatch--arrival {
   background: var(--xg-primary);
@@ -335,16 +322,17 @@
 .xg-chart__tip {
   position: absolute;
   bottom: calc(100% + 8px);
-  z-index: 5;
+  /* Au-dessus de l'en-tête figé, quand le graphique défile juste dessous. */
+  z-index: var(--xg-z-tooltip);
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 170px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--xg-radius-control);
   background: var(--xg-bubble-bg);
   color: var(--xg-bubble-fg);
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
   line-height: 1.35;
   white-space: nowrap;
   pointer-events: none;
@@ -354,9 +342,9 @@
   opacity: 0;
   /* Fondu à l'apparition et à la disparition ; l'infobulle glisse d'un jour à l'autre. */
   transition:
-    opacity 0.18s ease,
-    transform 0.18s ease,
-    left 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity var(--xg-dur-bubble) ease,
+    transform var(--xg-dur-bubble) ease,
+    left var(--xg-dur-base) var(--xg-ease-out);
 }
 .xg-chart__tip.is-visible {
   opacity: 1;
@@ -370,14 +358,7 @@
 }
 .xg-chart__day,
 .xg-chart__hl {
-  transition: opacity 0.2s ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .xg-chart__tip,
-  .xg-chart__day,
-  .xg-chart__hl {
-    transition: none;
-  }
+  transition: opacity var(--xg-dur-base) ease;
 }
 .xg-chart__tip strong {
   font-weight: 600;
@@ -393,7 +374,7 @@
 .xg-chart__tip-row i {
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: var(--xg-radius-bar-sm);
 }
 .xg-chart__tip-net {
   margin-top: 2px;
@@ -403,7 +384,7 @@
 }
 .xg-chart__foot {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--xg-text-xs);
   color: var(--xg-text-muted);
 }
 
@@ -419,7 +400,7 @@
   top: 14px;
   right: 14px;
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity var(--xg-dur-bubble) ease;
 }
 .xg-stat-card:hover .xg-stat-card__hide,
 .xg-stat-card__hide:focus-within {
@@ -432,9 +413,4 @@
 }
 .xg-stat-card__hide .xg-icon-btn:hover {
   color: var(--xg-ink);
-}
-@media (prefers-reduced-motion: reduce) {
-  .xg-stat-card__hide {
-    transition: none;
-  }
 }

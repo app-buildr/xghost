@@ -41,7 +41,7 @@ export async function notifyAccountAdded(): Promise<void> {
 
 export function onNotificationClick(open: () => void): void {
   chrome.notifications.onClicked.addListener((id) => {
-    chrome.notifications.clear(id);
+    void chrome.notifications.clear(id);
     open();
   });
 }

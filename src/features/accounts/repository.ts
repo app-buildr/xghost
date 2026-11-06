@@ -7,7 +7,7 @@ import type { TrackedAccount } from '@/shared/types';
 
 /** Comptes X suivis, comptes ignorés par compte, compte sélectionné. */
 
-import type { AccountsMap } from './model';
+import type { AccountsMap } from '@/domain/accounts/model';
 
 /**
  * Comptes suivis. Lecture défensive : une entrée corrompue (quelle qu'en soit l'origine)

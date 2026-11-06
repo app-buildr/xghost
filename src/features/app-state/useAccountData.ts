@@ -1,18 +1,17 @@
 import { useMemo } from 'react';
 import { loadIgnored } from '@/features/accounts/repository';
 import { loadEvents } from '@/features/events/repository';
-import type { VisibilityContext } from '@/features/events/selectors';
+import type { VisibilityContext } from '@/domain/events/selectors';
 import type { ScanProgress } from '@/features/followers-sync/model';
 import {
   loadProfiles,
   loadProgress,
   loadTotals,
-  type ProfileCache,
   type TotalPoint,
 } from '@/features/followers-sync/repository';
 import { useStorageQuery } from '@/shared/hooks/useStorageQuery';
-import { isAccountKey, keys } from '@/shared/storage/keys';
-import type { FollowEvent, TrackedAccount } from '@/shared/types';
+import { isDisplayKey, keys } from '@/shared/storage/keys';
+import type { FollowEvent, ProfileCache, TrackedAccount } from '@/shared/types';
 import { useSeenOnView } from './useSeenOnView';
 
 export interface AccountData {
@@ -24,9 +23,6 @@ export interface AccountData {
   progress?: ScanProgress;
 }
 
-/** Clés d'un compte qui ne concernent pas l'affichage de l'historique (scan, instantané, visite). */
-const SCAN_STATE_KEYS = [':job', ':progress', ':partial', ':snapshot', ':suspicious', ':visit'];
-
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
@@ -35,22 +31,24 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  * `markDisplayed` est à fournir aux listes par `DisplayedContext`.
  */
 export function useAccountData(accountId: string | undefined, options: { seenOnView?: boolean } = {}) {
-  // Historique, comptes ignorés et profils : rechargés seulement quand ils changent
-  // (pas à chaque page d'un scan en cours, qui ne touche que l'état du scan).
-  const { data: stored, loading } = useStorageQuery<Omit<AccountData, 'progress'> | undefined>(
+  // Historique et comptes ignorés : rechargés seulement quand ils changent (pas à chaque page d'un
+  // scan en cours, qui ne touche que l'état du scan).
+  const { data: history, loading } = useStorageQuery<Omit<AccountData, 'progress' | 'profiles'> | undefined>(
     async () => {
       if (!accountId) return undefined;
-      const [events, ignored, profiles, totals] = await Promise.all([
-        loadEvents(accountId),
-        loadIgnored(accountId),
-        loadProfiles(accountId),
-        loadTotals(accountId),
-      ]);
-      return { events, ignored, profiles, totals };
+      const [events, ignored, totals] = await Promise.all([loadEvents(accountId), loadIgnored(accountId), loadTotals(accountId)]);
+      return { events, ignored, totals };
     },
-    (k) => !!accountId && isAccountKey(k, accountId) && !SCAN_STATE_KEYS.some((suffix) => k.endsWith(suffix)),
+    (k) => !!accountId && isDisplayKey(k, accountId) && k !== keys.profiles(accountId),
     [accountId],
   );
+  // Profils : plusieurs Mo, qu'un événement vu ou supprimé n'a pas besoin de relire.
+  const { data: profiles } = useStorageQuery<ProfileCache | undefined>(
+    async () => (accountId ? loadProfiles(accountId) : undefined),
+    (k) => !!accountId && k === keys.profiles(accountId),
+    [accountId],
+  );
+  const stored = useMemo(() => (history && profiles ? { ...history, profiles } : undefined), [history, profiles]);
   // État du scan en cours : petite clé mise à jour à chaque page.
   const { data: progress } = useStorageQuery<ScanProgress | undefined>(
     async () => (accountId ? loadProgress(accountId) : undefined),

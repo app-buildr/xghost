@@ -1,0 +1,377 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { keys } from '@/shared/storage/keys';
+import type { ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
+import { installFakeChrome, type FakeChrome } from '@/test/fake-chrome';
+import { decodeEvent, encodeEvent } from '@/domain/events/codec';
+import { loadEvents } from '@/features/events/repository';
+import { applyQuickCheck, applyScan, saveIncomplete } from './apply';
+
+const ID = '42';
+const HOUR = 3_600_000;
+const BASE = Date.UTC(2026, 0, 1);
+
+const id = (i: number) => String(1_000_000_000_000 + i);
+const list = (n: number, from = 0) => Array.from({ length: n }, (_, i) => id(from + i));
+const profile = (i: string) => ({ handle: `u${i.slice(-8)}`, name: `Nom ${i}`, following: false });
+const collected = (ids: readonly string[]) => Object.fromEntries(ids.map((i) => [i, profile(i)]));
+
+let fake: FakeChrome;
+
+async function seed({
+  account = {},
+  snapshot,
+  events = [],
+}: {
+  account?: Partial<TrackedAccount>;
+  snapshot?: Partial<Snapshot> & { ids: string[] };
+  events?: Parameters<typeof encodeEvent>[0][];
+}) {
+  const stored: TrackedAccount = { id: ID, handle: 'moi', addedAt: BASE, mutualsOnly: false, baselineAt: BASE, lastScanAt: BASE, ...account };
+  await chrome.storage.local.set({
+    [keys.accounts]: { [ID]: stored },
+    ...(snapshot
+      ? {
+          [keys.snapshot(ID)]: {
+            at: BASE,
+            total: snapshot.ids.length,
+            xTotal: snapshot.ids.length,
+            top: snapshot.ids.slice(0, 200),
+            ordered: true,
+            ...snapshot,
+          } satisfies Snapshot,
+          [keys.profiles(ID)]: collected(snapshot.ids),
+        }
+      : {}),
+    [keys.events(ID)]: events.map(encodeEvent),
+  });
+}
+
+function job(ids: readonly string[], over: Partial<ScanJob> = {}): ScanJob {
+  return {
+    accountId: ID,
+    kind: 'check',
+    status: 'running',
+    startedAt: BASE + HOUR,
+    updatedAt: BASE + HOUR,
+    pages: 1,
+    collected: collected(ids),
+    top: [...ids],
+    count: ids.length,
+    expectedTotal: ids.length,
+    totalSeen: true,
+    reachedEnd: true,
+    ...over,
+  };
+}
+
+const account = async () => (fake.store.get(keys.accounts) as Record<string, TrackedAccount>)[ID]!;
+const snapshotIds = () => (fake.store.get(keys.snapshot(ID)) as Snapshot).ids;
+
+beforeEach(() => {
+  fake = installFakeChrome();
+});
+
+describe('applyScan', () => {
+  it('référence : aucun événement, date posée', async () => {
+    await seed({ account: { baselineAt: undefined, lastScanAt: undefined } });
+    const out = await applyScan(job(list(5), { kind: 'baseline' }));
+    expect(out.kind).toBe('baseline');
+    expect(await loadEvents(ID)).toEqual([]);
+    expect((await account()).baselineAt).toBeGreaterThan(0);
+    expect(snapshotIds()).toEqual(list(5));
+  });
+
+  it('référence : une date existante (sauvegarde importée) est conservée', async () => {
+    await seed({ account: { baselineAt: 123 } });
+    await applyScan(job(list(5), { kind: 'baseline' }));
+    expect((await account()).baselineAt).toBe(123);
+  });
+
+  it('scan incomplet : instantané inchangé, abonnés gardés, jamais comparé', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyScan(job(list(50), { expectedTotal: 100, reachedEnd: true }));
+    expect(out.kind).toBe('incomplete');
+    expect(snapshotIds()).toEqual(list(100));
+    expect(await loadEvents(ID)).toEqual([]);
+    expect(fake.store.has(keys.partialScan(ID))).toBe(true);
+    expect((await account()).lastScan?.complete).toBe(false);
+  });
+
+  it('pages perdues (`gap`) : jamais complet, arrêt anticipé refusé', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyScan(job(list(100), { gap: true, earlyStop: { matchedIndex: 50 } }));
+    expect(out.kind).toBe('incomplete');
+  });
+
+  it('scan comparé : départs datés de la première détection, arrivées du scan', async () => {
+    await seed({ account: { pending: { count: 1, at: BASE + 5 * 60_000 } }, snapshot: { ids: list(10) } });
+    const ids = [id(99), ...list(10).slice(1)];
+    const out = await applyScan(job(ids));
+    expect(out).toEqual({ kind: 'compared', departures: 1, arrivals: 1 });
+    const events = await loadEvents(ID);
+    expect(events.find((e) => e.type === 'departure')?.at).toBe(BASE + 5 * 60_000);
+    expect((await account()).pending).toBeUndefined();
+    expect(fake.notifications).toHaveLength(1);
+  });
+
+  it('scan de bout en bout : le compteur des contrôles légers repart de zéro', async () => {
+    await seed({ account: { quickSinceFull: 7 }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(10)));
+    expect((await account()).quickSinceFull).toBe(0);
+  });
+
+  it('fin de liste non atteinte : la suite est reprise, le scan de contrôle reste dû', async () => {
+    await seed({ account: { quickSinceFull: 7 }, snapshot: { ids: list(200) } });
+    const out = await applyScan(job(list(199), { reachedEnd: false, expectedTotal: 200 }));
+    expect(out).toEqual({ kind: 'compared', departures: 0, arrivals: 0 });
+    expect(snapshotIds()).toHaveLength(200);
+    expect((await account()).quickSinceFull).toBe(7);
+  });
+
+  it('résultat suspect : nouvel essai, instantané intact', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyScan(job(list(60), { expectedTotal: 60 }));
+    expect(out.kind).toBe('retry');
+    expect(snapshotIds()).toHaveLength(100);
+    expect(fake.store.get(keys.suspicious(ID))).toBe(1);
+  });
+
+  it('scan rejoué (service worker arrêté) : aucun doublon', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    const scan = job(list(9));
+    await applyScan(scan);
+    // Instantané remis à son état précédent : arrêt entre l'historique et l'instantané.
+    await chrome.storage.local.set({ [keys.snapshot(ID)]: { at: BASE, ids: list(10), total: 10, ordered: true } });
+    await applyScan(scan);
+    expect((await loadEvents(ID)).filter((e) => e.type === 'departure')).toHaveLength(1);
+  });
+
+  it('compte ignoré : enregistré déjà vu, sans notification', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await chrome.storage.local.set({ [keys.ignored(ID)]: [id(9)] });
+    await applyScan(job(list(9)));
+    const [event] = await loadEvents(ID);
+    expect(event?.seen).toBe(true);
+    expect(fake.notifications).toHaveLength(0);
+  });
+});
+
+describe('saveIncomplete', () => {
+  it('garde les abonnés pour la reprise et marque le scan incomplet', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    const coverage = await saveIncomplete(job(list(5), { expectedTotal: 10 }));
+    expect(coverage.complete).toBe(false);
+    expect(fake.store.has(keys.partialScan(ID))).toBe(true);
+  });
+});
+
+describe('applyQuickCheck', () => {
+  const quick = (ids: readonly string[], over: Partial<ScanJob> = {}) => job(ids, { kind: 'quick', ...over });
+
+  it('total stable, aucun nouveau : rien à signaler', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyQuickCheck(quick(list(50), { expectedTotal: 100 }));
+    expect(out).toEqual({ kind: 'clear', arrivals: 0 });
+    expect(await loadEvents(ID)).toEqual([]);
+  });
+
+  it('nouvel abonné en tête : arrivée enregistrée, liste à jour', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyQuickCheck(quick([id(999), ...list(49)], { expectedTotal: 101 }));
+    expect(out).toEqual({ kind: 'clear', arrivals: 1 });
+    expect(snapshotIds()[0]).toBe(id(999));
+  });
+
+  it('total en baisse sans explication : écart en attente', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyQuickCheck(quick(list(50), { expectedTotal: 98 }));
+    expect(out).toEqual({ kind: 'pending', missing: 2, full: false });
+    expect((await account()).pending?.count).toBe(2);
+  });
+
+  it('contrôle rejoué : écart et compteurs ne sont pas recomptés', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const check = quick(list(50), { expectedTotal: 98 });
+    await applyQuickCheck(check);
+    await applyQuickCheck(check);
+    const a = await account();
+    expect(a.pending?.count).toBe(2);
+    expect(a.quickSinceFull).toBe(1);
+  });
+
+  it('total X en retard : revérification, pas de scan complet', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyQuickCheck(quick([id(999), ...list(49)], { expectedTotal: 100 }));
+    expect(out.kind).toBe('recheck');
+    expect((await account()).lastQuick?.staleRuns).toBe(1);
+  });
+
+  it('aucun changement : profils et instantané ne sont pas réécrits', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const before = { snapshot: fake.store.get(keys.snapshot(ID)), profiles: fake.store.get(keys.profiles(ID)) };
+    fake.store.set(keys.profiles(ID), before.profiles);
+    let writes = 0;
+    chrome.storage.onChanged.addListener((changes) => {
+      if (keys.profiles(ID) in changes || keys.snapshot(ID) in changes) writes++;
+    });
+    await applyQuickCheck(quick(list(50), { expectedTotal: 100 }));
+    expect(writes).toBe(0);
+  });
+
+  it('sans instantané : ignoré', async () => {
+    await seed({});
+    expect(await applyQuickCheck(quick(list(5)))).toEqual({ kind: 'skipped' });
+  });
+});
+
+describe('contrôle par le total X', () => {
+  it('écart en attente : les départs annoncés sont expliqués', async () => {
+    // Le contrôle léger a déjà ramené le total de l'instantané à 90.
+    await seed({ account: { pending: { count: 10, at: BASE } }, snapshot: { ids: list(100), xTotal: 90 } });
+    const out = await applyScan(job(list(90), { expectedTotal: 90 }));
+    expect(out).toEqual({ kind: 'compared', departures: 10, arrivals: 0 });
+  });
+
+  it('total stable mais abonnés manquants : rien n’est comparé, nouvel essai', async () => {
+    await seed({ snapshot: { ids: list(1000) } });
+    const out = await applyScan(job(list(991), { expectedTotal: 1000 }));
+    expect(out.kind).toBe('retry');
+    expect(snapshotIds()).toHaveLength(1000);
+    expect(await loadEvents(ID)).toEqual([]);
+  });
+
+  it('même résultat relu en entier plusieurs fois : accepté, la détection ne reste pas figée', async () => {
+    await seed({ snapshot: { ids: list(1000) } });
+    await chrome.storage.local.set({ [keys.suspicious(ID)]: 2 });
+    const out = await applyScan(job(list(991), { expectedTotal: 1000 }));
+    expect(out).toEqual({ kind: 'compared', departures: 9, arrivals: 0 });
+  });
+
+  it('jamais accepté sur une reprise : il faut une liste relue en entier', async () => {
+    await seed({ snapshot: { ids: list(1000) } });
+    await chrome.storage.local.set({ [keys.suspicious(ID)]: 2 });
+    const out = await applyScan(job(list(991), { expectedTotal: 1000, seeded: 500 }));
+    expect(out.kind).toBe('retry');
+    expect(snapshotIds()).toHaveLength(1000);
+  });
+
+  it('total en baisse : la variation est acceptée', async () => {
+    await seed({ snapshot: { ids: list(1000) } });
+    const out = await applyScan(job(list(980), { expectedTotal: 980 }));
+    expect(out).toEqual({ kind: 'compared', departures: 20, arrivals: 0 });
+  });
+
+  it('variation suspecte confirmée par le total : acceptée au troisième essai', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    await chrome.storage.local.set({ [keys.suspicious(ID)]: 2 });
+    const out = await applyScan(job(list(60), { expectedTotal: 60 }));
+    expect(out.kind).toBe('compared');
+    expect(fake.store.has(keys.suspicious(ID))).toBe(false);
+  });
+
+  it('liste relue depuis le haut : marquée hors de l’ordre de x.com', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(10), { unordered: true }));
+    expect((fake.store.get(keys.snapshot(ID)) as Snapshot).ordered).toBe(false);
+  });
+
+  it('trop d’entrées illisibles : scan incomplet', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    const out = await applyScan(job(list(100), { skipped: 6 }));
+    expect(out.kind).toBe('incomplete');
+  });
+});
+
+describe('corrections après review', () => {
+  it('fin de liste non lue sans ancienne liste ordonnée : incomplet', async () => {
+    await seed({ snapshot: { ids: list(1000), ordered: false } });
+    const out = await applyScan(job(list(995), { reachedEnd: false, expectedTotal: 1000 }));
+    expect(out.kind).toBe('incomplete');
+    expect(await loadEvents(ID)).toEqual([]);
+  });
+
+  it('scan incomplet : le partiel garde la date de lecture, pas celle de la sauvegarde', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await saveIncomplete(job(list(5), { expectedTotal: 10, startedAt: 111 }));
+    expect((fake.store.get(keys.partialScan(ID)) as { at: number }).at).toBe(111);
+    await saveIncomplete(job(list(5), { expectedTotal: 10, startedAt: 500, seededAt: 222 }));
+    expect((fake.store.get(keys.partialScan(ID)) as { at: number }).at).toBe(222);
+  });
+
+  it('reprise : le scan de contrôle reste dû', async () => {
+    await seed({ account: { quickSinceFull: 7 }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(10), { seeded: 5 }));
+    expect((await account()).quickSinceFull).toBe(7);
+  });
+
+
+  it('arrêt anticipé avec des entrées illisibles : pas de complet forcé', async () => {
+    await seed({ snapshot: { ids: list(200) } });
+    const out = await applyScan(job(list(60), { earlyStop: { matchedIndex: 59 }, reachedEnd: false, skipped: 6, expectedTotal: 200 }));
+    expect(out.kind).toBe('incomplete');
+  });
+
+  it('total inconnu, fin de liste lue : les départs sont comptés', async () => {
+    await seed({ snapshot: { ids: list(20) } });
+    const out = await applyScan(job(list(19), { expectedTotal: 0, totalSeen: false }));
+    expect(out).toEqual({ kind: 'compared', departures: 1, arrivals: 0 });
+  });
+
+  it('scan complet réussi : le bandeau des contrôles échoués disparaît', async () => {
+    await seed({ account: { quickFailures: 3 }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(10)));
+    expect((await account()).quickFailures).toBeUndefined();
+  });
+
+  it('départ supprimé par l’utilisateur : pas recréé par la réparation', async () => {
+    const arrival = decodeEvent([1, id(50), 'parti', Math.floor(BASE / 1000) - 100, 0, 0, 1]);
+    await seed({ snapshot: { ids: list(10) }, events: [arrival] });
+    const removed = decodeEvent([0, id(50), 'parti', Math.floor(BASE / 1000) - 50, 0, 0, 1]);
+    await chrome.storage.local.set({ [keys.repaired(ID)]: [encodeEvent(removed)] });
+    await applyScan(job(list(10)));
+    expect((await loadEvents(ID)).filter((e) => e.type === 'departure')).toEqual([]);
+  });
+
+  it('sans faux départs : l’historique n’est pas réécrit par le nettoyage', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    let writes = 0;
+    chrome.storage.onChanged.addListener((changes) => {
+      if (keys.events(ID) in changes) writes++;
+    });
+    await applyScan(job(list(10)));
+    expect(writes).toBe(0);
+  });
+});
+
+describe('faux départs', () => {
+  /** Ancienne liste de 2 000 ; l'abonné en position `at` remonte en tête. */
+  const returned = (at: number) => [id(at), ...list(2000).filter((i) => i !== id(at))];
+
+  it('arrêt anticipé : un abonné revenu ne déclare pas parti tout ce qui le précède', async () => {
+    await seed({ snapshot: { ids: list(2000) } });
+    const read = returned(300).slice(0, 60);
+    const out = await applyScan(job(read, { target: 1, earlyStop: { matchedIndex: 300 }, reachedEnd: false, expectedTotal: 2000 }));
+    expect(out.kind).toBe('retry');
+    expect(await loadEvents(ID)).toEqual([]);
+  });
+
+  it('reprise sans nouvel abonné : une liste à 85 % ne crée pas de faux départs', async () => {
+    await seed({ snapshot: { ids: list(2000) } });
+    await applyScan(job(list(1700), { expectedTotal: 2000, seeded: 1700, top: [], reachedEnd: true }));
+    expect(await loadEvents(ID)).toEqual([]);
+  });
+
+  it('liste tronquée répétée : jamais acceptée tant que le total X ne baisse pas', async () => {
+    await seed({ snapshot: { ids: list(2000) } });
+    await chrome.storage.local.set({ [keys.suspicious(ID)]: 2 });
+    await applyScan(job(list(20), { expectedTotal: 2000, seeded: 20, reachedEnd: true }));
+    expect(snapshotIds()).toHaveLength(2000);
+  });
+
+  it('contrôle léger : un abonné revenu ne fait pas partir le dernier de la fenêtre', async () => {
+    await seed({ snapshot: { ids: list(2000) } });
+    const page = [id(500), ...list(49)];
+    await applyQuickCheck(job(page, { kind: 'quick', expectedTotal: 2000 }));
+    expect(await loadEvents(ID)).toEqual([]);
+  });
+});

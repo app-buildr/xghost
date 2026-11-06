@@ -11,8 +11,6 @@ export interface Settings {
   frequencyHours: Frequency;
   /** Graphiques masqués du tableau de bord (par défaut, seule la rétention des arrivées l'est). */
   hiddenCharts: DashboardChart[];
-  /** Reporté en v2 (« Suivre aussi mes abonnements »). */
-  trackFollowing: boolean;
   badge: boolean;
   notifications: boolean;
 }
@@ -20,7 +18,6 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   frequencyHours: 6,
   hiddenCharts: ['retention'],
-  trackFollowing: false,
   badge: true,
   notifications: true,
 };
@@ -59,6 +56,8 @@ export interface TrackedAccount {
    * lecture, et date du dépassement. Plus aucun scan ; seul le contrôle léger relit le total.
    */
   limit?: { count: number; at: number };
+  /** Contrôles légers abandonnés d'affilée (page qui ne répond plus) : signalés à l'utilisateur. */
+  quickFailures?: number;
   /** Résultat du dernier contrôle léger (affiché dans le tableau de bord). */
   lastQuick?: {
     at: number;
@@ -105,7 +104,7 @@ export interface PartialScan {
   kind: Exclude<ScanKind, 'quick'>;
   at: number;
   expectedTotal: number;
-  collected: Record<string, Omit<Profile, 'id'>>;
+  collected: ProfileCache;
 }
 
 export type AccountStatus = 'active' | 'suspended' | 'gone';
@@ -131,6 +130,9 @@ export interface Profile {
   /** Je le suis. */
   following: boolean;
 }
+
+/** Profils par id. */
+export type ProfileCache = Record<string, Omit<Profile, 'id'>>;
 
 export interface Snapshot {
   at: number;
@@ -192,7 +194,7 @@ export interface ScanJob {
   /** Nombre d'abonnés récupérés (tenu à jour, pour ne pas recompter `collected`). */
   count?: number;
   /** Abonnés récupérés jusqu'ici, par id. */
-  collected: Record<string, Omit<Profile, 'id'>>;
+  collected: ProfileCache;
   /** Nombre d'abonnés annoncé par X au début du scan. */
   expectedTotal: number;
   /** Le total ci-dessus a bien été lu dans la page pendant ce scan. */
@@ -204,6 +206,8 @@ export interface ScanJob {
   visible?: boolean;
   /** Abonnés repris d'un scan incomplet précédent (union, § 4.7). */
   seeded?: number;
+  /** Date de lecture des abonnés repris : leur âge ne repart pas à zéro à chaque reprise. */
+  seededAt?: number;
   /** La fin de la liste a été atteinte pendant ce passage. */
   reachedEnd?: boolean;
   /**
@@ -212,6 +216,12 @@ export interface ScanJob {
    * pour la reprise (union).
    */
   gap?: boolean;
+  /** Pauses d'affilée parce que x.com refuse la liste : au-delà d'un seuil, le scan s'arrête. */
+  failureCycles?: number;
+  /** Liste relue depuis le haut en cours de scan : `top` n'est plus dans l'ordre de x.com. */
+  unordered?: boolean;
+  /** Entrées de la liste illisibles pour xGhost (format de X modifié). */
+  skipped?: number;
   /** Nombre de pages relues depuis que l'arrêt anticipé est possible (marge de sécurité). */
   earlyStopPages?: number;
   pausedReason?: ScanPauseReason;

@@ -1,19 +1,85 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMarkVisible } from '@/features/app-state/useSeenOnView';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { t } from '@/shared/i18n';
 import type { FollowEvent } from '@/shared/types';
 import { Segmented } from '@/shared/ui/primitives';
+import type { EventRowProps } from './EventRow';
+import { rowSpacers } from './rowSpacers';
 import './events.css';
 
 type Filter = 'all' | 'follow-back';
+
+/** Hauteur d'une ligne tant qu'elle n'a pas été mesurée (celle d'une ligne de la page d'options). */
+const ROW_ESTIMATE_PX = 77;
+/** Lignes gardées en place de part et d'autre de la zone visible. */
+const ROWS_OVERSCAN = 8;
+
+type RenderRow = (event: FollowEvent, rowProps: EventRowProps) => ReactNode;
+
+/**
+ * Liste virtualisée : seules les lignes proches de la zone visible existent dans la page, quelle
+ * que soit la longueur de l'historique. Elles restent dans le flux, entre deux espaceurs qui
+ * tiennent la place des autres (pas du padding : il passerait outre le `max-height` de la liste) ;
+ * sans positionnement absolu, la ligne d'un menu ouvert passe au-dessus des suivantes comme
+ * d'habitude. Les hauteurs sont mesurées (elles varient avec la largeur).
+ * Une ligne compte comme vue quand elle passe réellement à l'écran.
+ */
+function EventRows({ items, renderRow }: { items: readonly FollowEvent[]; renderRow: RenderRow }) {
+  const list = useRef<HTMLUListElement>(null);
+  // Clé par événement : une suppression ne décale pas les hauteurs déjà mesurées.
+  const getItemKey = useCallback((index: number) => items[index]?.id ?? index, [items]);
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => list.current,
+    estimateSize: () => ROW_ESTIMATE_PX,
+    overscan: ROWS_OVERSCAN,
+    getItemKey,
+    useFlushSync: false,
+  });
+  const rows = virtualizer.getVirtualItems();
+  const total = virtualizer.getTotalSize();
+  const mounted = useMemo(() => rows.flatMap((row) => items[row.index] ?? []), [rows, items]);
+  // Racine : la fenêtre, dont l'intersection tient aussi compte du défilement de la liste.
+  useMarkVisible(list, mounted);
+  const fade = useScrollFade(list, total);
+  // L'apparition en cascade n'est jouée qu'à l'ouverture, pas par les lignes montées au défilement.
+  const [scrolled, setScrolled] = useState(false);
+  const { before, after } = rowSpacers(rows, total);
+
+  return (
+    <ul
+      ref={list}
+      className={`xg-dep-list${scrolled ? '' : ' xg-list-in'} xg-scroll${fade.more ? ' xg-scroll-fade' : ''}`}
+      onScroll={() => {
+        fade.onScroll();
+        setScrolled(true);
+      }}
+    >
+      {before > 0 && <li aria-hidden="true" style={{ height: before }} />}
+      {rows.map((row) => {
+        const event = items[row.index];
+        return (
+          event &&
+          renderRow(event, {
+            ref: virtualizer.measureElement,
+            'data-index': row.index,
+            'aria-posinset': row.index + 1,
+            'aria-setsize': items.length,
+          })
+        );
+      })}
+      {after > 0 && <li aria-hidden="true" style={{ height: after }} />}
+    </ul>
+  );
+}
 
 /**
  * Carte de liste de mouvements (départs, nouveaux abonnés) : titre, filtre « Tous / Follow back »,
  * états vides, et lien « Voir tout l'historique » quand la liste est limitée.
  * La liste défile à l'intérieur de la carte : plafonnée en hauteur (`--xg-dep-list-max`), ou,
  * avec `fill`, à la hauteur de son conteneur.
- * Une ligne compte comme vue quand elle passe réellement à l'écran.
  */
 export function EventListPanel({
   title,
@@ -34,7 +100,7 @@ export function EventListPanel({
   followsBack: (e: FollowEvent) => boolean;
   empty: string;
   emptyFiltered: string;
-  renderRow: (e: FollowEvent) => ReactNode;
+  renderRow: RenderRow;
   /** Nombre de lignes affichées ; absent = tout l'historique. */
   limit?: number;
   onShowAll?: () => void;
@@ -47,10 +113,6 @@ export function EventListPanel({
     [items, filter, followsBack],
   );
   const shown = useMemo(() => (limit ? filtered.slice(0, limit) : filtered), [filtered, limit]);
-  const list = useRef<HTMLUListElement>(null);
-  // Racine : la fenêtre, dont l'intersection tient aussi compte du défilement de la liste.
-  useMarkVisible(list, shown);
-  const fade = useScrollFade(list, shown);
 
   return (
     <section className={`xg-card xg-dep-panel${fill ? ' xg-dep-panel--fill' : ''}`} aria-label={title}>
@@ -73,14 +135,7 @@ export function EventListPanel({
         </p>
       ) : (
         // Clé du filtre : la liste est recréée, ses lignes rejouent leur apparition en cascade.
-        <ul
-          key={filter}
-          ref={list}
-          className={`xg-dep-list xg-list-in xg-scroll${fade.more ? ' xg-scroll-fade' : ''}`}
-          onScroll={fade.onScroll}
-        >
-          {shown.map(renderRow)}
-        </ul>
+        <EventRows key={filter} items={shown} renderRow={renderRow} />
       )}
 
       {limit && onShowAll && showAllLabel && items.length > 0 && (

@@ -22,7 +22,7 @@ export function DurationChart({
       : t(`stats.duration.${bucket}`);
 
   return (
-    <figure className="xg-stat">
+    <figure className="xg-chart-card">
       <StatHead title={t('stats.duration.title')} sub={t('stats.duration.sub')} />
       <ul className="xg-duration">
         {buckets.map(({ bucket, count, available }) => (

@@ -1,18 +1,14 @@
 import { Clock, createElement } from 'lucide';
-import { remainingLabel } from '@/features/followers-sync/estimate';
-import { rateLimitText, rateLimitTitle } from '@/features/scan-status/messages';
 import type { VeilState } from '@/shared/messaging/protocol';
 import { COLORS } from '@/shared/ui/tokens';
-import { t } from '@/shared/i18n';
-import { formatCountdown, formatNumber, formatPercent, percentOf } from '@/shared/utils/format';
 
 /**
  * Overlay de l'onglet de scan (§ 3.5, écran 6) : voile sombre flouté qui bloque la page,
  * carte blanche de 400 px au centre. Deux états exclusifs : « en cours » ou « petite pause »
  * (limite de X). Pas d'état « terminé » : l'onglet se ferme dès la fin du scan.
  *
- * Hors de l'onglet (§ 4.6) : titre « (41 %) xGhost, scan en cours » et favicon du fantôme
- * entouré d'un anneau de progression, car un onglet épinglé n'affiche que son icône.
+ * Hors de l'onglet (§ 4.6) : favicon du fantôme entouré d'un anneau de progression, car un
+ * onglet épinglé n'affiche que son icône. Le titre reste celui de x.com.
  *
  * Rendu dans un Shadow DOM pour ne pas subir (ni modifier) les styles de x.com.
  */
@@ -32,7 +28,7 @@ const STYLE = `
   }
   .card {
     width: min(400px, 100%); box-sizing: border-box;
-    background: #fff; border-radius: 20px; padding: 28px;
+    background: ${C.surface}; border-radius: 20px; padding: 28px;
     box-shadow: 0 24px 60px rgba(17, 19, 24, .28);
     display: grid; gap: 14px;
   }
@@ -63,6 +59,7 @@ const STYLE = `
 
 interface Veil {
   card: HTMLElement;
+  brand: HTMLElement;
   handle: HTMLElement;
   title: HTMLElement;
   text: HTMLElement;
@@ -89,7 +86,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 
 function create(): Veil | undefined {
   if (!document.documentElement) return undefined;
-  // Pas d'identifiant repérable : la page ne doit pas pouvoir détecter l'extension par le DOM.
+  // Pas d'identifiant repérable. La page peut voir qu'un élément a été ajouté, pas son contenu.
   const host = document.createElement('div');
   veilHost = host;
   const root = host.attachShadow({ mode: 'closed' });
@@ -117,8 +114,9 @@ function create(): Veil | undefined {
   const logo = el('img');
   logo.src = chrome.runtime.getURL('/icon/128.png');
   logo.alt = '';
+  const brand = el('span', 'brand');
   const handle = el('span', 'handle');
-  head.append(logo, el('span', 'brand', t('common.appName')), handle);
+  head.append(logo, brand, handle);
 
   const title = el('h2');
   const text = el('p');
@@ -140,27 +138,40 @@ function create(): Veil | undefined {
   overlay.append(card);
   root.append(style, overlay);
   document.documentElement.append(host);
-  return { card, handle, title, text, count, total, pct, fill, foot, chip, chipText };
+  return { card, brand, handle, title, text, count, total, pct, fill, foot, chip, chipText };
 }
 
-const percent = (s: VeilState) => percentOf(s.collected, s.expected);
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values[name] ?? ''));
+
+/** Compte à rebours recalculé dans la page : le service worker dort pendant une pause. */
+function countdownText({ texts, resumeAt }: VeilState): string {
+  const { countdown: c } = texts;
+  if (!resumeAt) return c.unknown;
+  const seconds = Math.max(0, Math.round((resumeAt - Date.now()) / 1000));
+  if (seconds === 0) return c.now;
+  const m = Math.floor(seconds / 60);
+  return m > 0 ? fill(c.minutesSeconds, { m, s: seconds % 60 }) : fill(c.seconds, { s: seconds });
+}
 
 function render(): void {
   if (!veil || !last) return;
   const s = last;
+  const { texts } = s;
   const paused = s.state === 'rate-limit';
   veil.card.classList.toggle('paused', paused);
-  veil.handle.textContent = s.handle ? `@${s.handle}` : '';
-  veil.title.textContent = paused ? rateLimitTitle() : t('common.veil.title');
-  veil.text.textContent = paused ? rateLimitText() : t('common.veil.text');
-  veil.count.textContent = formatNumber(s.collected);
-  veil.total.textContent = s.expected > 0 ? t('format.ofTotal', { expected: formatNumber(s.expected) }) : '';
-  veil.pct.textContent = s.expected > 0 ? formatPercent(percent(s)) : '';
-  veil.fill.style.width = `${percent(s)}%`;
+  veil.brand.textContent = texts.brand;
+  veil.handle.textContent = texts.handle;
+  veil.title.textContent = texts.title;
+  veil.text.textContent = texts.text;
+  veil.count.textContent = texts.count;
+  veil.total.textContent = texts.total;
+  veil.pct.textContent = texts.percent;
+  veil.fill.style.width = `${s.percent}%`;
   veil.foot.hidden = paused;
   veil.chip.hidden = !paused;
-  if (paused) veil.chipText.textContent = t('common.veil.resume', { countdown: formatCountdown(s.resumeAt) });
-  else veil.foot.textContent = remainingLabel(s) ?? t('common.veil.computing');
+  if (paused) veil.chipText.textContent = fill(texts.resume, { countdown: countdownText(s) });
+  else veil.foot.textContent = texts.foot;
 
   if (paused && !countdown) countdown = setInterval(render, 1000);
   if (!paused && countdown) {
@@ -174,6 +185,7 @@ function render(): void {
 
 let ghost: ImageBitmap | undefined;
 let favicon: string | undefined;
+let drawnKey: string | undefined;
 let headObserver: MutationObserver | undefined;
 
 async function loadGhost(): Promise<void> {
@@ -228,7 +240,12 @@ function reapplyIdentity(): void {
 
 function applyTabIdentity(): void {
   if (!last || !document.head) return;
-  favicon = drawFavicon(percent(last), last.state === 'rate-limit');
+  // Redessiné seulement si l'image change : une page de scan n'avance pas toujours le pourcentage.
+  const drawn = `${last.percent}:${last.state}:${!!ghost}`;
+  if (drawn !== drawnKey) {
+    drawnKey = drawn;
+    favicon = drawFavicon(last.percent, last.state === 'rate-limit');
+  }
   const links = document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]');
   if (links.length === 0) {
     const link = document.createElement('link');

@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { EyeOff } from 'lucide-react';
 import type { AccountData } from '@/features/app-state/useAccountData';
-import type { VisibilityContext } from '@/features/events/selectors';
+import type { VisibilityContext } from '@/domain/events/selectors';
 import { useChartVisibility } from '@/features/settings/useChartVisibility';
 import { activityUnit, netUnit, periodStart, type DashboardPeriod } from '@/features/stats/period';
 import { daysBefore, startOfDay } from '@/shared/utils/time';
@@ -77,6 +77,7 @@ export function useChartCards({
       retention: retention(data.events, ctx, from, now),
     }),
     // `now` n'est pas une dépendance : il suit `today` (voir ci-dessus).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [data.events, data.totals, ctx, from, axisFrom, unit, net, today, account.followersCount, baselineAt],
   );
   const setShown = useChartVisibility(hidden);

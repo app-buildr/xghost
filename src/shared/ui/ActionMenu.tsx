@@ -26,14 +26,12 @@ export function ActionMenu({
   trigger,
   triggerClassName = 'xg-icon-btn',
   align = 'end',
-  disabled = false,
 }: {
   actions: MenuAction[];
   label: string;
   trigger?: ReactNode;
   triggerClassName?: string;
   align?: 'start' | 'end';
-  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLDivElement>(null);
@@ -49,6 +47,8 @@ export function ActionMenu({
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
+    // Focus posé à l'ouverture seulement : `actions` change à chaque rendu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const close = (refocus = true) => {
@@ -87,7 +87,6 @@ export function ActionMenu({
         type="button"
         className={triggerClassName}
         aria-label={trigger ? undefined : label}
-        disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}

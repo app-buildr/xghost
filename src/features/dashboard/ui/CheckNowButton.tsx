@@ -22,7 +22,7 @@ const START_GRACE_MS = 15 * SECOND;
  * « Scan complet » relit toute la liste.
  */
 export function CheckNowButton({ account, progress }: { account: TrackedAccount; progress?: ScanProgress }) {
-  const { start, busy } = useStartScan();
+  const { start, busy } = useStartScan(account.id);
   const toast = useToast();
   // Contrôle léger lancé ici : heure du clic, et s'il a été vu tourner. Seul ce contrôle-là
   // donne un toast (pas un contrôle automatique qui se terminerait juste après).

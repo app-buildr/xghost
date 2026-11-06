@@ -1,7 +1,9 @@
 import { send } from '@/shared/messaging/client';
 import { t } from '@/shared/i18n';
 import { DASHBOARD_CHARTS, type Frequency, type Settings, type TrackedAccount } from '@/shared/types';
-import { Segmented, Toggle } from '@/shared/ui/primitives';
+import { RETENTION_DAYS } from '@/features/stats/selectors';
+import { Card, Segmented, Toggle } from '@/shared/ui/primitives';
+import { formatList } from '@/shared/utils/format';
 import { frequencyOptions } from '../model';
 import { useChartVisibility } from '../useChartVisibility';
 import './settings.css';
@@ -43,8 +45,7 @@ export function SettingsPanel({
   const setChartShown = useChartVisibility(settings.hiddenCharts);
   return (
     <div className="xg-settings">
-      <section className="xg-card">
-        <h2 className="xg-card__title">{t('options.settings.check')}</h2>
+      <Card title={t('options.settings.check')}>
         <div className="xg-setting__label">{t('options.settings.frequency')}</div>
         <Segmented<Frequency>
           label={t('common.frequency.label')}
@@ -52,23 +53,21 @@ export function SettingsPanel({
           value={settings.frequencyHours}
           onChange={(frequencyHours) => onUpdate({ frequencyHours })}
         />
-      </section>
+      </Card>
 
-      <section className="xg-card">
-        <h2 className="xg-card__title">{t('options.settings.charts')}</h2>
+      <Card title={t('options.settings.charts')}>
         {DASHBOARD_CHARTS.map((chart) => (
           <Row
             key={chart}
             title={t(`options.settings.chart.${chart}`)}
-            hint={t(`options.settings.chart.${chart}Hint`)}
+            hint={t(`options.settings.chart.${chart}Hint`, { days: formatList(RETENTION_DAYS.map(String)) })}
             checked={!settings.hiddenCharts.includes(chart)}
             onChange={(shown) => setChartShown(chart, shown)}
           />
         ))}
-      </section>
+      </Card>
 
-      <section className="xg-card">
-        <h2 className="xg-card__title">{t('options.settings.alerts')}</h2>
+      <Card title={t('options.settings.alerts')}>
         <Row
           title={t('options.settings.badge')}
           hint={t('options.settings.badgeHint')}
@@ -94,7 +93,7 @@ export function SettingsPanel({
             account && void send('account:update', { accountId: account.id, mutualsOnly }).catch(() => undefined)
           }
         />
-      </section>
+      </Card>
     </div>
   );
 }

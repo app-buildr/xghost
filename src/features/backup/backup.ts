@@ -1,5 +1,5 @@
 import { settleWriteRequests } from '@/shared/messaging/server';
-import { accountIdOfKey } from '@/shared/storage/keys';
+import { accountIdOfKey, keys } from '@/shared/storage/keys';
 import { loadAccounts, settleWrites as settleAccounts } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
 import { settleSeen } from '@/features/events/commands';
@@ -7,9 +7,9 @@ import { cancelScan, settleAnalyses } from '@/features/followers-sync/scan-engin
 import { settleWrites as settleEvents } from '@/features/events/repository';
 import { clearAccountAlarms } from '@/features/scheduler/alarms';
 import { installedVersion } from '@/shared/utils/version';
-import { isTransientKey, MAX_BACKUP_BYTES, validateBackup } from './format';
+import { byteLength, isTransientKey, MAX_BACKUP_BYTES, validateBackup } from './format';
 import type { ImportResult } from '@/shared/types';
-import { withImportLock } from '@/shared/storage/import-lock';
+import { drainWork, withImportLock } from '@/shared/storage/import-lock';
 
 /**
  * Import d'une sauvegarde (service worker, seul écrivain des données).
@@ -22,8 +22,8 @@ import { withImportLock } from '@/shared/storage/import-lock';
  */
 
 /** Comptes concernés par des clés de stockage (scans et alarmes à arrêter). */
-const accountIdsOf = (keys: string[]) =>
-  keys.map(accountIdOfKey).filter((id): id is string => id !== undefined);
+const accountIdsOf = (storageKeys: string[]) =>
+  storageKeys.map(accountIdOfKey).filter((id): id is string => id !== undefined);
 
 const persistent = (items: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(items).filter(([key]) => !isTransientKey(key)));
@@ -42,7 +42,7 @@ async function writeData(target: Record<string, unknown>): Promise<void> {
 
 export async function importBackup(raw: unknown): Promise<ImportResult> {
   // Taille vérifiée côté service worker aussi (le message peut venir d'une autre page de l'extension).
-  if (JSON.stringify(raw ?? null).length > MAX_BACKUP_BYTES) return { ok: false, error: 'too-large' };
+  if (byteLength(JSON.stringify(raw ?? null)) > MAX_BACKUP_BYTES) return { ok: false, error: 'too-large' };
   const check = validateBackup(raw, installedVersion());
   if (!check.ok) return check;
   const backup = check.backup;
@@ -50,6 +50,7 @@ export async function importBackup(raw: unknown): Promise<ImportResult> {
   return withImportLock(async () => {
     // Plus aucun travail ne démarre (verrou) ; on attend celui déjà lancé : une analyse de fin
     // de scan ou une écriture en file réécrirait sinon l'ancien état par-dessus la sauvegarde.
+    await drainWork();
     await settleWriteRequests();
     await settleSeen();
     await settleAnalyses();
@@ -79,7 +80,10 @@ export async function importBackup(raw: unknown): Promise<ImportResult> {
       await refreshBadge().catch(() => undefined);
       return { ok: false, error: 'failed' } as const;
     }
-    await refreshBadge();
+    // Compteurs de l'ancien historique : recalculés à partir du nouveau.
+    await chrome.storage.local.remove(keys.unseen).catch((err) => console.error(err));
+    // L'import a réussi : un échec de l'icône ne doit pas être présenté comme un échec d'import.
+    await refreshBadge().catch((err) => console.error(err));
     return { ok: true, exportedAt: backup.exportedAt } as const;
   });
 }

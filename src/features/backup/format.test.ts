@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { compactEventsOf, decodeEvent, isCompactEvent } from '@/features/events/codec';
-import { backupItems, isBackupKey, isTransientKey, validateBackup } from './format';
+import { compactEventsOf, decodeEvent, isCompactEvent } from '@/domain/events/codec';
+import type { TrackedAccount } from '@/shared/types';
+import { backupItems, isBackupKey, isTransientKey, summarizeBackup, validateBackup } from './format';
 
 const NOW_S = 1_762_000_000; // nov. 2025, en secondes
 const event = (over: Partial<Record<number, unknown>> = {}) => {
@@ -39,7 +40,8 @@ describe('validateBackup', () => {
   });
 
   it('garde tous les champs d’un compte (aucun champ perdu à l’import)', () => {
-    const full = {
+    // Tous les champs sont requis ici : un nouveau champ du compte oublié par le validateur casse ce test.
+    const full: Required<TrackedAccount> = {
       ...account,
       name: 'Moi',
       avatar: 'https://pbs.twimg.com/profile_images/1/a_normal.jpg',
@@ -49,13 +51,40 @@ describe('validateBackup', () => {
       mutualsOnly: true,
       pending: { count: 2, at: 3, full: true },
       quickSinceFull: 4,
+      quickFailures: 1,
       lastQuick: { at: 5, arrivals: 1, departed: 1, missing: 2, overflow: false, total: 10, staleRuns: 1, job: 6 },
       baselineRetry: { attempts: 2, at: 7 },
+      limit: { count: 21_000, at: 8 },
     };
     const b = valid();
     b.data.accounts = { '42': full };
     const res = validateBackup(b, '1.0.0');
     expect(res.ok && res.backup.data.accounts).toEqual({ '42': full });
+  });
+
+  it('refuse un fichier sans compte : l’import effacerait tout', () => {
+    expect(validateBackup({ ...valid(), data: {} }, '1.0.0')).toEqual({ ok: false, error: 'invalid' });
+    expect(validateBackup({ ...valid(), data: { accounts: {} } }, '1.0.0').ok).toBe(false);
+    expect(validateBackup({ ...valid(), data: { 'acc:42:events': [] } }, '1.0.0').ok).toBe(false);
+    expect(validateBackup({ app: 'xghost', format: 1, version: '1.0.0', exportedAt: 1, local: {}, sync: {} }, '1.0.0').ok).toBe(false);
+  });
+
+  it('écarte les données d’un compte absent sans refuser le fichier', () => {
+    const b = valid();
+    b.data['acc:7:events'] = [event()];
+    const res = validateBackup(b, '1.0.0');
+    expect(res.ok && Object.keys(res.backup.data).includes('acc:7:events')).toBe(false);
+    expect(res.ok).toBe(true);
+  });
+
+  it('accepte encore le scan incomplet d’une ancienne sauvegarde, sans l’exporter', () => {
+    expect(validateBackup(valid(), '1.0.0').ok).toBe(true);
+    expect(Object.keys(backupItems({ 'acc:42:partial': {}, 'acc:42:events': [] }))).toEqual(['acc:42:events']);
+  });
+
+  it('résume le contenu du fichier', () => {
+    expect(summarizeBackup(valid(), '1.0.0')).toEqual({ handles: ['moi'], events: 2, exportedAt: 1 });
+    expect(summarizeBackup({ ...valid(), data: {} }, '1.0.0')).toBeUndefined();
   });
 
   it('accepte une sauvegarde de xGhost 1.0 (sync + local) et la convertit', () => {

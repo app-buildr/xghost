@@ -9,7 +9,7 @@ import { StatHead } from './chart';
  */
 export function RetentionCard({ values }: { values: Record<(typeof RETENTION_DAYS)[number], number | null> }) {
   return (
-    <figure className="xg-stat">
+    <figure className="xg-chart-card">
       <StatHead title={t('stats.retention.title')} sub={t('stats.retention.sub')} />
       <ul className="xg-retention">
         {RETENTION_DAYS.map((days) => {

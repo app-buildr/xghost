@@ -30,9 +30,6 @@ body {
   cursor: pointer;
   color: var(--xg-text-muted);
 }
-.xg-popup__switch:disabled {
-  cursor: default;
-}
 .xg-popup__handle {
   font-family: var(--xg-font-display);
   font-size: 19px;
@@ -44,7 +41,7 @@ body {
 }
 .xg-popup__sub {
   display: block;
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
   color: var(--xg-text-muted);
 }
 .xg-popup__alert {
@@ -55,7 +52,7 @@ body {
   border-radius: var(--xg-radius-block);
   background: var(--xg-danger-tint);
   color: var(--xg-danger-strong);
-  font-size: 14px;
+  font-size: var(--xg-text-md);
 }
 .xg-popup__alert strong {
   font-family: var(--xg-font-display);
@@ -65,7 +62,7 @@ body {
   color: var(--xg-danger-text);
 }
 .xg-popup__alert b {
-  font-size: 16px;
+  font-size: var(--xg-text-lg);
   font-weight: 600;
 }
 .xg-popup__alert:not(.xg-popup__alert--link) {
@@ -86,8 +83,8 @@ body {
   opacity: 0.6;
   cursor: pointer;
   transition:
-    opacity 0.15s ease,
-    background 0.15s ease;
+    opacity var(--xg-dur-fast) ease,
+    background var(--xg-dur-fast) ease;
 }
 .xg-popup__alert-close:hover,
 .xg-popup__alert-close:focus-visible {
@@ -100,10 +97,10 @@ body {
   display: grid;
   grid-template-rows: 1fr;
   transition:
-    grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.2s ease,
-    margin-bottom 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    grid-template-rows var(--xg-dur-slide) var(--xg-ease-out),
+    opacity var(--xg-dur-base) ease,
+    margin-bottom var(--xg-dur-slide) var(--xg-ease-out),
+    transform var(--xg-dur-slide) var(--xg-ease-out);
 }
 .xg-collapse__inner {
   min-height: 0;
@@ -120,7 +117,7 @@ body {
   border: 0;
   text-align: left;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
   cursor: pointer;
 }
 .xg-popup__alert--link:hover {
@@ -138,7 +135,7 @@ body {
 }
 .xg-popup__summary .xg-segmented button {
   min-height: 32px;
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
 }
 .xg-popup__stats {
   display: grid;
@@ -157,7 +154,7 @@ body {
 }
 .xg-popup__foot .xg-btn--ghost {
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--xg-text-md);
 }
 /* Bouton de vérification : il prend la place laissée par « Tableau de bord », quel que soit son
    libellé (« Vérifié à l'instant », « Vérifié hier, 21:40 », « Vérification… »). Sa largeur ne
@@ -182,7 +179,7 @@ body {
   text-overflow: ellipsis;
 }
 .xg-popup .xg-banner {
-  font-size: 13px;
+  font-size: var(--xg-text-sm);
 }
 
 /* Derniers départs : trois lignes visibles, la suite en défilant (voir .xg-scroll). */

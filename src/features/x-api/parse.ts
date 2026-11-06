@@ -1,5 +1,6 @@
+import { WATCHED_OPERATIONS, type WatchedOperation } from '@/shared/messaging/protocol';
 import type { AccountStatus, Profile } from '@/shared/types';
-import { AVATAR, HANDLE, ID } from '@/shared/x-urls';
+import { AVATAR, HANDLE, ID, X_ORIGIN } from '@/shared/x-urls';
 
 /** Analyse pure des réponses GraphQL de X, tolérante aux variations de format. */
 
@@ -8,6 +9,8 @@ type Json = any;
 
 export interface FollowersPage {
   users: Profile[];
+  /** Comptes de la page que xGhost n'a pas su lire (format de X modifié). */
+  skipped: number;
   nextCursor?: string;
   done: boolean;
 }
@@ -17,14 +20,13 @@ export interface UserLookup {
   profile?: Profile & { followersCount?: number };
 }
 
-/** Opérations GraphQL de x.com lues par xGhost. */
-const WATCHED_PATH = /^\/i\/api\/graphql\/[^/]+\/(Followers|UserByRestId|UserByScreenName)$/;
+const WATCHED_PATH = new RegExp(`^/i/api/graphql/[^/]+/(${WATCHED_OPERATIONS.join('|')})$`);
 
 /** Nom de l'opération si `url` est un appel GraphQL de x.com suivi par xGhost (sinon `undefined`). */
-export function watchedOperation(url: string): string | undefined {
+export function watchedOperation(url: string): WatchedOperation | undefined {
   try {
-    const u = new URL(url, 'https://x.com');
-    return u.origin === 'https://x.com' ? WATCHED_PATH.exec(u.pathname)?.[1] : undefined;
+    const u = new URL(url, X_ORIGIN);
+    return u.origin === X_ORIGIN ? (WATCHED_PATH.exec(u.pathname)?.[1] as WatchedOperation | undefined) : undefined;
   } catch {
     return undefined;
   }
@@ -66,6 +68,7 @@ export function parseFollowersPage(data: Json, previousCursor?: string): Followe
   const timeline = timelineOf(data);
   if (!Array.isArray(timeline?.instructions)) return undefined;
   const users: Profile[] = [];
+  let skipped = 0;
   let nextCursor: string | undefined;
   for (const entry of timelineEntries(timeline)) {
     const content = entry?.content;
@@ -73,16 +76,17 @@ export function parseFollowersPage(data: Json, previousCursor?: string): Followe
       nextCursor = content?.value;
       continue;
     }
-    const user = parseUser(content?.itemContent?.user_results?.result);
+    const result = content?.itemContent?.user_results?.result;
+    const user = parseUser(result);
     if (user) {
       const { followersCount: _ignored, ...profile } = user;
       users.push(profile);
-    }
+    } else if (result?.__typename === 'User') skipped++;
   }
   // Fin de liste : plus de curseur suivant (ou curseur inchangé, ou « 0|… »). Une page vide qui
   // annonce encore une suite n'est pas la fin : x.com la saute et charge la suivante.
   const done = !nextCursor || nextCursor === previousCursor || /^0\|/.test(nextCursor);
-  return { users, nextCursor, done };
+  return { users, skipped, nextCursor, done };
 }
 
 export function parseUserLookup(data: Json): UserLookup {
@@ -110,7 +114,7 @@ export function isRateLimited(status: number, body: string): boolean {
 /** Variables GraphQL d'une URL interceptée (`userId`, `cursor`…). */
 export function variablesOf(url: string): { userId?: string; cursor?: string; screen_name?: string } {
   try {
-    const raw = new URL(url, 'https://x.com').searchParams.get('variables');
+    const raw = new URL(url, X_ORIGIN).searchParams.get('variables');
     return raw ? (JSON.parse(raw) as Record<string, string>) : {};
   } catch {
     return {};

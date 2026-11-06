@@ -25,7 +25,14 @@ interface Polled {
   poll(): void;
 }
 
-export function installHiddenRenderShim(): () => void {
+export interface HiddenRenderShim {
+  /** Fait avancer le rendu simulé. */
+  step: () => void;
+  /** Rend à la page ses mécanismes natifs (sauf si elle les a remplacés entre-temps). */
+  uninstall: () => void;
+}
+
+export function installHiddenRenderShim(): HiddenRenderShim {
   const polled = new Set<Polled>();
 
   // --- requestAnimationFrame -------------------------------------------------
@@ -50,7 +57,9 @@ export function installHiddenRenderShim(): () => void {
     }
   };
 
-  window.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+  const originalRaf = window.requestAnimationFrame;
+  const originalCaf = window.cancelAnimationFrame;
+  const raf = (cb: FrameRequestCallback): number => {
     if (!hidden()) return nativeRaf(cb);
     const id = ++frameId;
     frames.set(id, cb);
@@ -60,9 +69,11 @@ export function installHiddenRenderShim(): () => void {
     }
     return id;
   };
-  window.cancelAnimationFrame = (id: number) => {
+  const caf = (id: number) => {
     if (!frames.delete(id)) nativeCaf(id);
   };
+  window.requestAnimationFrame = raf;
+  window.cancelAnimationFrame = caf;
 
   // --- IntersectionObserver --------------------------------------------------
   const NativeIO = window.IntersectionObserver;
@@ -198,7 +209,16 @@ export function installHiddenRenderShim(): () => void {
     flushFrames();
   };
   // Repli si aucun pas n'arrive (Chrome espace ce minuteur quand l'onglet est caché).
-  setInterval(step, 1000);
-  // Appelée par le script de page à chaque pas reçu du canal privé.
-  return step;
+  const fallback = setInterval(step, 1000);
+  const uninstall = () => {
+    clearInterval(fallback);
+    polled.clear();
+    flushFrames();
+    if (window.requestAnimationFrame === raf) window.requestAnimationFrame = originalRaf;
+    if (window.cancelAnimationFrame === caf) window.cancelAnimationFrame = originalCaf;
+    if (window.IntersectionObserver === HiddenAwareIO) window.IntersectionObserver = NativeIO;
+    if (window.ResizeObserver === HiddenAwareRO) window.ResizeObserver = NativeRO;
+  };
+  // `step` est appelée par le script de page à chaque pas reçu du canal privé.
+  return { step, uninstall };
 }

@@ -1,28 +1,23 @@
 import { isSameDay } from '@/shared/utils/time';
-import type { ScanProgress } from './model';
-import { localKv } from '@/shared/storage/kv';
-import { keys } from '@/shared/storage/keys';
-import type { PartialScan, Profile, ScanJob, Snapshot } from '@/shared/types';
+import { MAX_TOTALS, type ScanProgress } from './model';
+import { encodeStored, localKv } from '@/shared/storage/kv';
+import { accountKeysOf, keys } from '@/shared/storage/keys';
+import type { PartialScan, ProfileCache, ScanJob, Snapshot } from '@/shared/types';
 
 /** Données locales d'un compte : instantané, cache des profils, scan en cours (§ 5.2). */
-
-export type ProfileCache = Record<string, Omit<Profile, 'id'>>;
 
 export const loadSnapshot = (accountId: string) => localKv.get<Snapshot>(keys.snapshot(accountId));
 export const saveSnapshot = (accountId: string, snapshot: Snapshot) =>
   localKv.set({ [keys.snapshot(accountId)]: snapshot });
 
 export async function loadProfiles(accountId: string): Promise<ProfileCache> {
-  return (await localKv.get<ProfileCache>(keys.profiles(accountId))) ?? {};
+  return (await localKv.getLarge<ProfileCache>(keys.profiles(accountId))) ?? {};
 }
 export const saveProfiles = (accountId: string, profiles: ProfileCache) =>
-  localKv.set({ [keys.profiles(accountId)]: profiles });
+  localKv.set({ [keys.profiles(accountId)]: encodeStored(profiles) });
 
 /** Total d'abonnés relevé par jour : `[date, total]`, du plus ancien au plus récent. */
 export type TotalPoint = [number, number];
-/** Environ trois ans de points quotidiens (limite aussi appliquée à l'import d'une sauvegarde). */
-export const MAX_TOTALS = 1100;
-
 export async function loadTotals(accountId: string): Promise<TotalPoint[]> {
   const raw = await localKv.get<unknown>(keys.totals(accountId));
   return Array.isArray(raw)
@@ -42,7 +37,7 @@ export async function recordTotal(accountId: string, total: number, at: number):
   await localKv.set({ [keys.totals(accountId)]: points.slice(-MAX_TOTALS) });
 }
 
-export const loadJob = (accountId: string) => localKv.get<ScanJob>(keys.scanJob(accountId));
+export const loadJob = (accountId: string) => localKv.getLarge<ScanJob>(keys.scanJob(accountId));
 
 export const loadPartial = (accountId: string) => localKv.get<PartialScan>(keys.partialScan(accountId));
 export const savePartial = (accountId: string, partial: PartialScan) =>
@@ -58,29 +53,20 @@ const toProgress = (job: ScanJob): ScanProgress => ({
   startedAt: job.startedAt,
   updatedAt: job.updatedAt,
   lastProgressAt: job.lastProgressAt,
+  finishing: job.finishing,
   reason: job.reason,
   pausedReason: job.pausedReason,
   resumeAt: job.resumeAt,
 });
 
 export const saveJob = (job: ScanJob) =>
-  localKv.set({ [keys.scanJob(job.accountId)]: job, [keys.scanProgress(job.accountId)]: toProgress(job) });
+  localKv.set({ [keys.scanJob(job.accountId)]: encodeStored(job), [keys.scanProgress(job.accountId)]: toProgress(job) });
 export const saveProgressOnly = (job: ScanJob) => localKv.set({ [keys.scanProgress(job.accountId)]: toProgress(job) });
 export const clearJob = (accountId: string) =>
   localKv.remove([keys.scanJob(accountId), keys.scanProgress(accountId)]);
 
-export async function deleteLocalAccountData(accountId: string): Promise<void> {
-  await localKv.remove([
-    keys.snapshot(accountId),
-    keys.profiles(accountId),
-    keys.scanJob(accountId),
-    keys.scanProgress(accountId),
-    keys.partialScan(accountId),
-    keys.suspicious(accountId),
-    keys.lastVisit(accountId),
-    keys.totals(accountId),
-  ]);
-}
+/** Efface toutes les données d'un compte. */
+export const deleteAccountData = (accountId: string) => localKv.remove(accountKeysOf(accountId));
 
 /** État léger du scan d'un compte (barre de progression, détection de blocage). */
 export const loadProgress = (accountId: string) => localKv.get<ScanProgress>(keys.scanProgress(accountId));

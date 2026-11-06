@@ -1,5 +1,5 @@
 import { createSerialQueue } from '@/shared/utils/serial';
-import type { AccountsMap } from '@/features/accounts/model';
+import type { AccountsMap } from '@/domain/accounts/model';
 import { loadAccounts } from '@/features/accounts/repository';
 import { unseenCountsByAccount } from '@/features/events/unseen';
 import { loadSettings } from '@/features/settings/repository';

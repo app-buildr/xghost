@@ -40,7 +40,7 @@
       "duration": "Unfollows by follow duration",
       "durationHint": "How long they stayed",
       "retention": "New follower retention",
-      "retentionHint": "New followers still there after 7, 14 and 30 days"
+      "retentionHint": "New followers still there after {{days}} days"
     }
   },
   "account": {

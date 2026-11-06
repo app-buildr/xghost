@@ -2,8 +2,8 @@ import { movementBuckets } from '@/features/stats/selectors';
 import { describe, expect, it } from 'vitest';
 import type { FollowEvent } from '@/shared/types';
 import { eventId } from './codec';
-import { followDurationLabel } from './labels';
-import { currentArrivals, currentDepartures, followDuration, newMovements, missingMovements, statsSince, unseenDepartures, type VisibilityContext } from './selectors';
+import { followDurationLabel } from '@/features/events/labels';
+import { currentArrivals, currentDepartures, followDuration, newMovements, missingMovements, statsSince, unseenDepartures, type VisibilityContext, wasRemoved } from './selectors';
 
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 9, 12, 10);
@@ -21,6 +21,24 @@ const ev = (type: FollowEvent['type'], profileId: string, at: number, over: Part
 });
 
 const ctx: VisibilityContext = { ignored: new Set(), mutualsOnly: false };
+
+describe('wasRemoved', () => {
+  const e = (type: FollowEvent['type'], at: number): FollowEvent => ({ id: `${type}${at}`, type, profileId: '1', handle: 'a', at, status: 'active', mutual: false, seen: true });
+  const fix = (type: FollowEvent['type'], fromAt: number) => ({ profileId: '1', type, from: e(type === 'departure' ? 'arrival' : 'departure', fromAt) });
+
+  it('un départ supprimé n’est pas recréé', () => {
+    expect(wasRemoved(fix('departure', 100), [e('departure', 200)])).toBe(true);
+  });
+  it('un mouvement plus récent lève le blocage', () => {
+    expect(wasRemoved(fix('departure', 300), [e('departure', 200)])).toBe(false);
+  });
+  it('une paire retirée par le nettoyage ne bloque pas un vrai départ', () => {
+    expect(wasRemoved(fix('departure', 100), [e('departure', 200), e('arrival', 300)])).toBe(false);
+  });
+  it('un autre compte n’est pas concerné', () => {
+    expect(wasRemoved({ ...fix('departure', 100), profileId: '2' }, [e('departure', 200)])).toBe(false);
+  });
+});
 
 describe('followDuration (§ 4.5)', () => {
   it('abonné présent à la référence : « depuis le … ou avant »', () => {

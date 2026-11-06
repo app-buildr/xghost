@@ -2,7 +2,7 @@ import { TriangleAlert } from 'lucide-react';
 import { t } from '@/shared/i18n';
 import type { TrackedAccount } from '@/shared/types';
 import { formatDate, formatNumber } from '@/shared/utils/format';
-import { followerLimitOf } from '../limit';
+import { followerLimitOf } from '@/domain/accounts/limit';
 import './accounts.css';
 
 /**

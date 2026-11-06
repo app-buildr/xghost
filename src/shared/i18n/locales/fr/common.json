@@ -62,7 +62,8 @@
     "showTab": "Afficher l’onglet x.com",
     "progressLabel": "Progression du scan",
     "hintWithRemaining": "{{hint}} {{remaining}}.",
-    "stop": "Arrêter le scan"
+    "stop": "Arrêter le scan",
+    "checksFailing": "xGhost n’arrive plus à lire x.com : les dernières vérifications n’ont pas abouti. Lance un scan complet, ou réessaie plus tard."
   },
   "actions": {
     "copied": "@{{handle}} copié",

@@ -1,20 +1,28 @@
-import { createSerialQueue } from '@/shared/utils/serial';
-import { exceedsFollowerLimit } from '@/features/accounts/limit';
-import { hasKnownHandle } from '@/features/accounts/model';
+import { exceedsFollowerLimit } from '@/domain/accounts/limit';
+import { hasKnownHandle } from '@/domain/accounts/model';
 import { loadAccounts, patchAccount } from '@/features/accounts/repository';
-import { importEpoch, isImporting } from '@/shared/storage/import-lock';
-import { earlyStop } from '@/features/unfollow-detection/diff';
+import { clearQuickTimeout } from '@/features/scheduler/alarms';
+import { belowResumedFloor, earlyStop, orderIndex } from '@/domain/followers/diff';
 import { isRateLimited, parseFollowersPage, parseUserLookup, variablesOf, watchedOperation } from '@/features/x-api/parse';
 import { readSession } from '@/features/x-api/session';
-import { ALARM_QUICK_TIMEOUT_PREFIX } from '@/features/scheduler/alarms';
 import { t } from '@/shared/i18n';
-import { SCAN_MARKER, type SimpleTabCommand, type TabCommand, type TabEvent } from '@/shared/messaging/protocol';
-import { localKv } from '@/shared/storage/kv';
+import { SCAN_MARKER, type TabEvent } from '@/shared/messaging/protocol';
+import { isImporting } from '@/shared/storage/import-lock';
 import { keys } from '@/shared/storage/keys';
+import { localKv } from '@/shared/storage/kv';
 import type { ScanJob, ScanKind, ScanReason, TrackedAccount } from '@/shared/types';
-import { GIVE_UP_MS } from './model';
-import { clearJob, loadJob, loadPartial, loadProgress, loadSnapshot, saveJob, saveProgressOnly } from './repository';
-import { SECOND, MINUTE, HOUR } from '@/shared/utils/time';
+import { HOUR, SECOND } from '@/shared/utils/time';
+import { followersUrl, profileUrl, userIdUrl } from '@/shared/x-urls';
+import { loadPartial, loadSnapshot } from './repository';
+import { finish } from './scan-analysis';
+import { scanHooks, serial } from './scan-context';
+import { closeAndPause, discardQuick, finalizeIncomplete, interrupt, pause, pauseForRateLimit } from './scan-lifecycle';
+import { decideStall, isStalled, mergePage, shouldPersist } from './scan-state';
+import { dropJob, getJob, liveOf, putJob } from './scan-store';
+import { closeTab, getScanTab, isHooked, navigate, registerScanTab, send, sendVeil, tabExists } from './scan-tab';
+
+export { recoverFinishing, settleAnalyses } from './scan-analysis';
+export { setScanHooks, type ScanHooks } from './scan-context';
 
 /**
  * Moteur de scan par onglet (§ 4.6).
@@ -30,46 +38,13 @@ import { SECOND, MINUTE, HOUR } from '@/shared/utils/time';
  *   seuls le total annoncé et la première page (les plus récents) sont lus.
  */
 
-export interface ScanHooks {
-  onComplete: (job: ScanJob) => Promise<void>;
-  /** Après la fermeture de l'onglet et l'effacement du scan (enchaînement d'un autre scan). */
-  onFinished: (job: ScanJob) => Promise<void>;
-  /** Scan complet interrompu (onglet fermé) : marqué incomplet (§ 4.3). */
-  onInterrupted: (job: ScanJob) => Promise<void>;
-  onStateChange: () => Promise<void>;
-  scheduleResume: (accountId: string, at: number) => Promise<void>;
-  /** Total annoncé par X au-delà de la limite (§ 4.9) : scan arrêté, onglet fermé. */
-  onFollowerLimit: (job: ScanJob, count: number) => Promise<void>;
-  /** Total revenu sous la limite d'un compte qui l'avait dépassée : le scan continue. */
-  onFollowerLimitCleared: (accountId: string) => Promise<void>;
-}
-
-/** Sans nouvel abonné depuis ce délai, on considère le chargement bloqué. */
-const STALL_MS = 20 * SECOND;
-/** Onglet caché : délai plus long avant de demander à l'afficher (rendu simulé, plus lent). */
-const HIDDEN_STALL_MS = MINUTE;
-/** Bloqué alors que l'onglet est visible, après un « Réessayer » : fin de liste probable. */
-const END_MS = MINUTE;
-/** Limite de X sans heure de reprise annoncée : nouvel essai après ce délai. */
-const RATE_LIMIT_FALLBACK_MS = 15 * MINUTE;
-/** Analyse de fin de scan en échec : nouvel essai après ce délai, sur la liste déjà lue. */
-const RETRY_AFTER_ERROR_MS = 15 * MINUTE;
-/** Au-delà, l'analyse est abandonnée : scan gardé comme incomplet (« Continuer le scan »). */
-const MAX_ANALYSIS_FAILURES = 3;
 /** Réponses en erreur d'affilée pour la liste : x.com refuse de la charger (limite non annoncée). */
 const MAX_FAILED_PAGES = 3;
+/** Pauses d'affilée pour ce motif : x.com ne donne plus la liste (format changé), le scan s'arrête. */
+const MAX_FAILURE_CYCLES = 3;
 /** Attente du total annoncé par X sur la page de profil, avant de revenir à la liste. */
 const TOTAL_LOOKUP_MS = 10 * SECOND;
 
-/** Contrôle léger : seule la première page compte. */
-const QUICK_TOP_SIZE = 100;
-/**
- * La liste complète n'est écrite en stockage que toutes les N pages, et pas plus d'une fois par
- * intervalle (l'état léger, lui, à chaque page) : sur un gros compte, chaque écriture fait
- * plusieurs Mo. Un arrêt du service worker entre deux écritures est repéré (`gap`).
- */
-const PERSIST_EVERY = 5;
-const PERSIST_MIN_INTERVAL_MS = 30 * SECOND;
 /** Abonnés repris d'un scan incomplet : au-delà de cet âge, ils ne sont plus fiables (départs depuis). */
 const SEED_MAX_AGE_MS = 24 * HOUR;
 /**
@@ -77,74 +52,6 @@ const SEED_MAX_AGE_MS = 24 * HOUR;
  * compte des comptes qu'il n'affiche pas : l'écart peut sous-estimer les départs réels.
  */
 const EARLY_STOP_MARGIN_PAGES = 2;
-/** Analyse de fin de scan abandonnée (service worker arrêté) : reprise après ce délai. */
-const STALE_FINISH_MS = 2 * MINUTE;
-
-interface ScanTab {
-  tabId: number;
-  accountId: string;
-}
-
-let hooks: ScanHooks | undefined;
-export const setScanHooks = (h: ScanHooks) => (hooks = h);
-
-// Les événements d'onglet arrivent vite : on les traite un par un.
-const tabEvents = createSerialQueue();
-const serial = <T>(fn: () => Promise<T>): Promise<T> => tabEvents.run(fn);
-
-// ---------------------------------------------------------------------------
-// Scan en cours, gardé en mémoire (le service worker reste éveillé pendant un scan)
-// ---------------------------------------------------------------------------
-
-/**
- * État en mémoire d'un scan, par compte : le scan, les ids déjà lus et l'ancienne liste
- * ordonnée (arrêt anticipé, chargée une fois par scan). Un compte ne touche jamais à l'état
- * d'un autre (un contrôle léger abandonné ne peut pas évincer le scan d'un autre compte).
- */
-interface Live {
-  job: ScanJob;
-  /** Dernière écriture de la liste complète. */
-  persistedAt?: number;
-  readIds?: Set<string>;
-  previousOrder?: string[] | null;
-}
-const live = new Map<string, Live>();
-/** Comptes dont l'analyse de fin de scan tourne dans ce service worker. */
-const analyzing = new Set<string>();
-/** Analyses en cours (toutes comptes confondus), attendues par l'import d'une sauvegarde. */
-const inFlight = new Set<Promise<void>>();
-
-/** Attend la fin des analyses déjà lancées (elles écrivent historique, instantané et compte). */
-export async function settleAnalyses(): Promise<void> {
-  await Promise.all([...inFlight]);
-}
-
-async function getJob(accountId: string): Promise<ScanJob | undefined> {
-  const cached = live.get(accountId);
-  if (cached) return cached.job;
-  const job = await loadJob(accountId);
-  if (!job) return undefined;
-  if (!job.finishing && job.kind !== 'quick') {
-    // La liste complète n'est écrite que toutes les N pages : si l'état léger en compte plus,
-    // le service worker a été relancé et les pages intermédiaires sont perdues.
-    const progress = await loadProgress(accountId);
-    if ((progress?.collected ?? 0) > (job.count ?? 0)) job.gap = true;
-  }
-  live.set(accountId, { job });
-  return job;
-}
-
-/** Enregistre le scan : complet (liste comprise) si `full`, sinon seulement son état léger. */
-async function putJob(job: ScanJob, full = true): Promise<void> {
-  // Nouvel objet de scan : son état en mémoire (ids lus, ancienne liste) repart de zéro.
-  if (live.get(job.accountId)?.job !== job) live.set(job.accountId, { job });
-  await (full ? saveJob(job) : saveProgressOnly(job));
-}
-
-async function dropJob(accountId: string): Promise<void> {
-  live.delete(accountId);
-  await clearJob(accountId);
-}
 
 const clearPause = (job: ScanJob) => {
   job.status = 'running';
@@ -158,52 +65,16 @@ const clearPause = (job: ScanJob) => {
 // Onglet de scan
 // ---------------------------------------------------------------------------
 
-const followersUrl = (account: TrackedAccount) =>
-  hasKnownHandle(account)
-    ? `https://x.com/${account.handle}/followers#${SCAN_MARKER}`
-    : `https://x.com/i/user/${account.id}#${SCAN_MARKER}`;
+const scanFollowersUrl = (account: TrackedAccount) =>
+  `${hasKnownHandle(account) ? followersUrl(account.handle) : userIdUrl(account.id)}#${SCAN_MARKER}`;
 
 /** Profil du compte (contrôle léger : lecture du total), dans l'onglet de scan. */
-const profileScanUrl = (account: TrackedAccount) => `https://x.com/${account.handle}#${SCAN_MARKER}`;
+const profileScanUrl = (account: TrackedAccount) => `${profileUrl(account.handle)}#${SCAN_MARKER}`;
 
 const isFollowersPath = (path: string, handle: string) => path.toLowerCase() === `/${handle.toLowerCase()}/followers`;
 
 /** x.com a redirigé l'onglet de scan vers la connexion : session absente (§ 4.6). */
 const isLoginPath = (path: string) => /^\/(login|logout|i\/flow\/login|i\/flow\/signup)(\/|$)/.test(path);
-
-/** Commande vers l'onglet de scan ; les commandes sans données s'écrivent par leur seul nom. */
-async function send(tabId: number, command: TabCommand | SimpleTabCommand): Promise<unknown> {
-  try {
-    return await chrome.tabs.sendMessage(tabId, typeof command === 'string' ? { xgCmd: command } : command);
-  } catch {
-    return undefined; // contenu pas encore prêt : nouvel essai au prochain événement
-  }
-}
-
-/** Met à jour l'overlay de l'onglet de scan (compteur, limite de X). */
-async function sendVeil(job: ScanJob, account: TrackedAccount): Promise<void> {
-  if (!job.visible || job.tabId === undefined) return;
-  await send(job.tabId, {
-    xgCmd: 'progress',
-    collected: job.count ?? 0,
-    seeded: job.seeded ?? 0,
-    expected: job.expectedTotal,
-    startedAt: job.startedAt,
-    handle: hasKnownHandle(account) ? account.handle : undefined,
-    state: job.status === 'paused' && job.pausedReason === 'rate-limit' ? 'rate-limit' : 'running',
-    resumeAt: job.resumeAt,
-  });
-}
-
-async function tabExists(tabId: number | undefined): Promise<boolean> {
-  if (tabId === undefined) return false;
-  return chrome.tabs.get(tabId).then(
-    () => true,
-    () => false,
-  );
-}
-
-const getScanTab = () => localKv.get<ScanTab>(keys.scanTab);
 
 async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
   // Un seul onglet de scan à la fois : celui d'un autre compte est fermé et son scan mis en pause
@@ -214,12 +85,11 @@ async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
     if (other && !other.finishing) {
       if (other.kind === 'quick') await discardQuick(other);
       else {
-        await closeTab(other);
-        await pause(other, 'account-switched');
+        await closeAndPause(other, 'account-switched');
       }
     } else await chrome.tabs.remove(previous.tabId).catch(() => undefined);
   }
-  const url = followersUrl(account);
+  const url = scanFollowersUrl(account);
   // Scan complet comme contrôle léger (§ 4.6) : onglet épinglé, en arrière-plan. Il tient dans une
   // petite pastille à gauche, est difficile à fermer par erreur et se ferme tout seul à la fin.
   const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => undefined);
@@ -229,43 +99,12 @@ async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
   job.tabId = tab.id;
   job.lastProgressAt = Date.now();
   job.retriedAt = undefined;
-  await localKv.set({ [keys.scanTab]: { tabId: tab.id, accountId: job.accountId } satisfies ScanTab });
-}
-
-async function closeTab(job: ScanJob): Promise<void> {
-  const tabId = job.tabId;
-  job.tabId = undefined;
-  // La référence de l'onglet de scan n'est effacée que si c'est bien celui de ce scan (un autre
-  // compte peut être en train de scanner).
-  const scanTab = await getScanTab();
-  if (scanTab && scanTab.accountId === job.accountId) await localKv.remove(keys.scanTab);
-  if (tabId === undefined) return;
-  await send(tabId, 'drive-stop'); // retire la protection « quitter la page ? »
-  await chrome.tabs.remove(tabId).catch(() => undefined);
+  await registerScanTab(tab.id, job.accountId);
 }
 
 // ---------------------------------------------------------------------------
 // États du scan
 // ---------------------------------------------------------------------------
-
-async function pause(job: ScanJob, reason: ScanJob['pausedReason'], resumeAt?: number) {
-  // Limite de X : inutile de continuer à faire défiler (chaque essai serait refusé).
-  if (reason === 'rate-limit' && job.tabId !== undefined) await send(job.tabId, 'drive-stop');
-  job.status = 'paused';
-  job.pausedReason = reason;
-  job.resumeAt = resumeAt;
-  job.updatedAt = Date.now();
-  await putJob(job);
-  if (resumeAt) await hooks?.scheduleResume(job.accountId, resumeAt);
-  await hooks?.onStateChange();
-}
-
-/** Limite de requêtes de X : pause jusqu'à l'heure de reprise annoncée (au moins 30 s). */
-async function pauseForRateLimit(job: ScanJob, account: TrackedAccount, rateReset?: number): Promise<void> {
-  const resumeAt = Math.max(rateReset ?? Date.now() + RATE_LIMIT_FALLBACK_MS, Date.now() + 30 * SECOND) + 5 * SECOND;
-  await pause(job, 'rate-limit', resumeAt);
-  await sendVeil(job, account);
-}
 
 /** Démarre un scan (ou reprend celui qui existe) pour le compte connecté. */
 export async function startScan(
@@ -275,6 +114,7 @@ export async function startScan(
   target?: number,
 ): Promise<void> {
   return serial(async () => {
+    if (isImporting()) return; // données en cours de remplacement
     let job = await getJob(account.id);
     // Un contrôle léger en cours ne remplace pas un scan complet demandé : on l'abandonne.
     // (Un scan complet en cours couvre au contraire un contrôle léger : il est repris.)
@@ -299,6 +139,7 @@ export async function startScan(
         collected: { ...seed },
         count: seeded,
         seeded,
+        seededAt: seeded ? partial?.at : undefined,
         expectedTotal: account.followersCount ?? 0,
         baseTotal: account.followersCount,
         visible: kind !== 'quick',
@@ -310,27 +151,48 @@ export async function startScan(
   });
 }
 
-/** Reprend un scan en pause ou dont l'onglet a disparu. */
-export async function resumeScan(accountId: string): Promise<void> {
+/** Reprend un scan en pause ou dont l'onglet a disparu. Renvoie vrai si un scan repart. */
+export async function resumeScan(accountId: string): Promise<boolean> {
   return serial(async () => {
     const job = await getJob(accountId);
     const account = (await loadAccounts())[accountId];
-    if (!job || !account || job.finishing) return;
-    if (job.kind === 'quick') return discardQuick(job); // contrôle léger périmé : le prochain le remplacera
+    if (!job || !account || job.finishing) return false;
+    if (job.kind === 'quick') {
+      await discardQuick(job); // contrôle léger périmé : le prochain le remplacera
+      return false;
+    }
+    // Scan abandonné depuis plusieurs jours (autre compte, Chrome fermé) : sa liste n'est plus fiable. Rien
+    // n'est gardé pour « Continuer le scan », elle masquerait les départs survenus depuis.
+    if (Date.now() - job.updatedAt > SEED_MAX_AGE_MS) {
+      await closeTab(job);
+      await dropJob(job.accountId);
+      await scanHooks().onStateChange();
+      return false;
+    }
     if (job.pausedReason === 'rate-limit' && (await tabExists(job.tabId))) {
       // La limite est levée : on relance le chargement dans la page.
       clearPause(job);
       job.lastProgressAt = Date.now();
       job.retriedAt = Date.now();
       await putJob(job);
-      await hooks?.onStateChange();
+      await scanHooks().onStateChange();
+      // Page rechargée pendant la pause, service worker arrêté : son script de page a disparu.
+      if (!(await isHooked(job.tabId!))) await reopenWithHook(job.tabId!, scanFollowersUrl(account));
       await send(job.tabId!, 'retry');
       await send(job.tabId!, 'drive-start');
       await sendVeil(job, account);
-      return;
+      return true;
     }
     await ensureTab(job, account);
+    return true;
   });
+}
+
+/** Rouvre la page avec le fragment. Sur la même page, seul le fragment changerait : on recharge. */
+async function reopenWithHook(tabId: number, url: string): Promise<void> {
+  const current = await chrome.tabs.get(tabId).then((tab) => tab.url, () => undefined);
+  await navigate(tabId, url);
+  if (current && new URL(current).pathname === new URL(url).pathname) await chrome.tabs.reload(tabId).catch(() => undefined);
 }
 
 async function ensureTab(job: ScanJob, account: TrackedAccount): Promise<void> {
@@ -341,7 +203,7 @@ async function ensureTab(job: ScanJob, account: TrackedAccount): Promise<void> {
   clearPause(job);
   job.updatedAt = Date.now();
   await putJob(job);
-  await hooks?.onStateChange();
+  await scanHooks().onStateChange();
 }
 
 export async function isScanActive(accountId: string): Promise<boolean> {
@@ -361,19 +223,13 @@ export function focusScanTab(accountId: string): Promise<void> {
   });
 }
 
-async function discardQuick(job: ScanJob): Promise<void> {
-  // Son délai d'expiration ne doit pas sonner plus tard sur un autre scan.
-  await chrome.alarms.clear(`${ALARM_QUICK_TIMEOUT_PREFIX}${job.accountId}`);
-  await closeTab(job);
-  await dropJob(job.accountId);
-  await hooks?.onStateChange();
-}
-
-/** Abandonne un contrôle léger qui n'a pas abouti (page trop lente, onglet suspendu). */
-export function abortQuick(accountId: string): Promise<void> {
+/** Abandonne un contrôle léger qui n'a pas abouti (page trop lente, onglet suspendu). Renvoie vrai si c'est le cas. */
+export function abortQuick(accountId: string): Promise<boolean> {
   return serial(async () => {
     const job = await getJob(accountId);
-    if (job?.kind === 'quick' && !job.finishing) await discardQuick(job);
+    if (job?.kind !== 'quick' || job.finishing) return false;
+    await discardQuick(job);
+    return true;
   });
 }
 
@@ -385,12 +241,8 @@ export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
   return serial(async () => {
     if (isImporting()) return; // données en cours de remplacement
     const scanTab = await getScanTab();
-    if (!scanTab || scanTab.tabId !== tabId) {
-      // Onglet de scan inconnu (restauré par Chrome après un redémarrage) : repris s'il manque
-      // un onglet au scan en cours du compte connecté, sinon fermé.
-      if (event.xgTab === 'ready' || event.xgTab === 'tick') await adoptOrClose(tabId, scanTab);
-      return;
-    }
+    // Onglet inconnu : jamais repris ni fermé, il n'est pas à nous (lien portant le fragment).
+    if (!scanTab || scanTab.tabId !== tabId) return;
     const job = await getJob(scanTab.accountId);
     if (!job || job.tabId !== tabId || job.finishing) return;
     const account = (await loadAccounts())[job.accountId];
@@ -398,8 +250,7 @@ export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
 
     if (event.xgTab === 'ready' || event.xgTab === 'tick') {
       if (isLoginPath(event.path)) {
-        await closeTab(job);
-        await pause(job, 'disconnected');
+        await closeAndPause(job, 'disconnected');
         return;
       }
       await routeTab(job, account, tabId, event.path);
@@ -415,26 +266,39 @@ export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
   });
 }
 
-/** Onglet marqué « scan » qui n'est pas l'onglet enregistré : repris si utile, sinon fermé. */
-async function adoptOrClose(tabId: number, registered: ScanTab | undefined): Promise<void> {
-  if (!registered || !(await tabExists(registered.tabId))) {
-    const session = await readSession();
-    const job = session ? await getJob(session.accountId) : undefined;
-    if (job && !job.finishing && job.kind !== 'quick' && !(await tabExists(job.tabId))) {
-      job.tabId = tabId;
-      job.lastProgressAt = Date.now();
-      job.retriedAt = undefined;
-      // Une limite de X en cours reste en place jusqu'à son échéance.
-      const limited = job.pausedReason === 'rate-limit' && (job.resumeAt ?? 0) > Date.now();
-      if (!limited) clearPause(job);
-      await localKv.set({ [keys.scanTab]: { tabId, accountId: job.accountId } satisfies ScanTab });
-      await putJob(job);
-      await hooks?.onStateChange();
-      return;
-    }
-  }
-  await send(tabId, 'drive-stop'); // retire la protection « quitter la page ? »
-  await chrome.tabs.remove(tabId).catch(() => undefined);
+/** Cet onglet est-il l'onglet de scan enregistré ? Après l'ouverture de l'onglet (même file). */
+export function isScanTab(tabId: number): Promise<boolean> {
+  return serial(async () => (await getScanTab())?.tabId === tabId);
+}
+
+/** Laisse à Chrome le temps de restaurer ses onglets après un redémarrage. */
+const RESTORE_WAIT_MS = 10 * SECOND;
+
+/**
+ * Onglet de scan resté d'avant un redémarrage de Chrome : son fragment a été effacé et son id a
+ * changé, il n'est plus instrumenté. À appeler avant toute reprise. Seuls les onglets épinglés sur
+ * la liste du compte ou sur `/i/user/<id>` sont visés (jamais un profil, qu'on épingle soi-même) :
+ * ils sont cherchés tout de suite puis une seconde fois, la restauration de Chrome pouvant finir après.
+ */
+export function closeRestoredScanTab(): Promise<void> {
+  return serial(async () => {
+    const scanTab = await getScanTab();
+    if (!scanTab || (await tabExists(scanTab.tabId))) return;
+    await localKv.remove(keys.scanTab);
+    const account = (await loadAccounts())[scanTab.accountId];
+    if (!account) return;
+    const sweep = async () => {
+      // Adresses exactes : `/followers_you_follow`, par exemple, n'est pas l'onglet de scan.
+      const patterns = [userIdUrl(account.id), ...(hasKnownHandle(account) ? [followersUrl(account.handle)] : [])];
+      const current = (await getScanTab())?.tabId;
+      const pinned = await chrome.tabs.query({ pinned: true, url: patterns }).catch(() => []);
+      await Promise.all(
+        pinned.map((tab) => (tab.id === undefined || tab.id === current ? undefined : chrome.tabs.remove(tab.id).catch(() => undefined))),
+      );
+    };
+    await sweep();
+    setTimeout(() => void serial(sweep), RESTORE_WAIT_MS);
+  });
 }
 
 /** Profil du compte (UserByScreenName / UserByRestId) : identité et total annoncé par X. */
@@ -456,7 +320,7 @@ async function onProfile(job: ScanJob, account: TrackedAccount, tabId: number, b
   if (profile.followersCount !== undefined) {
     // Limite d'abonnés (§ 4.9) : testée sur le total annoncé, avant de faire défiler la liste.
     if (exceedsFollowerLimit(account, profile.followersCount)) return stopForLimit(job, profile.followersCount);
-    if (account.limit) await hooks?.onFollowerLimitCleared(job.accountId);
+    if (account.limit) await scanHooks().onFollowerLimitCleared(job.accountId);
     job.expectedTotal = profile.followersCount;
     job.totalSeen = true;
   }
@@ -470,11 +334,11 @@ async function onProfile(job: ScanJob, account: TrackedAccount, tabId: number, b
  * onglet fermé. L'orchestrateur marque le compte et coupe ses vérifications.
  */
 async function stopForLimit(job: ScanJob, count: number): Promise<void> {
-  await chrome.alarms.clear(`${ALARM_QUICK_TIMEOUT_PREFIX}${job.accountId}`);
+  await clearQuickTimeout(job.accountId);
   await closeTab(job);
   await dropJob(job.accountId);
-  await hooks?.onFollowerLimit(job, count);
-  await hooks?.onStateChange();
+  await scanHooks().onFollowerLimit(job, count);
+  await scanHooks().onStateChange();
 }
 
 /** Page de la liste des abonnés. */
@@ -487,47 +351,42 @@ async function onFollowersPage(
   if (variablesOf(event.url).userId !== job.accountId) return;
   if (isRateLimited(event.status, event.body)) return pauseForRateLimit(job, account, event.rateReset);
   // Réponse en erreur, ou sans liste (erreur renvoyée avec un statut 200) : jamais une fin de liste.
-  const page =
-    event.status >= 400 ? undefined : parseJson(event.body, (data) => parseFollowersPage(data, variablesOf(event.url).cursor));
+  const { cursor } = variablesOf(event.url);
+  const parsed = event.status >= 400 ? undefined : parseJson(event.body, (data) => parseFollowersPage(data, cursor));
+  // Page vide sans curseur loin du total annoncé : réponse tronquée, pas une fin de liste. Près du
+  // total, c'est la vraie fin : X compte des comptes qu'il n'affiche pas. Seul ce qui a été relu par
+  // ce passage compte : les abonnés repris ne prouvent pas qu'on a atteint le bas de la liste.
+  const truncated = parsed && parsed.users.length === 0 && !parsed.nextCursor && belowResumedFloor(job.top?.length ?? 0, job.expectedTotal);
+  const page = truncated ? undefined : parsed;
   if (!page) {
     // Erreur ponctuelle : x.com réessaiera (le contrôle de blocage prend le relais). Plusieurs
     // d'affilée : x.com refuse la liste, comme pour une limite (pause, puis reprise).
     job.failedPages = (job.failedPages ?? 0) + 1;
-    if (job.kind !== 'quick' && job.failedPages >= MAX_FAILED_PAGES) return pauseForRateLimit(job, account, event.rateReset);
+    if (job.kind !== 'quick' && job.failedPages >= MAX_FAILED_PAGES) {
+      job.failureCycles = (job.failureCycles ?? 0) + 1;
+      // Toujours refusée après plusieurs pauses : ce n'est pas une limite de X, on arrête.
+      if (job.failureCycles >= MAX_FAILURE_CYCLES) return interrupt(job);
+      return pauseForRateLimit(job, account, event.rateReset);
+    }
     await putJob(job, false);
     return;
   }
 
   // Fusion, et ordre de la liste (x.com charge les pages du plus récent au plus ancien).
+  // Relecture depuis le haut en cours de scan (onglet rouvert, page rechargée) : les nouveaux
+  // abonnés arriveraient au milieu de la liste, qui n'est plus dans l'ordre de x.com.
+  if (!cursor && job.pages > 0 && job.kind !== 'quick') job.unordered = true;
   const order = (job.top ??= []);
-  const state = live.get(job.accountId) ?? { job };
-  live.set(job.accountId, state);
+  const state = liveOf(job);
   const readIds = (state.readIds ??= new Set(order));
-  let added = 0;
-  for (const { id, ...profile } of page.users) {
-    if (!(id in job.collected)) added++;
-    job.collected[id] = profile;
-    if (!readIds.has(id) && !(job.kind === 'quick' && order.length >= QUICK_TOP_SIZE)) {
-      order.push(id);
-      readIds.add(id);
-    }
-  }
-  job.count = (job.count ?? 0) + added;
-  job.pages++;
-  job.updatedAt = Date.now();
-  // Toute page reçue est un progrès, même sans nouvel abonné (reprise qui relit la zone déjà lue).
-  job.lastProgressAt = Date.now();
-  job.failedPages = undefined;
-  job.xError = undefined;
+  mergePage(job, readIds, page, Date.now());
   // Page reçue : une pause « chargement arrêté » est levée. La pause pour la limite de X, elle,
   // dure jusqu'à l'échéance (le défilement est arrêté) : une page arrivée en retard ne la lève pas.
   if (job.status === 'paused' && job.pausedReason !== 'rate-limit') {
     clearPause(job);
-    await hooks?.onStateChange();
+    await scanHooks().onStateChange();
   }
-  const persist =
-    job.kind === 'quick' ||
-    (job.pages % PERSIST_EVERY === 0 && Date.now() - (state.persistedAt ?? 0) >= PERSIST_MIN_INTERVAL_MS);
+  const persist = shouldPersist(job, state.persistedAt, Date.now());
   if (persist) state.persistedAt = Date.now();
   await putJob(job, persist);
 
@@ -536,7 +395,7 @@ async function onFollowersPage(
     if (job.totalSeen) await finish(job);
     // Total pas encore lu : la page profil le charge à coup sûr.
     else if (hasKnownHandle(account)) {
-      await chrome.tabs.update(tabId, { url: profileScanUrl(account) }).catch(() => undefined);
+      await navigate(tabId, profileScanUrl(account));
     }
     return;
   }
@@ -546,12 +405,16 @@ async function onFollowersPage(
 
   // Scan lancé par un écart : arrêt dès que tous les départs annoncés sont trouvés. Jamais
   // après une perte de pages (`gap`) : les abonnés de ces pages passeraient pour des départs.
-  if (job.target && !job.seeded && !job.gap) {
+  if (job.target && !job.seeded && !job.gap && !job.unordered && !job.skipped) {
     if (state.previousOrder === undefined) {
       const snapshot = await loadSnapshot(job.accountId);
       state.previousOrder = snapshot?.ordered ? snapshot.ids : null;
+      state.previousIndex = state.previousOrder ? orderIndex(state.previousOrder) : undefined;
     }
-    const stop = state.previousOrder ? earlyStop(state.previousOrder, readIds, job.target) : undefined;
+    const stop =
+      state.previousOrder && state.previousIndex
+        ? earlyStop(state.previousOrder, state.previousIndex, order, readIds, job.target)
+        : undefined;
     if (stop) {
       // Marge : quelques pages de plus, au cas où l'écart sous-estime les départs réels.
       job.earlyStopPages = (job.earlyStopPages ?? 0) + 1;
@@ -594,7 +457,7 @@ async function routeTab(job: ScanJob, account: TrackedAccount, tabId: number, pa
     if (!job.totalSeen && !job.expectedTotal && !job.totalLookupAt && job.pages === 0) {
       job.totalLookupAt = Date.now();
       await putJob(job, false);
-      await chrome.tabs.update(tabId, { url: profileScanUrl(account) }).catch(() => undefined);
+      await navigate(tabId, profileScanUrl(account));
       // Sans réponse du profil, retour à la liste quand même (le scan avance sans total).
       setTimeout(() => void serial(() => returnFromLookup(job.accountId, tabId)), TOTAL_LOOKUP_MS);
       return;
@@ -605,7 +468,7 @@ async function routeTab(job: ScanJob, account: TrackedAccount, tabId: number, pa
     // Sur le profil pour lire le total : on y reste le temps qu'il arrive (onProfile nous ramène).
     if (job.totalLookupAt && !job.totalSeen && Date.now() - job.totalLookupAt < TOTAL_LOOKUP_MS) return;
     // Autre page (dont `/i/user/<id>` une fois le @handle connu) : direction la liste des abonnés.
-    await chrome.tabs.update(tabId, { url: followersUrl(account) }).catch(() => undefined);
+    await navigate(tabId, scanFollowersUrl(account));
   }
 }
 
@@ -618,108 +481,21 @@ async function returnFromLookup(accountId: string, tabId: number): Promise<void>
 }
 
 async function checkStall(job: ScanJob, account: TrackedAccount, visible: boolean): Promise<void> {
-  if (job.status === 'paused' && job.pausedReason === 'rate-limit') return;
-  const idle = Date.now() - (job.lastProgressAt ?? job.startedAt);
-  if (idle < STALL_MS) return;
-
-  // Chargement arrêté : un essai sur le bouton « Réessayer » de x.com, onglet visible ou non.
-  // S'il est là, x.com a refusé une page (erreur ou limite non annoncée).
-  if (!job.retriedAt || job.retriedAt < (job.lastProgressAt ?? 0)) {
+  const action = decideStall(job, visible, Date.now());
+  if (action === 'lookup') {
+    // x.com charge le profil par l'id du compte, qui donne le nouveau @handle.
+    job.totalLookupAt = Date.now();
+    await putJob(job, false);
+    await navigate(job.tabId!, `${userIdUrl(account.id)}#${SCAN_MARKER}`);
+  } else if (action === 'retry') {
     job.retriedAt = Date.now();
+    // S'il est là, x.com a refusé une page (erreur ou limite non annoncée).
     const res = (await send(job.tabId!, 'retry')) as { clicked?: boolean } | undefined;
     if (res?.clicked) job.xError = true;
     await putJob(job, false);
-    return;
-  }
-  // Toujours refusé après l'essai : comme une limite de X, pause puis reprise automatique
-  // (au lieu d'attendre qu'on affiche l'onglet, ce qui n'y changerait rien).
-  if (job.xError && idle >= HIDDEN_STALL_MS) return pauseForRateLimit(job, account);
-
-  if (!visible) {
-    // Le rendu simulé fait normalement avancer la page cachée ; sinon, on demande à l'afficher.
-    if (idle >= HIDDEN_STALL_MS && job.pausedReason !== 'needs-focus') await pause(job, 'needs-focus');
-    return;
-  }
-  // Toujours rien, onglet visible, après un nouvel essai : on considère la liste terminée.
-  // Une liste trop courte est marquée incomplète (§ 4.7) et pourra être continuée.
-  if (idle >= END_MS) await finish(job);
-}
-
-async function finish(job: ScanJob): Promise<void> {
-  if (job.finishing) return;
-  job.finishing = true;
-  job.updatedAt = Date.now();
-  await putJob(job);
-  // Fin (§ 4.6) : l'onglet se ferme immédiatement, l'analyse se fait ensuite.
-  await closeTab(job);
-  // `finish` tourne dans la file des événements : l'analyse en sort pour ne pas la bloquer.
-  void analyze(job);
-}
-
-/**
- * Analyse d'un scan terminé (comparaison, événements, instantané), puis effacement du scan.
- * Un échec de l'analyse met le scan en pause pour un nouvel essai ; ce qui suit l'effacement
- * (statut, enchaînement) ne fait que journaliser ses erreurs, sans ressusciter le scan.
- */
-function analyze(job: ScanJob): Promise<void> {
-  if (analyzing.has(job.accountId)) return Promise.resolve();
-  const run = runAnalysis(job);
-  inFlight.add(run);
-  void run.finally(() => inFlight.delete(run));
-  return run;
-}
-
-async function runAnalysis(job: ScanJob): Promise<void> {
-  analyzing.add(job.accountId);
-  const epoch = importEpoch();
-  try {
-    try {
-      // Import d'une sauvegarde pendant le scan : ses données font foi, l'analyse est abandonnée.
-      if (!isImporting() && epoch === importEpoch()) await hooks?.onComplete(job);
-      await dropJob(job.accountId);
-    } catch (err) {
-      console.error(t('common.log.scanEnd'), err);
-      if (epoch !== importEpoch()) return;
-      job.analysisFailures = (job.analysisFailures ?? 0) + 1;
-      if (job.analysisFailures >= MAX_ANALYSIS_FAILURES) {
-        // Échec persistant : on n'insiste pas, les abonnés lus sont gardés pour continuer plus tard.
-        await serial(async () => {
-          await hooks?.onInterrupted(job);
-          await dropJob(job.accountId);
-          await hooks?.onStateChange();
-        });
-        return;
-      }
-      // Nouvel essai de l'analyse seule, plus tard : la liste déjà lue est gardée (pas de nouveau
-      // scan de toute la liste). Détail technique dans la console ; l'interface affiche un
-      // message traduit.
-      await serial(() => pause(job, 'error', Date.now() + RETRY_AFTER_ERROR_MS));
-      return;
-    }
-    await hooks?.onStateChange();
-    if (epoch === importEpoch()) await hooks?.onFinished(job);
-  } catch (err) {
-    console.error(t('common.log.scanEnd'), err);
-  } finally {
-    analyzing.delete(job.accountId);
-  }
-}
-
-/**
- * Scan resté « en analyse » alors qu'aucune analyse ne tourne : le service worker a été arrêté
- * pendant l'analyse. Elle est relancée (elle ne recrée ni départ ni arrivée déjà enregistrés).
- * Renvoie vrai si le scan est en fin d'analyse (récupéré ou en cours).
- */
-export function recoverFinishing(accountId: string): Promise<boolean> {
-  return serial(async () => {
-    const job = await getJob(accountId);
-    if (!job?.finishing) return false;
-    // Analyse en échec : nouvel essai à l'heure prévue seulement.
-    if (job.resumeAt && job.resumeAt > Date.now()) return true;
-    const stale = !analyzing.has(accountId) && Date.now() - job.updatedAt > STALE_FINISH_MS;
-    if (stale) void analyze(job);
-    return true;
-  });
+  } else if (action === 'rate-limit') await pauseForRateLimit(job, account);
+  else if (action === 'needs-focus') await pause(job, 'needs-focus');
+  else if (action === 'finish') await finish(job);
 }
 
 /**
@@ -734,8 +510,7 @@ export function suspendForeignScan(sessionAccountId: string): Promise<void> {
     const job = await getJob(scanTab.accountId);
     if (!job || job.finishing) return void (await localKv.remove(keys.scanTab));
     if (job.kind === 'quick') return discardQuick(job);
-    await closeTab(job);
-    await pause(job, 'account-switched');
+    await closeAndPause(job, 'account-switched');
   });
 }
 
@@ -752,22 +527,21 @@ export function handleTabLoaded(tabId: number, url: string | undefined): Promise
   return serial(async () => {
     const scanTab = await getScanTab();
     if (!scanTab || scanTab.tabId !== tabId) return;
-    if (await send(tabId, 'ping')) return void rehooks.delete(tabId); // script de page en place
+    if (await isHooked(tabId)) return void rehooks.delete(tabId); // script de page en place
     const job = await getJob(scanTab.accountId);
     const account = (await loadAccounts())[scanTab.accountId];
     if (!job || !account || job.finishing || job.tabId !== tabId) return;
     const path = url ? new URL(url).pathname : undefined;
     if (path && isLoginPath(path)) {
-      await closeTab(job);
-      await pause(job, 'disconnected');
+      await closeAndPause(job, 'disconnected');
       return;
     }
     const tries = (rehooks.get(tabId) ?? 0) + 1;
     rehooks.set(tabId, tries);
     // Au-delà : le chien de garde arrêtera le scan (gardé comme incomplet).
     // Contrôle léger dont la première page est lue : il attend le total, sur le profil.
-    const target = job.kind === 'quick' && job.pages > 0 && hasKnownHandle(account) ? profileScanUrl(account) : followersUrl(account);
-    if (tries <= MAX_REHOOKS) await chrome.tabs.update(tabId, { url: target }).catch(() => undefined);
+    const target = job.kind === 'quick' && job.pages > 0 && hasKnownHandle(account) ? profileScanUrl(account) : scanFollowersUrl(account);
+    if (tries <= MAX_REHOOKS) await reopenWithHook(tabId, target);
   });
 }
 
@@ -777,24 +551,14 @@ export function handleTabRemoved(tabId: number): Promise<void> {
     const scanTab = await getScanTab();
     if (!scanTab || scanTab.tabId !== tabId) return;
     await localKv.remove(keys.scanTab);
+    if (isImporting()) return; // l'import arrête lui-même les scans
     const job = await getJob(scanTab.accountId);
     if (!job || job.finishing) return;
     if (job.kind === 'quick') return discardQuick({ ...job, tabId: undefined });
     // Scan interrompu (§ 4.3) : marqué incomplet, ses abonnés sont gardés pour la reprise.
     // Il est relancé à la vérification suivante, ou par « Continuer le scan ».
-    await hooks?.onInterrupted(job);
-    await dropJob(job.accountId);
-    await hooks?.onStateChange();
+    await finalizeIncomplete(job);
   });
-}
-
-/** Arrête un scan en le gardant comme incomplet : ses abonnés serviront à « Continuer le scan ». */
-async function interrupt(job: ScanJob): Promise<void> {
-  if (job.kind === 'quick') return discardQuick(job);
-  await closeTab(job);
-  await hooks?.onInterrupted(job);
-  await dropJob(job.accountId);
-  await hooks?.onStateChange();
 }
 
 /** « Arrêter le scan » (scan bloqué) : arrêt immédiat, gardé comme incomplet. */
@@ -813,9 +577,9 @@ export function interruptScan(accountId: string): Promise<void> {
 export function giveUpIfStalled(accountId: string): Promise<boolean> {
   return serial(async () => {
     const job = await getJob(accountId);
-    if (!job || job.finishing || job.kind === 'quick') return false;
-    if (job.status === 'paused' && job.pausedReason !== 'needs-focus') return false;
-    if (Date.now() - (job.lastProgressAt ?? job.startedAt) < GIVE_UP_MS) return false;
+    if (!job || job.finishing) return false;
+    if (!isStalled(job, Date.now())) return false;
+    // Contrôle léger : son alarme de délai a pu se perdre (extension rechargée, service worker arrêté).
     await interrupt(job);
     return true;
   });

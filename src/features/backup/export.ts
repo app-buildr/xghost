@@ -1,3 +1,5 @@
+import { isStoredAsText } from '@/shared/storage/keys';
+import { decodeStored } from '@/shared/storage/kv';
 import { installedVersion } from '@/shared/utils/version';
 import { BACKUP_APP, BACKUP_FORMAT, backupItems, type Backup } from './format';
 
@@ -12,6 +14,9 @@ export async function exportBackup(): Promise<Backup> {
     format: BACKUP_FORMAT,
     version: installedVersion(),
     exportedAt: Date.now(),
-    data: backupItems(stored),
+    // Le fichier garde son format : les valeurs stockées en texte y redeviennent des objets.
+    data: Object.fromEntries(
+      Object.entries(backupItems(stored)).map(([key, value]) => [key, isStoredAsText(key) ? decodeStored(value) : value]),
+    ),
   };
 }

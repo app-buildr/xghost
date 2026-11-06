@@ -1,11 +1,15 @@
-import type { ReactNode } from 'react';
-import type { ProfileCache } from '@/features/followers-sync/repository';
-import type { FollowEvent } from '@/shared/types';
+import type { ComponentProps, ReactNode } from 'react';
+import type { FollowEvent, ProfileCache } from '@/shared/types';
 import { t } from '@/shared/i18n';
 import { Avatar } from '@/shared/ui/primitives';
 import { EventTime } from './EventParts';
 import { displayName } from './display';
 import './events.css';
+
+/** Attributs posés par une liste virtualisée sur l'élément de la ligne (mesure, position). */
+export type EventRowProps = Pick<ComponentProps<'li'>, 'ref' | 'aria-posinset' | 'aria-setsize'> & {
+  'data-index': number;
+};
 
 /**
  * Ligne d'un mouvement (départ ou arrivée) : avatar, nom, étiquette « Nouveau », détails, date.
@@ -19,6 +23,7 @@ export function EventRow({
   variant = 'full',
   newTone = 'new',
   actions,
+  rowProps,
 }: {
   event: FollowEvent;
   profiles: ProfileCache | undefined;
@@ -28,6 +33,7 @@ export function EventRow({
   /** Couleur de l'étiquette « Nouveau » : corail (départ) ou teal (arrivée). */
   newTone?: 'new' | 'follow';
   actions?: ReactNode;
+  rowProps?: EventRowProps;
 }) {
   const inactive = event.status !== 'active';
   const fresh = !event.seen;
@@ -61,7 +67,7 @@ export function EventRow({
   }
 
   return (
-    <li data-id={event.id} className={`xg-dep${inactive ? ' is-inactive' : ''}`}>
+    <li {...rowProps} data-id={event.id} className={`xg-dep${inactive ? ' is-inactive' : ''}`}>
       {avatar}
       <div className="xg-dep__body">
         <div className="xg-dep__title">
@@ -70,9 +76,13 @@ export function EventRow({
         </div>
         <div className="xg-dep__meta">{meta}</div>
         {/* Panneau étroit (colonne des nouveaux abonnés) : la date passe sous le nom. */}
-        <EventTime className="xg-dep__date xg-dep__date--inline" at={event.at} now={now} />
+        <div className="xg-dep__date--inline">
+          <EventTime className="xg-dep__date" at={event.at} now={now} />
+        </div>
       </div>
-      <EventTime className="xg-dep__date xg-dep__date--side" at={event.at} now={now} />
+      <div className="xg-dep__date--side">
+        <EventTime className="xg-dep__date" at={event.at} now={now} />
+      </div>
       {actions && <div className="xg-dep__actions">{actions}</div>}
     </li>
   );

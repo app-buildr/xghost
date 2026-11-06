@@ -1,8 +1,8 @@
 import { isImporting } from '@/shared/storage/import-lock';
 import { refreshBadge } from '@/features/alerts/badge';
 import type { FollowEvent } from '@/shared/types';
-import { compactEventsOf, decodeEvent, encodeEvent } from './codec';
-import { updateEvents } from './repository';
+import { compactEventsOf, decodeEvent, encodeEvent } from '@/domain/events/codec';
+import { updateEvents, updateRemoved } from './repository';
 
 /**
  * Commandes sur les événements, exécutées par le service worker.
@@ -45,6 +45,11 @@ export async function settleSeen(): Promise<void> {
   await flushing;
 }
 
+/** Retrait d'un compte : ses « vus » en attente recréeraient son historique. */
+export function forgetSeen(accountId: string): void {
+  pendingSeen.delete(accountId);
+}
+
 export async function markSeen(accountId: string, eventIds: readonly string[]): Promise<void> {
   pendingSeen.set(accountId, new Set([...(pendingSeen.get(accountId) ?? []), ...eventIds]));
   if (timer) clearTimeout(timer);
@@ -60,6 +65,8 @@ export async function deleteEvent(accountId: string, eventId: string): Promise<F
       return false;
     }),
   );
+  // Gardé à part : la réparation de l'historique ne doit pas recréer ce qu'on a supprimé.
+  if (removed) await updateRemoved(accountId, { add: [removed] });
   await refreshBadge();
   return removed;
 }
@@ -69,5 +76,6 @@ export async function restoreEvent(accountId: string, event: FollowEvent): Promi
   const [clean] = compactEventsOf([encodeEvent(event)]).map(decodeEvent);
   if (!clean) return;
   await updateEvents(accountId, (events) => (events.some((e) => e.id === clean.id) ? events : [clean, ...events]));
+  await updateRemoved(accountId, { drop: clean.id });
   await refreshBadge();
 }

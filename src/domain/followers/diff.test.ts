@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assembleOrder, assessQuick, assessScan, diffFollowers, earlyStop, fillUnreadTail, isComplete } from './diff';
+import { QUICK_TOP_SIZE, SNAPSHOT_TOP_SIZE } from '@/features/followers-sync/model';
+import { assembleOrder, assessQuick, assessScan, belowResumedFloor, diffFollowers, earlyStop as stop, fillUnreadTail, isComplete, orderIndex } from './diff';
+
+const earlyStop = (previous: string[], read: string[], target: number) =>
+  stop(previous, orderIndex(previous), read, new Set(read), target);
+
 
 describe('diffFollowers', () => {
   it('détecte départs et arrivées par id', () => {
@@ -17,14 +22,21 @@ describe('isComplete (§ 4.7)', () => {
   it('incomplet en dessous', () => {
     expect(isComplete({ scanned: 1980, detected: 2418 })).toBe(false);
   });
-  it('complet si la fin de liste n’apporte plus rien après une reprise', () => {
-    expect(isComplete({ scanned: 2300, detected: 2418, reachedEnd: true, seeded: 2300 })).toBe(true);
+  it('complet si une reprise relit toute la liste sans rien ajouter', () => {
+    expect(isComplete({ scanned: 2300, detected: 2418, reachedEnd: true, seeded: 2300, reread: 2300 })).toBe(true);
+  });
+  it('reprise sur une réponse vide : incomplet', () => {
+    expect(isComplete({ scanned: 2300, detected: 2418, reachedEnd: true, seeded: 2300, reread: 0 })).toBe(false);
+  });
+  it('liste coupée par X, relue à l’identique : incomplet', () => {
+    expect(isComplete({ scanned: 20, detected: 20000, reachedEnd: true, seeded: 20, reread: 20 })).toBe(false);
   });
   it('incomplet si la fin de liste est atteinte au premier passage seulement', () => {
     expect(isComplete({ scanned: 2300, detected: 2418, reachedEnd: true })).toBe(false);
   });
-  it('sans total X : complet dès qu’on a des abonnés', () => {
-    expect(isComplete({ scanned: 10, detected: 0 })).toBe(true);
+  it('sans total X : complet seulement si la liste a été lue jusqu’au bout', () => {
+    expect(isComplete({ scanned: 10, detected: 0, reachedEnd: true })).toBe(true);
+    expect(isComplete({ scanned: 3000, detected: 0 })).toBe(false);
   });
   it('compte sans abonné : complet une fois la liste vide lue jusqu’au bout', () => {
     expect(isComplete({ scanned: 0, detected: 0, reachedEnd: true, totalKnown: true })).toBe(true);
@@ -46,13 +58,13 @@ describe('fillUnreadTail : scan arrêté avant la fin', () => {
 
 describe('assessScan', () => {
   it('signale une variation anormale (> 20 % de départs)', () => {
-    expect(assessScan({ previousCount: 100, collected: 95, expected: 100, departures: 25 })).toBe('suspicious');
+    expect(assessScan({ previousCount: 100, departures: 25 })).toBe('suspicious');
   });
   it('accepte une variation normale', () => {
-    expect(assessScan({ previousCount: 2418, collected: 2413, expected: 2420, departures: 5 })).toBe('ok');
+    expect(assessScan({ previousCount: 2418, departures: 5 })).toBe('ok');
   });
   it('ne bloque pas un petit compte pour quelques départs', () => {
-    expect(assessScan({ previousCount: 10, collected: 7, expected: 7, departures: 3 })).toBe('ok');
+    expect(assessScan({ previousCount: 10, departures: 3 })).toBe('ok');
   });
 });
 
@@ -124,18 +136,73 @@ describe('earlyStop', () => {
 
   it('s’arrête dès que les départs annoncés sont trouvés', () => {
     // c est parti ; on a relu z (arrivée), a, b, d : c est forcément parti.
-    expect(earlyStop(previous, new Set(['z', 'a', 'b', 'd']), 1)).toEqual({ matchedIndex: 3 });
+    expect(earlyStop(previous, ['z', 'a', 'b', 'd'], 1)).toEqual({ matchedIndex: 3 });
   });
 
   it('continue tant qu’il manque des départs', () => {
-    expect(earlyStop(previous, new Set(['z', 'a', 'b', 'd']), 2)).toBeUndefined();
+    expect(earlyStop(previous, ['z', 'a', 'b', 'd'], 2)).toBeUndefined();
   });
 
   it('ne compte pas comme parti ce qui n’a pas encore été atteint', () => {
-    expect(earlyStop(previous, new Set(['a', 'b']), 1)).toBeUndefined();
+    expect(earlyStop(previous, ['a', 'b'], 1)).toBeUndefined();
   });
 
   it('reconstitue la liste complète avec la suite inchangée', () => {
     expect(assembleOrder(previous, ['z', 'a', 'b', 'd'], 3)).toEqual(['z', 'a', 'b', 'd', 'e', 'f', 'g', 'h']);
   });
+});
+
+describe('abonné revenu en tête de liste', () => {
+  const previous = Array.from({ length: 2000 }, (_, i) => String(i + 1));
+
+  it('earlyStop : un abonné revenu ne fait pas partir ceux qui restent à relire', () => {
+    const read = ['1500', ...previous.slice(0, 5), ...previous.slice(6, 60)];
+    expect(earlyStop(previous, read, 1)).toEqual({ matchedIndex: 59 });
+  });
+
+  it('earlyStop : beaucoup plus de départs que l’écart : on continue de lire', () => {
+    expect(earlyStop(previous, previous.slice(1000, 1050), 1)).toBeUndefined();
+  });
+
+  it('fillUnreadTail : un abonné revenu ne coupe pas la suite', () => {
+    const ids = fillUnreadTail(previous, ['1900', ...previous.slice(0, 1800).filter((id) => id !== '1900')]);
+    expect(ids).toHaveLength(2000);
+  });
+
+  it('assessQuick : aucun départ quand seul un abonné est revenu', () => {
+    const quick = assessQuick({
+      previousTotal: 2000,
+      currentTotal: 2000,
+      knownIds: new Set(previous),
+      pageIds: ['1500', ...previous.slice(0, 49)],
+      previousTop: previous.slice(0, 200),
+    });
+    expect(quick.departed).toEqual([]);
+  });
+
+  it('assessQuick : plus de départs que la baisse du total : rien n’est conclu', () => {
+    const quick = assessQuick({
+      previousTotal: 2000,
+      currentTotal: 2000,
+      knownIds: new Set(previous),
+      pageIds: previous.slice(5, 55),
+      previousTop: previous.slice(0, 200),
+    });
+    expect(quick.departed).toEqual([]);
+  });
+});
+
+it('le haut de liste enregistré couvre la page d’un contrôle léger', () => {
+  expect(SNAPSHOT_TOP_SIZE).toBeGreaterThanOrEqual(QUICK_TOP_SIZE);
+});
+
+it('petit compte avec des abonnés cachés : une reprise relue en entier est complète', () => {
+  expect(isComplete({ scanned: 13, detected: 15, reachedEnd: true, seeded: 13, reread: 13 })).toBe(true);
+  expect(belowResumedFloor(13, 15)).toBe(false);
+});
+
+it('une liste à 95 % peut être une vraie fin de liste, pas une liste à 50 %', () => {
+  expect(belowResumedFloor(950, 1000)).toBe(false);
+  expect(belowResumedFloor(500, 1000)).toBe(true);
+  expect(belowResumedFloor(10, 0)).toBe(false);
 });

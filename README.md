@@ -126,17 +126,20 @@ se fait dans les deux.
 
 ## Publier une nouvelle version
 
-1. Monte la version dans `package.json` (elle devient celle du manifeste), par exemple `1.0.1`,
-   puis committe et pousse sur `main`.
-2. `pnpm release` : vérifie les types et les tests, puis produit `release/xghost-<version>.zip`,
-   avec `manifest.json` à la racine. `release.sh` est un script local, ignoré par git : la CI
-   (`.github/workflows/ci.yml`) vérifie types, lint, tests et build à chaque push.
+`main` est protégée : on n'y pousse pas directement, tout passe par une pull request.
+
+1. Monte la version dans `package.json` (elle devient celle du manifeste), par exemple `1.0.1`, sur
+   une branche, ouvre une pull request et fusionne-la. Reviens ensuite sur `main` à jour.
+2. `pnpm release`, depuis `main` : vérifie les types et les tests, puis produit
+   `release/xghost-<version>.zip`, avec `manifest.json` à la racine. `release.sh` est un script
+   local, ignoré par git. La CI (`.github/workflows/ci.yml`) vérifie types, lint, tests et build sur
+   chaque pull request et chaque mise à jour de `main`.
 3. Envoie l'archive dans la [console développeur du Chrome Web Store](https://chrome.google.com/webstore/devconsole)
    et soumets la nouvelle version à la validation. Chrome met ensuite les extensions installées à
    jour tout seul.
 
 La mise à jour maison (installation en mode développeur, vérification des releases GitHub, flèche ↑
-sur l'icône) est conservée sur la branche `feature/self-update`, au cas où.
+sur l'icône) reste dans l'historique git, au commit `070f97c`, au cas où.
 
 ## Architecture (par fonctionnalité)
 

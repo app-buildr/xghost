@@ -289,8 +289,9 @@ const RESTORE_WAIT_MS = 10 * SECOND;
 /**
  * Onglet de scan resté d'avant un redémarrage de Chrome : son fragment a été effacé et son id a
  * changé, il n'est plus instrumenté. À appeler avant toute reprise. Seuls les onglets épinglés sur
- * la liste du compte ou sur `/i/user/<id>` sont visés (jamais un profil, qu'on épingle soi-même) :
- * ils sont cherchés tout de suite puis une seconde fois, la restauration de Chrome pouvant finir après.
+ * la liste du compte ou sur `/i/user/<id>` sont visés (jamais un profil, qu'on épingle soi-même ;
+ * vérification du follow back : voir `sweepRestoredFollowCheckTab`) : ils sont cherchés tout de
+ * suite puis une seconde fois, la restauration de Chrome pouvant finir après.
  */
 export function closeRestoredScanTab(): Promise<void> {
   return serial(async () => {

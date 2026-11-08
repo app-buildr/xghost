@@ -168,6 +168,23 @@ describe('vérification du follow back des départs', () => {
     expect(fake.tabs.size).toBe(0);
   });
 
+  it('redémarrage de Chrome : seuls les onglets épinglés en arrière-plan sur le profil vérifié sont fermés', async () => {
+    const tabs = [
+      { id: 900, url: 'https://x.com/i/user/500', pinned: true }, // onglet restauré, avant redirection
+      { id: 901, url: 'https://x.com/parti0', pinned: true }, // onglet restauré, après redirection
+      { id: 902, url: 'https://x.com/parti0', pinned: true, active: true }, // affiché : gardé
+      { id: 903, url: 'https://x.com/parti0', pinned: false }, // non épinglé : gardé
+      { id: 904, url: 'https://x.com/autre', pinned: true }, // autre profil : gardé
+    ];
+    for (const t of tabs) fake.tabs.set(t.id, t);
+    await chrome.storage.local.set({
+      [keys.scanTab]: { tabId: 77, accountId: ID, purpose: 'follow-check', profileId: '500', handle: 'parti0' },
+    });
+    await engine.closeRestoredScanTab();
+    expect([...fake.tabs.keys()].sort()).toEqual([902, 903, 904]);
+    expect(fake.store.has(keys.scanTab)).toBe(false);
+  });
+
   it('retrait du compte : la passe est abandonnée sans rien appliquer', async () => {
     await chrome.storage.local.set({ [keys.followChecks(ID)]: queue(2) });
     await engine.startFollowCheck(ID);

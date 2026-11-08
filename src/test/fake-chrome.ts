@@ -12,7 +12,7 @@ export interface FakeChrome {
   /** Fait échouer la prochaine écriture (retour arrière d'un import…). */
   failNextSet: () => void;
   /** Onglets ouverts, commandes reçues par eux, cookies de session. */
-  tabs: Map<number, { id: number; url: string; pinned?: boolean }>;
+  tabs: Map<number, { id: number; url: string; pinned?: boolean; active?: boolean }>;
   commands: { tabId: number; message: unknown }[];
   cookies: Map<string, string>;
   /** Réponse des onglets aux commandes (par défaut `{ ok: true }`). */
@@ -110,8 +110,14 @@ export function installFakeChrome(): FakeChrome {
       async remove(id: number) {
         tabs.delete(id);
       },
-      async query() {
-        return [];
+      /** Filtres utilisés par l'extension : épinglé, affiché, adresses exactes. */
+      async query(q: { pinned?: boolean; active?: boolean; url?: string[] } = {}) {
+        return [...tabs.values()].filter(
+          (t) =>
+            (q.pinned === undefined || Boolean(t.pinned) === q.pinned) &&
+            (q.active === undefined || Boolean(t.active) === q.active) &&
+            (q.url === undefined || q.url.includes(t.url)),
+        );
       },
       async sendMessage(tabId: number, message: unknown) {
         commands.push({ tabId, message });

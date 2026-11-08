@@ -3,7 +3,7 @@ import { keys } from '@/shared/storage/keys';
 import type { ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
 import { installFakeChrome, type FakeChrome } from '@/test/fake-chrome';
 import { decodeEvent, encodeEvent } from '@/domain/events/codec';
-import { loadEvents } from '@/features/events/repository';
+import { loadEvents, updateEvents } from '@/features/events/repository';
 import { applyFollowChecks, applyQuickCheck, applyScan, saveIncomplete } from './apply';
 import { loadFollowChecks, loadProfiles } from '@/features/followers-sync/repository';
 
@@ -415,5 +415,15 @@ describe('vérification du follow back des départs', () => {
     const [departure] = await loadEvents(ID);
     await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), following: true }]);
     expect(fake.notifications).toHaveLength(1);
+  });
+
+  it('« Uniquement les follow back » : un départ vérifié plus de 24 h après est mis à jour sans notification', async () => {
+    await seed({ account: { mutualsOnly: true }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    await updateEvents(ID, (events) => events.map((e) => ({ ...e, at: Date.now() - 25 * HOUR })));
+    const [departure] = await loadEvents(ID);
+    await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), following: true }]);
+    expect((await loadEvents(ID))[0]?.mutual).toBe(true);
+    expect(fake.notifications).toHaveLength(0);
   });
 });

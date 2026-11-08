@@ -19,7 +19,8 @@ export interface ScanTab {
   accountId: string;
   /** Onglet ouvert pour vérifier le follow back des départs (pas de scan de la liste). */
   purpose?: 'follow-check';
-  /** Vérification : @handle du profil ouvert (onglet resté d'avant un redémarrage de Chrome). */
+  /** Vérification : profil ouvert, par son id et son @handle (onglet resté d'avant un redémarrage de Chrome). */
+  profileId?: string;
   handle?: string;
 }
 
@@ -104,7 +105,7 @@ export async function isHooked(tabId: number): Promise<boolean> {
 }
 
 /** Enregistre l'onglet de scan : c'est lui qui fait foi, rien dans la page ne le désigne. */
-export const registerScanTab = (tabId: number, accountId: string, extra: Pick<ScanTab, 'purpose' | 'handle'> = {}) =>
+export const registerScanTab = (tabId: number, accountId: string, extra: Pick<ScanTab, 'purpose' | 'profileId' | 'handle'> = {}) =>
   localKv.set({ [keys.scanTab]: { tabId, accountId, ...extra } satisfies ScanTab });
 
 /** Change la page de l'onglet de scan. */

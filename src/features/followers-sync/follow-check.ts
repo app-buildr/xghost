@@ -62,6 +62,7 @@ let run: Run | undefined;
 
 const isLoginPath = (path: string) => /^\/(login|logout|i\/flow\/login|i\/flow\/signup)(\/|$)/.test(path);
 const checkUrl = (item: FollowCheck) => `${userIdUrl(item.profileId)}#${SCAN_MARKER}`;
+const checkTabOf = (item: FollowCheck) => ({ purpose: 'follow-check' as const, profileId: item.profileId, handle: item.handle });
 
 /**
  * Démarre une passe pour le compte (le compte connecté, sans scan en cours : vérifié par l'appelant).
@@ -81,7 +82,7 @@ export async function beginFollowCheck(account: TrackedAccount): Promise<'starte
   const tab = await chrome.tabs.create({ url: checkUrl(first), pinned: true, active: false, windowId: win?.id });
   if (tab.id === undefined) return 'busy';
   await chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(() => undefined);
-  await registerScanTab(tab.id, account.id, { purpose: 'follow-check', handle: first.handle });
+  await registerScanTab(tab.id, account.id, checkTabOf(first));
   await chrome.alarms.create(followCheckAlarm(account.id), { when: Date.now() + SAFETY_MS });
   run = { accountId: account.id, tabId: tab.id, current: first, handled: 0, tried: new Set([first.eventId]), silent: 0, results: [], step: 0 };
   armTimeout(run);
@@ -160,12 +161,18 @@ export async function abandonFollowCheck(accountId: string): Promise<void> {
 }
 
 /**
- * Onglet de vérification resté d'avant un redémarrage de Chrome (son id a changé) : seuls les
- * onglets épinglés sur le profil alors ouvert sont fermés.
+ * Onglet de vérification resté d'avant un redémarrage de Chrome (son id a changé). Sont fermés les
+ * onglets épinglés et en arrière-plan sur le profil alors ouvert : par son id (`/i/user/<id>`, que
+ * l'on n'épingle pas soi-même), ou par son @handle si x.com a redirigé la page. L'onglet affiché
+ * n'est jamais fermé : l'utilisateur le regarde, c'est peut-être le sien.
  */
 export async function sweepRestoredFollowCheckTab(scanTab: ScanTab): Promise<void> {
-  if (!scanTab.handle) return;
-  const pinned = await chrome.tabs.query({ pinned: true, url: [profileUrl(scanTab.handle)] }).catch(() => []);
+  const url = [
+    ...(scanTab.profileId ? [userIdUrl(scanTab.profileId)] : []),
+    ...(scanTab.handle ? [profileUrl(scanTab.handle)] : []),
+  ];
+  if (url.length === 0) return;
+  const pinned = await chrome.tabs.query({ pinned: true, active: false, url }).catch(() => []);
   await Promise.all(pinned.map((tab) => (tab.id === undefined ? undefined : chrome.tabs.remove(tab.id).catch(() => undefined))));
 }
 
@@ -220,7 +227,7 @@ async function open(step: number, item: FollowCheck): Promise<void> {
   if (!run || run.step !== step || run.tabId === undefined) return;
   run.current = item;
   run.tried.add(item.eventId);
-  await registerScanTab(run.tabId, run.accountId, { purpose: 'follow-check', handle: item.handle });
+  await registerScanTab(run.tabId, run.accountId, checkTabOf(item));
   armTimeout(run);
   await navigate(run.tabId, checkUrl(item));
 }

@@ -39,7 +39,7 @@ import {
 } from '@/domain/followers/diff';
 import { cleanFalseMovements } from './cleanup';
 import { SNAPSHOT_TOP_SIZE, STALE_RECHECK_MS } from '@/features/followers-sync/model';
-import { MINUTE } from '@/shared/utils/time';
+import { HOUR, MINUTE } from '@/shared/utils/time';
 
 /**
  * Exploitation des scans (§ 4.1, 4.2, 4.7) : référence, comparaison, garde-fous,
@@ -504,9 +504,15 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
 // ---------------------------------------------------------------------------
 
 /**
+ * Départ vérifié trop longtemps après sa détection (file chargée, reports) : il est mis à jour sans
+ * notification, qui arriverait hors de propos.
+ */
+const FOLLOW_CHECK_NOTIFY_MAX_AGE_MS = 24 * HOUR;
+
+/**
  * Résultats d'une passe de vérification : « je le suis » mis à jour sur chaque départ (état lu
  * sur son profil), et dans le cache des profils. Avec « Uniquement les follow back », un départ
- * qui s'avère suivi et n'a pas encore été vu est notifié maintenant (il avait été filtré).
+ * récent qui s'avère suivi et n'a pas encore été vu est notifié maintenant (il avait été filtré).
  */
 export async function applyFollowChecks(accountId: string, results: readonly FollowCheckResult[]): Promise<void> {
   if (results.length === 0) return;
@@ -542,6 +548,8 @@ export async function applyFollowChecks(accountId: string, results: readonly Fol
 
   const account = (await loadAccounts())[accountId];
   if (account?.mutualsOnly && nowFollowed.length) {
-    await notifyVisible(account, nowFollowed.filter((e) => !e.seen), await loadIgnored(accountId));
+    const since = Date.now() - FOLLOW_CHECK_NOTIFY_MAX_AGE_MS;
+    const recent = nowFollowed.filter((e) => !e.seen && e.at >= since);
+    if (recent.length) await notifyVisible(account, recent, await loadIgnored(accountId));
   }
 }

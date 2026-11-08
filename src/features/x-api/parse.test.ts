@@ -67,6 +67,15 @@ describe('parseUserLookup', () => {
     expect(parseUserLookup({ data: { user: { result: { __typename: 'UserUnavailable', reason: 'Suspended' } } } }).status).toBe('suspended');
     expect(parseUserLookup({ data: { user: {} } }).status).toBe('gone');
   });
+
+  it('dit si je le suis, seulement quand la réponse le précise', () => {
+    const lookup = (extra: object) =>
+      parseUserLookup({ data: { user: { result: { __typename: 'User', rest_id: '1', core: { screen_name: 'a' }, ...extra } } } });
+    expect(lookup({ relationship_perspectives: { following: true } }).following).toBe(true);
+    expect(lookup({ legacy: { following: true } }).following).toBe(true);
+    expect(lookup({ relationship_perspectives: { followed_by: true } }).following).toBe(false);
+    expect(lookup({}).following).toBeUndefined();
+  });
 });
 
 describe('lecture des réponses de x.com', () => {

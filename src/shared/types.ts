@@ -122,6 +122,23 @@ export interface FollowEvent {
   seen: boolean;
 }
 
+/** Départ dont le follow back est à vérifier sur le profil du compte parti. */
+export interface FollowCheck {
+  eventId: string;
+  profileId: string;
+  handle: string;
+  /** Essais sans réponse du profil (abandon au-delà de quelques-uns). */
+  attempts?: number;
+}
+
+/** Résultat d'une vérification : `following` absent si le profil ne l'a pas dit (compte suspendu…). */
+export interface FollowCheckResult {
+  eventId: string;
+  profileId: string;
+  following?: boolean;
+  profile?: Omit<Profile, 'id'>;
+}
+
 export interface Profile {
   id: string;
   handle: string;

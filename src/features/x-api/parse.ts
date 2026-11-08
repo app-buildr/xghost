@@ -18,6 +18,8 @@ export interface FollowersPage {
 export interface UserLookup {
   status: AccountStatus;
   profile?: Profile & { followersCount?: number };
+  /** « Je le suis », seulement si la réponse le dit (absent : inconnu). */
+  following?: boolean;
 }
 
 const WATCHED_PATH = new RegExp(`^/i/api/graphql/[^/]+/(${WATCHED_OPERATIONS.join('|')})$`);
@@ -30,6 +32,16 @@ export function watchedOperation(url: string): WatchedOperation | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * « Je le suis » selon la réponse de X, ou `undefined` si elle ne le dit pas. X omet souvent le
+ * champ quand il vaut faux : un bloc `relationship_perspectives` présent sans lui vaut donc non.
+ */
+function readFollowing(r: Json): boolean | undefined {
+  const value: unknown = r.relationship_perspectives?.following ?? r.legacy?.following;
+  if (typeof value === 'boolean') return value;
+  return r.relationship_perspectives && typeof r.relationship_perspectives === 'object' ? false : undefined;
 }
 
 function parseUser(r: Json): (Profile & { followersCount?: number }) | null {
@@ -45,7 +57,7 @@ function parseUser(r: Json): (Profile & { followersCount?: number }) | null {
     handle,
     name: String(r.core?.name ?? r.legacy?.name ?? handle).slice(0, 100),
     avatar: typeof avatar === 'string' && AVATAR.test(avatar) ? avatar : undefined,
-    following: Boolean(r.relationship_perspectives?.following ?? r.legacy?.following ?? false),
+    following: readFollowing(r) ?? false,
     followersCount: typeof followersCount === 'number' && followersCount >= 0 ? followersCount : undefined,
   };
 }
@@ -96,7 +108,7 @@ export function parseUserLookup(data: Json): UserLookup {
     return { status: /suspend/i.test(String(r.reason ?? r.unavailable_message?.text ?? '')) ? 'suspended' : 'gone' };
   }
   const profile = parseUser(r);
-  return profile ? { status: 'active', profile } : { status: 'gone' };
+  return profile ? { status: 'active', profile, following: readFollowing(r) } : { status: 'gone' };
 }
 
 /** Réponse de X signalant la limite de requêtes (HTTP 429, ou erreur 88 « Rate limit exceeded »). */

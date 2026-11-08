@@ -1,8 +1,9 @@
 import { isSameDay } from '@/shared/utils/time';
+import { createSerialQueue } from '@/shared/utils/serial';
 import { MAX_TOTALS, type ScanProgress } from './model';
 import { encodeStored, localKv } from '@/shared/storage/kv';
 import { accountKeysOf, keys } from '@/shared/storage/keys';
-import type { PartialScan, ProfileCache, ScanJob, Snapshot } from '@/shared/types';
+import type { FollowCheck, PartialScan, ProfileCache, ScanJob, Snapshot } from '@/shared/types';
 
 /** Données locales d'un compte : instantané, cache des profils, scan en cours (§ 5.2). */
 
@@ -64,6 +65,32 @@ export const saveJob = (job: ScanJob) =>
 export const saveProgressOnly = (job: ScanJob) => localKv.set({ [keys.scanProgress(job.accountId)]: toProgress(job) });
 export const clearJob = (accountId: string) =>
   localKv.remove([keys.scanJob(accountId), keys.scanProgress(accountId)]);
+
+/** Départs à vérifier au plus : au-delà (vague énorme), les plus anciens sont laissés de côté. */
+const MAX_FOLLOW_CHECKS = 500;
+
+export const loadFollowChecks = async (accountId: string): Promise<FollowCheck[]> =>
+  (await localKv.get<FollowCheck[]>(keys.followChecks(accountId))) ?? [];
+
+/** File des départs à vérifier : écrite par l'analyse des scans et par les vérifications, une écriture à la fois. */
+const followCheckWrites = createSerialQueue();
+export function updateFollowChecks(accountId: string, mutate: (items: FollowCheck[]) => FollowCheck[]): Promise<FollowCheck[]> {
+  return followCheckWrites.run(async () => {
+    const next = mutate(await loadFollowChecks(accountId)).slice(-MAX_FOLLOW_CHECKS);
+    if (next.length) await localKv.set({ [keys.followChecks(accountId)]: next });
+    else await localKv.remove(keys.followChecks(accountId));
+    return next;
+  });
+}
+
+/** Ajoute des départs à vérifier (un seul par compte parti : le plus récent). */
+export const enqueueFollowChecks = (accountId: string, items: readonly FollowCheck[]) =>
+  items.length === 0
+    ? Promise.resolve([])
+    : updateFollowChecks(accountId, (queue) => {
+        const fresh = new Set(items.map((i) => i.profileId));
+        return [...queue.filter((q) => !fresh.has(q.profileId)), ...items];
+      });
 
 /** Efface toutes les données d'un compte. */
 export const deleteAccountData = (accountId: string) => localKv.remove(accountKeysOf(accountId));

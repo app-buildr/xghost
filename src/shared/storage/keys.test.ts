@@ -3,7 +3,7 @@ import { isBackupKey, isTransientKey } from '@/features/backup/format';
 import { accountIdOfKey, accountKeysOf, isDisplayKey, isProgressKey, keys } from './keys';
 
 /** Valeurs écrites dans le stockage et les sauvegardes : elles ne doivent jamais changer. */
-const SUFFIXES = ['events', 'ign', 'snapshot', 'profiles', 'job', 'progress', 'partial', 'suspicious', 'visit', 'repaired', 'totals'];
+const SUFFIXES = ['events', 'ign', 'snapshot', 'profiles', 'job', 'progress', 'partial', 'suspicious', 'visit', 'repaired', 'totals', 'verify'];
 
 describe('clés de compte', () => {
   it('les suffixes stockés ne changent pas', () => {

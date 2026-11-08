@@ -1,6 +1,7 @@
 import { createSerialQueue } from '@/shared/utils/serial';
 import {
   ALARM_CHECK,
+  ALARM_FOLLOW_CHECK_PREFIX,
   ALARM_QUICK_TIMEOUT_PREFIX,
   ALARM_RECHECK_PREFIX,
   ALARM_RESUME_PREFIX,
@@ -9,6 +10,7 @@ import {
   armQuickTimeout,
   clearAccountAlarms,
   clearQuickTimeout,
+  followCheckAlarm,
 } from './alarms';
 import { exceedsFollowerLimit } from '@/domain/accounts/limit';
 import { isOnboarded } from '@/domain/accounts/model';
@@ -34,11 +36,12 @@ import {
   recoverFinishing,
   resumeScan,
   setScanHooks,
+  startFollowCheck,
   startScan,
   suspendForeignScan,
 } from '@/features/followers-sync/scan-engine';
 import { loadSettings } from '@/features/settings/repository';
-import { applyQuickCheck, applyScan, saveIncomplete } from '@/features/unfollow-detection/apply';
+import { applyFollowChecks, applyQuickCheck, applyScan, saveIncomplete } from '@/features/unfollow-detection/apply';
 import { readSession } from '@/features/x-api/session';
 import type { CheckRefusal } from '@/shared/messaging/protocol';
 import { localKv } from '@/shared/storage/kv';
@@ -90,9 +93,13 @@ setScanHooks({
   async onFinished(job) {
     // Le contrôle léger a repéré des départs : le scan complet les identifie aussitôt
     // (si ce compte est toujours celui connecté ; sinon au prochain contrôle).
-    if (job.kind !== 'quick') return;
     const account = (await loadAccounts())[job.accountId];
-    if (account?.pending) await triggerCheck('followup', job.accountId);
+    if (job.kind === 'quick' && account?.pending) {
+      await triggerCheck('followup', job.accountId);
+      return;
+    }
+    // Départs détectés : leur follow back est vérifié sur leur profil, onglet de scan libéré.
+    await runFollowCheck(job.accountId);
   },
   async onInterrupted(job) {
     await saveIncomplete(job);
@@ -110,7 +117,29 @@ setScanHooks({
   async onFollowerLimitCleared(accountId) {
     await patchAccount(accountId, { limit: undefined });
   },
+  async onFollowCheckDone(accountId, results, nextAt) {
+    // Programmée avant d'appliquer : un échec de l'écriture ne perd pas la passe suivante.
+    if (nextAt) await chrome.alarms.create(followCheckAlarm(accountId), { when: nextAt });
+    else await chrome.alarms.clear(followCheckAlarm(accountId));
+    await applyFollowChecks(accountId, results);
+  },
 });
+
+/** Vérification du follow back refusée parce qu'un scan occupe l'onglet : nouvel essai après ce délai. */
+const FOLLOW_CHECK_BUSY_MS = 15 * MINUTE;
+
+/**
+ * Passe de vérification du follow back des départs en attente (voir follow-check). Refusée pour
+ * l'instant (scan en cours, autre compte connecté) : reportée par son alarme.
+ */
+async function runFollowCheck(accountId: string): Promise<void> {
+  if (isImporting()) return;
+  const res = await startFollowCheck(accountId);
+  if (res === 'started') return;
+  if (res === 'empty') return void (await chrome.alarms.clear(followCheckAlarm(accountId)));
+  const delay = res === 'other-account' ? OTHER_ACCOUNT_DELAY_MS : FOLLOW_CHECK_BUSY_MS;
+  await chrome.alarms.create(followCheckAlarm(accountId), { when: Date.now() + delay });
+}
 
 /**
  * Limite d'abonnés dépassée (§ 4.9) : le compte est marqué, et tout ce qui relancerait un scan
@@ -373,6 +402,7 @@ async function onAlarm(name: string): Promise<void> {
   else if (name.startsWith(ALARM_RETRY_PREFIX)) await checkAccount('retry', name.slice(ALARM_RETRY_PREFIX.length), name);
   else if (name.startsWith(ALARM_RECHECK_PREFIX)) await checkAccount('auto', name.slice(ALARM_RECHECK_PREFIX.length), name);
   else if (name.startsWith(ALARM_QUICK_TIMEOUT_PREFIX)) await onQuickTimeout(name.slice(ALARM_QUICK_TIMEOUT_PREFIX.length));
+  else if (name.startsWith(ALARM_FOLLOW_CHECK_PREFIX)) await runFollowCheck(name.slice(ALARM_FOLLOW_CHECK_PREFIX.length));
 }
 
 /** Vérification propre à un compte : reportée tant qu'un autre compte est connecté sur x.com. */

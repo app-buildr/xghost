@@ -4,6 +4,7 @@ import { eventId } from '@/domain/events/codec';
 import { loadEvents, loadRemoved, updateEvents } from '@/features/events/repository';
 import { isVisible, missingMovements, newMovements, wasRemoved } from '@/domain/events/selectors';
 import {
+  enqueueFollowChecks,
   recordTotal,
   clearPartial,
   loadProfiles,
@@ -14,7 +15,16 @@ import {
 } from '@/features/followers-sync/repository';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
-import type { FollowEvent, ProfileCache, ScanCoverage, ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
+import type {
+  FollowCheck,
+  FollowCheckResult,
+  FollowEvent,
+  ProfileCache,
+  ScanCoverage,
+  ScanJob,
+  Snapshot,
+  TrackedAccount,
+} from '@/shared/types';
 import {
   assembleOrder,
   assessQuick,
@@ -34,7 +44,8 @@ import { MINUTE } from '@/shared/utils/time';
 /**
  * Exploitation des scans (§ 4.1, 4.2, 4.7) : référence, comparaison, garde-fous,
  * événements, instantané et notifications.
- * Le statut des comptes partis n'est pas vérifié : xGhost n'ouvre jamais leur profil.
+ * Chaque départ est ensuite mis en file pour vérifier son follow back sur son profil
+ * (voir follow-check) : le cache des profils peut dater du scan de référence.
  */
 
 const SUSPICIOUS_RETRY_MS = 30 * MINUTE;
@@ -117,6 +128,15 @@ async function notifyVisible(account: TrackedAccount, departures: FollowEvent[],
   const ctx = { ignored, mutualsOnly: account.mutualsOnly };
   await notifyDepartures(account.handle, departures.filter((d) => isVisible(d, ctx)));
 }
+
+/** Départs à vérifier sur leur profil (follow back) ; les comptes ignorés ne sont pas ouverts. */
+const queueFollowChecks = (accountId: string, departures: readonly FollowEvent[], ignored: ReadonlySet<string>) =>
+  enqueueFollowChecks(
+    accountId,
+    departures
+      .filter((d) => !ignored.has(d.profileId))
+      .map((d): FollowCheck => ({ eventId: d.id, profileId: d.profileId, handle: d.handle })),
+  );
 
 /** Dernière vérification (la liste d'abonnés enregistrée est à jour jusque-là). */
 const lastCheck = (account: TrackedAccount) => account.lastScanAt ?? 0;
@@ -323,6 +343,7 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   const repaired = await repairHistory(accountId, ids, lastCheck(account), ignored, profiles, now);
   await updateAccountAfterScan(accountId, now, followersCount, false);
 
+  await queueFollowChecks(accountId, [...departures, ...repaired], ignored);
   await notifyVisible(account, [...departures, ...repaired], ignored);
   // Après la notification : un échec ici n'a pas à remettre en cause le scan.
   await cleanFalseMovements(accountId).catch((err) => console.error(err));
@@ -469,10 +490,58 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   ]);
   const repaired = await repairHistory(accountId, ids, lastCheck(account), ignored, profiles, now);
 
+  await queueFollowChecks(accountId, [...departures, ...repaired], ignored);
   await notifyVisible(account, [...departures, ...repaired], ignored);
 
   if (lagging) return { kind: 'recheck', at: now + STALE_RECHECK_MS };
   if (!found) return { kind: 'clear', arrivals: quick.arrivals.length };
   // Départs plus anciens non identifiés : le scan complet est lancé aussitôt par l'orchestrateur.
   return { kind: 'pending', missing: quick.missing, full: quick.overflow };
+}
+
+// ---------------------------------------------------------------------------
+// Vérification du follow back des départs
+// ---------------------------------------------------------------------------
+
+/**
+ * Résultats d'une passe de vérification : « je le suis » mis à jour sur chaque départ (état lu
+ * sur son profil), et dans le cache des profils. Avec « Uniquement les follow back », un départ
+ * qui s'avère suivi et n'a pas encore été vu est notifié maintenant (il avait été filtré).
+ */
+export async function applyFollowChecks(accountId: string, results: readonly FollowCheckResult[]): Promise<void> {
+  if (results.length === 0) return;
+  const known = new Map(results.flatMap((r) => (r.following === undefined ? [] : [[r.eventId, r.following] as const])));
+  const nowFollowed: FollowEvent[] = [];
+  if (known.size) {
+    await updateEvents(accountId, (events) =>
+      events.map((e) => {
+        const following = known.get(e.id);
+        if (following === undefined || following === e.mutual || e.type !== 'departure') return e;
+        const updated = { ...e, mutual: following };
+        if (following) nowFollowed.push(updated);
+        return updated;
+      }),
+    );
+  }
+
+  const read = results.filter((r) => r.profile);
+  if (read.length) {
+    const profiles = await loadProfiles(accountId);
+    for (const r of read) {
+      const cached = profiles[r.profileId];
+      const fresh = r.profile!;
+      profiles[r.profileId] = {
+        ...cached,
+        ...fresh,
+        avatar: fresh.avatar ?? cached?.avatar,
+        following: r.following ?? cached?.following ?? false,
+      };
+    }
+    await saveProfiles(accountId, profiles);
+  }
+
+  const account = (await loadAccounts())[accountId];
+  if (account?.mutualsOnly && nowFollowed.length) {
+    await notifyVisible(account, nowFollowed.filter((e) => !e.seen), await loadIgnored(accountId));
+  }
 }

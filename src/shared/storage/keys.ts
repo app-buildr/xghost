@@ -26,6 +26,8 @@ const ACCOUNT_KEYS = {
   repaired: { suffix: 'repaired', backup: true, display: false },
   /** Total d'abonnés annoncé par X, un point par jour (courbe des abonnés). */
   totals: { suffix: 'totals', backup: true, display: true },
+  /** Départs dont le follow back reste à vérifier sur leur profil (file d'attente). */
+  followChecks: { suffix: 'verify', backup: false, display: false },
 } as const;
 
 type AccountKeySpec = (typeof ACCOUNT_KEYS)[keyof typeof ACCOUNT_KEYS];
@@ -57,6 +59,7 @@ export const keys = {
   lastVisit: keyOf(ACCOUNT_KEYS.lastVisit.suffix),
   repaired: keyOf(ACCOUNT_KEYS.repaired.suffix),
   totals: keyOf(ACCOUNT_KEYS.totals.suffix),
+  followChecks: keyOf(ACCOUNT_KEYS.followChecks.suffix),
 } as const;
 
 const ACCOUNT_KEY = new RegExp(`^acc:(${ID_PATTERN}):([a-z]+)$`);

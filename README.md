@@ -232,8 +232,11 @@ défilement (`onProfile`), et aussi d'après le dernier total connu au lancement
 3. Une notification groupée par vérification.
 4. Historique complet en local, sans synchronisation Chrome ; la sauvegarde (export/import) la remplace.
 5. Les réglages sont globaux, sauf « Uniquement les follow back », propre à chaque compte.
-6. Le statut des comptes partis (suspendu, supprimé) n'est pas vérifié : xGhost n'ouvre jamais leur
-   profil.
+6. Le follow back d'un départ est vérifié sur le profil du compte parti, ouvert dans l'onglet de
+   scan juste après la détection (`followers-sync/follow-check.ts`) : le cache des profils, lu dans la
+   liste des abonnés, peut dater du scan de référence. Passes de 15 profils au plus, espacées de
+   15 min ; un scan est prioritaire. Le statut des comptes partis (suspendu, supprimé) n'est pas
+   enregistré.
 7. Chiffres sur 7 jours : bilan par compte (un départ suivi d'un retour ne compte pas).
 
 8. Le bloc « Données » de la spec devient « Sauvegarde » (export/import complet au format JSON).

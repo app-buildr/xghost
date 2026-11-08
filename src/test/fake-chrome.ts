@@ -85,7 +85,7 @@ export function installFakeChrome(): FakeChrome {
       },
     },
     action,
-    runtime: { id: 'test', getManifest: () => ({ version: '1.0.2' }), getURL: (p: string) => `chrome-extension://test${p}` },
+    runtime: { id: 'test', getManifest: () => ({ version: '1.0.3' }), getURL: (p: string) => `chrome-extension://test${p}` },
     i18n: { getUILanguage: () => 'fr' },
     cookies: { get: async ({ name }: { name: string }) => (cookies.has(name) ? { value: cookies.get(name) } : null) },
     windows: { getLastFocused: async () => ({ id: 1 }), update: async () => undefined },

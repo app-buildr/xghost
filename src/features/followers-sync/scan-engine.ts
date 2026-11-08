@@ -13,7 +13,16 @@ import { localKv } from '@/shared/storage/kv';
 import type { ScanJob, ScanKind, ScanReason, TrackedAccount } from '@/shared/types';
 import { HOUR, SECOND } from '@/shared/utils/time';
 import { followersUrl, profileUrl, userIdUrl } from '@/shared/x-urls';
-import { loadPartial, loadSnapshot } from './repository';
+import {
+  abandonFollowCheck,
+  beginFollowCheck,
+  onFollowCheckEvent,
+  onFollowCheckLoaded,
+  onFollowCheckTabRemoved,
+  stopFollowCheck,
+  sweepRestoredFollowCheckTab,
+} from './follow-check';
+import { loadFollowChecks, loadPartial, loadSnapshot } from './repository';
 import { finish } from './scan-analysis';
 import { scanHooks, serial } from './scan-context';
 import { closeAndPause, discardQuick, finalizeIncomplete, interrupt, pause, pauseForRateLimit } from './scan-lifecycle';
@@ -80,7 +89,9 @@ async function openTab(job: ScanJob, account: TrackedAccount): Promise<void> {
   // Un seul onglet de scan à la fois : celui d'un autre compte est fermé et son scan mis en pause
   // (il reprendra quand ce compte sera de nouveau connecté).
   const previous = await getScanTab();
-  if (previous && previous.accountId !== job.accountId) {
+  // Vérification du follow back en cours : le scan est prioritaire, elle reprendra après lui.
+  if (previous?.purpose === 'follow-check') await stopFollowCheck(previous);
+  else if (previous && previous.accountId !== job.accountId) {
     const other = await getJob(previous.accountId);
     if (other && !other.finishing) {
       if (other.kind === 'quick') await discardQuick(other);
@@ -243,6 +254,7 @@ export function handleTabEvent(event: TabEvent, tabId: number): Promise<void> {
     const scanTab = await getScanTab();
     // Onglet inconnu : jamais repris ni fermé, il n'est pas à nous (lien portant le fragment).
     if (!scanTab || scanTab.tabId !== tabId) return;
+    if (scanTab.purpose === 'follow-check') return onFollowCheckEvent(event, tabId, scanTab);
     const job = await getJob(scanTab.accountId);
     if (!job || job.tabId !== tabId || job.finishing) return;
     const account = (await loadAccounts())[job.accountId];
@@ -277,14 +289,20 @@ const RESTORE_WAIT_MS = 10 * SECOND;
 /**
  * Onglet de scan resté d'avant un redémarrage de Chrome : son fragment a été effacé et son id a
  * changé, il n'est plus instrumenté. À appeler avant toute reprise. Seuls les onglets épinglés sur
- * la liste du compte ou sur `/i/user/<id>` sont visés (jamais un profil, qu'on épingle soi-même) :
- * ils sont cherchés tout de suite puis une seconde fois, la restauration de Chrome pouvant finir après.
+ * la liste du compte ou sur `/i/user/<id>` sont visés (jamais un profil, qu'on épingle soi-même ;
+ * vérification du follow back : voir `sweepRestoredFollowCheckTab`) : ils sont cherchés tout de
+ * suite puis une seconde fois, la restauration de Chrome pouvant finir après.
  */
 export function closeRestoredScanTab(): Promise<void> {
   return serial(async () => {
     const scanTab = await getScanTab();
     if (!scanTab || (await tabExists(scanTab.tabId))) return;
     await localKv.remove(keys.scanTab);
+    if (scanTab.purpose === 'follow-check') {
+      await sweepRestoredFollowCheckTab(scanTab);
+      setTimeout(() => void serial(() => sweepRestoredFollowCheckTab(scanTab)), RESTORE_WAIT_MS);
+      return;
+    }
     const account = (await loadAccounts())[scanTab.accountId];
     if (!account) return;
     const sweep = async () => {
@@ -507,6 +525,7 @@ export function suspendForeignScan(sessionAccountId: string): Promise<void> {
   return serial(async () => {
     const scanTab = await getScanTab();
     if (!scanTab || scanTab.accountId === sessionAccountId) return;
+    if (scanTab.purpose === 'follow-check') return stopFollowCheck(scanTab);
     const job = await getJob(scanTab.accountId);
     if (!job || job.finishing) return void (await localKv.remove(keys.scanTab));
     if (job.kind === 'quick') return discardQuick(job);
@@ -527,6 +546,7 @@ export function handleTabLoaded(tabId: number, url: string | undefined): Promise
   return serial(async () => {
     const scanTab = await getScanTab();
     if (!scanTab || scanTab.tabId !== tabId) return;
+    if (scanTab.purpose === 'follow-check') return onFollowCheckLoaded(tabId, scanTab);
     if (await isHooked(tabId)) return void rehooks.delete(tabId); // script de page en place
     const job = await getJob(scanTab.accountId);
     const account = (await loadAccounts())[scanTab.accountId];
@@ -550,6 +570,7 @@ export function handleTabRemoved(tabId: number): Promise<void> {
   return serial(async () => {
     const scanTab = await getScanTab();
     if (!scanTab || scanTab.tabId !== tabId) return;
+    if (scanTab.purpose === 'follow-check') return onFollowCheckTabRemoved(tabId);
     await localKv.remove(keys.scanTab);
     if (isImporting()) return; // l'import arrête lui-même les scans
     const job = await getJob(scanTab.accountId);
@@ -588,8 +609,26 @@ export function giveUpIfStalled(accountId: string): Promise<boolean> {
 /** Annule le scan d'un compte (retrait du compte, import d'une sauvegarde). */
 export function cancelScan(accountId: string): Promise<void> {
   return serial(async () => {
+    await abandonFollowCheck(accountId);
     const job = await getJob(accountId);
     if (job) await closeTab(job);
     await dropJob(accountId);
+  });
+}
+
+/**
+ * Lance une passe de vérification du follow back des départs du compte, s'il est connecté et
+ * qu'aucun scan n'est en cours (voir follow-check).
+ */
+export function startFollowCheck(accountId: string): Promise<'started' | 'busy' | 'empty' | 'other-account'> {
+  return serial(async () => {
+    if (isImporting()) return 'busy';
+    // Rien en attente : aucune alarme à reprogrammer, quel que soit le compte connecté.
+    const account = (await loadAccounts())[accountId];
+    if (!account || (await loadFollowChecks(accountId)).length === 0) return 'empty';
+    const session = await readSession();
+    if (session?.accountId !== accountId) return 'other-account';
+    if (await getJob(accountId)) return 'busy';
+    return beginFollowCheck(account);
   });
 }

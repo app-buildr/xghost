@@ -35,7 +35,8 @@ export function DeparturesPanel({
 }) {
   const actions = useEventActions(account.id);
   const items = useMemo(() => currentDepartures(data.events, ctx), [data.events, ctx]);
-  // Départ : on garde l'état au moment du départ (« tu le suivais quand il est parti »).
+  // Départ : état vérifié sur le profil du compte parti juste après sa détection (voir follow-check),
+  // à défaut celui du cache des profils au moment du départ.
   const followsBack = useCallback((e: FollowEvent) => e.mutual, []);
 
   return (

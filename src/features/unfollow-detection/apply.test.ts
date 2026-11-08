@@ -3,8 +3,9 @@ import { keys } from '@/shared/storage/keys';
 import type { ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
 import { installFakeChrome, type FakeChrome } from '@/test/fake-chrome';
 import { decodeEvent, encodeEvent } from '@/domain/events/codec';
-import { loadEvents } from '@/features/events/repository';
-import { applyQuickCheck, applyScan, saveIncomplete } from './apply';
+import { loadEvents, updateEvents } from '@/features/events/repository';
+import { applyFollowChecks, applyQuickCheck, applyScan, saveIncomplete } from './apply';
+import { loadFollowChecks, loadProfiles } from '@/features/followers-sync/repository';
 
 const ID = '42';
 const HOUR = 3_600_000;
@@ -373,5 +374,56 @@ describe('faux départs', () => {
     const page = [id(500), ...list(49)];
     await applyQuickCheck(job(page, { kind: 'quick', expectedTotal: 2000 }));
     expect(await loadEvents(ID)).toEqual([]);
+  });
+});
+
+describe('vérification du follow back des départs', () => {
+  it('chaque départ détecté est mis en file, sauf les comptes ignorés', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await chrome.storage.local.set({ [keys.ignored(ID)]: [id(8)] });
+    await applyScan(job(list(8)));
+    const queue = await loadFollowChecks(ID);
+    expect(queue.map((q) => q.profileId)).toEqual([id(9)]);
+    const [departure] = (await loadEvents(ID)).filter((e) => e.profileId === id(9));
+    expect(queue[0]).toMatchObject({ eventId: departure!.id, handle: profile(id(9)).handle });
+  });
+
+  it('le follow back lu sur le profil remplace la valeur du cache', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    const [departure] = await loadEvents(ID);
+    expect(departure?.mutual).toBe(false);
+    await applyFollowChecks(ID, [
+      { eventId: departure!.id, profileId: id(9), following: true, profile: { handle: 'nouveau', name: 'N', following: true } },
+    ]);
+    expect((await loadEvents(ID))[0]?.mutual).toBe(true);
+    expect((await loadProfiles(ID))[id(9)]).toMatchObject({ handle: 'nouveau', following: true });
+  });
+
+  it('réponse sans l’info : le départ garde sa valeur', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    const [departure] = await loadEvents(ID);
+    await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9) }]);
+    expect((await loadEvents(ID))[0]?.mutual).toBe(false);
+  });
+
+  it('« Uniquement les follow back » : un départ qui s’avère suivi est notifié à ce moment-là', async () => {
+    await seed({ account: { mutualsOnly: true }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    expect(fake.notifications).toHaveLength(0);
+    const [departure] = await loadEvents(ID);
+    await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), following: true }]);
+    expect(fake.notifications).toHaveLength(1);
+  });
+
+  it('« Uniquement les follow back » : un départ vérifié plus de 24 h après est mis à jour sans notification', async () => {
+    await seed({ account: { mutualsOnly: true }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    await updateEvents(ID, (events) => events.map((e) => ({ ...e, at: Date.now() - 25 * HOUR })));
+    const [departure] = await loadEvents(ID);
+    await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), following: true }]);
+    expect((await loadEvents(ID))[0]?.mutual).toBe(true);
+    expect(fake.notifications).toHaveLength(0);
   });
 });

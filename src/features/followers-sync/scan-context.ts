@@ -1,5 +1,5 @@
 import { createSerialQueue } from '@/shared/utils/serial';
-import type { ScanJob } from '@/shared/types';
+import type { FollowCheckResult, ScanJob } from '@/shared/types';
 
 /** Ce que le moteur de scan attend de l'orchestrateur, et sa file d'événements. */
 
@@ -15,6 +15,11 @@ export interface ScanHooks {
   onFollowerLimit: (job: ScanJob, count: number) => Promise<void>;
   /** Total revenu sous la limite d'un compte qui l'avait dépassée : le scan continue. */
   onFollowerLimitCleared: (accountId: string) => Promise<void>;
+  /**
+   * Fin d'une passe de vérification du follow back : résultats à appliquer aux départs, et date
+   * de la passe suivante (`undefined` : plus rien en attente).
+   */
+  onFollowCheckDone: (accountId: string, results: FollowCheckResult[], nextAt?: number) => Promise<void>;
 }
 
 let hooks: ScanHooks | undefined;

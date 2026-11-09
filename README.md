@@ -229,14 +229,23 @@ défilement (`onProfile`), et aussi d'après le dernier total connu au lancement
 1. Un départ est « vu » quand sa ligne est affichée (pas de bouton « marquer comme vu ») ; il garde
    l'étiquette « Nouveau » jusqu'à ce qu'on quitte la page.
 2. « Suivre aussi mes abonnements » n'est pas prévu pour l'instant (réglage retiré).
-3. Une notification groupée par vérification.
+3. Une notification groupée par passe de vérification des profils : un départ n'est notifié
+   qu'une fois son profil vérifié (voir le point 6), ou après trois essais sans réponse, et
+   seulement dans les 24 h qui suivent sa détection. Une vague de plus de 15 départs d'un coup est
+   notifiée dès sa détection, en une fois.
 4. Historique complet en local, sans synchronisation Chrome ; la sauvegarde (export/import) la remplace.
 5. Les réglages sont globaux, sauf « Uniquement les follow back », propre à chaque compte.
-6. Le follow back d'un départ est vérifié sur le profil du compte parti, ouvert dans l'onglet de
-   scan juste après la détection (`followers-sync/follow-check.ts`) : le cache des profils, lu dans la
-   liste des abonnés, peut dater du scan de référence. Passes de 15 profils au plus, espacées de
-   15 min ; un scan est prioritaire. Le statut des comptes partis (suspendu, supprimé) n'est pas
-   enregistré.
+6. Chaque départ est vérifié sur le profil du compte parti, ouvert dans l'onglet de scan juste
+   après la détection (`followers-sync/follow-check.ts`). On y lit le follow back (le cache des
+   profils, lu dans la liste des abonnés, peut dater du scan de référence) et si le compte suit
+   toujours l'utilisateur : X cache parfois un abonné de la liste (compte restreint ou filtré). Ce
+   faux départ est alors retiré de l'historique sans notification, et le compte est tenu pour
+   présent (`acc:<id>:hidden`) jusqu'à son retour dans la liste, qui ne compte pas comme une
+   arrivée. Ces abonnés cachés sont revérifiés après chaque scan complet : s'ils ne suivent plus
+   l'utilisateur, le départ est enregistré. Passes de 15 profils au plus, espacées de 15 min ; un
+   scan est prioritaire. Les réponses lues restent en file jusqu'à leur application (arrêt du
+   service worker), et une réponse servie par la session d'un autre compte est écartée. Le statut
+   des comptes partis (suspendu, supprimé) n'est pas enregistré.
 7. Chiffres sur 7 jours : bilan par compte (un départ suivi d'un retour ne compte pas).
 
 8. Le bloc « Données » de la spec devient « Sauvegarde » (export/import complet au format JSON).

@@ -124,19 +124,40 @@ export interface FollowEvent {
 
 /** Départ dont le follow back est à vérifier sur le profil du compte parti. */
 export interface FollowCheck {
+  /** Départ vérifié ; `h:<id>` pour la revérification d'un abonné caché. */
   eventId: string;
   profileId: string;
   handle: string;
   /** Essais sans réponse du profil (abandon au-delà de quelques-uns). */
   attempts?: number;
+  /** Mise en file (détection du départ). Absent : file d'une version précédente, départ déjà notifié. */
+  detectedAt?: number;
+  /** Départ déjà notifié à sa détection (grosse vague de départs). */
+  notified?: boolean;
+  /** Abonné caché par X (`keys.hidden`) : revérifié pour savoir s'il suit toujours l'utilisateur. */
+  recheck?: boolean;
+  /**
+   * Réponse lue (vide : profil abandonné après plusieurs essais), gardée en file jusqu'à ce qu'elle
+   * soit appliquée : un arrêt du service worker en cours de passe ne la perd pas.
+   */
+  result?: FollowCheckReading;
 }
 
-/** Résultat d'une vérification : `following` absent si le profil ne l'a pas dit (compte suspendu…). */
-export interface FollowCheckResult {
+/** Ce qu'un profil a dit : `following` absent si le profil ne l'a pas dit (compte suspendu…). */
+export interface FollowCheckReading {
+  following?: boolean;
+  /** Le compte parti suit toujours l'utilisateur (absent : la réponse ne l'a pas dit). */
+  followedBy?: boolean;
+  profile?: Omit<Profile, 'id'>;
+}
+
+/** Résultat d'une vérification, avec le contexte de sa mise en file. */
+export interface FollowCheckResult extends FollowCheckReading {
   eventId: string;
   profileId: string;
-  following?: boolean;
-  profile?: Omit<Profile, 'id'>;
+  detectedAt?: number;
+  notified?: boolean;
+  recheck?: boolean;
 }
 
 export interface Profile {

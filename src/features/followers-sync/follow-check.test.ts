@@ -28,8 +28,9 @@ const tabId = () => (fake.store.get(keys.scanTab) as { tabId: number } | undefin
 const tabUrl = () => fake.tabs.get(tabId()!)?.url;
 
 /** Réponse du profil `profileId`, telle que x.com la reçoit. */
-function profile(profileId: string, following: boolean | undefined, over: { rateRemaining?: number } = {}) {
-  const relationship = following === undefined ? {} : { relationship_perspectives: { following } };
+function profile(profileId: string, following: boolean | undefined, over: { rateRemaining?: number; followedBy?: boolean } = {}) {
+  const relationship =
+    following === undefined ? {} : { relationship_perspectives: { following, ...(over.followedBy === undefined ? {} : { followed_by: over.followedBy }) } };
   return engine.handleTabEvent(
     {
       xgTab: 'response',
@@ -86,6 +87,59 @@ describe('vérification du follow back des départs', () => {
     expect(fake.tabs.has(tab)).toBe(false);
     expect(fake.store.has(keys.scanTab)).toBe(false);
     expect(fake.store.has(keys.followChecks(ID))).toBe(false);
+  });
+
+  it('lit aussi si le compte parti me suit toujours (faux départ)', async () => {
+    await chrome.storage.local.set({ [keys.followChecks(ID)]: queue(1) });
+    await engine.startFollowCheck(ID);
+    await profile('500', false, { followedBy: true });
+    expect(done.mock.calls[0]![1]).toEqual([expect.objectContaining({ eventId: 'd0', following: false, followedBy: true })]);
+  });
+
+  it('session passée sur un autre compte : la réponse est écartée, le départ reste en file', async () => {
+    await chrome.storage.local.set({ [keys.followChecks(ID)]: queue(2) });
+    await engine.startFollowCheck(ID);
+    fake.cookies.set('twid', 'u%3D7');
+    await profile('500', false, { followedBy: true });
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(done.mock.calls[0]![1]).toEqual([]);
+    expect(done.mock.calls[0]![2]).toBeGreaterThan(Date.now());
+    expect((fake.store.get(keys.followChecks(ID)) as FollowCheck[]).map((q) => q.eventId)).toEqual(['d0', 'd1']);
+  });
+
+  it('profil muet au dernier essai : abandonné, rendu sans information (pour être notifié)', async () => {
+    await chrome.storage.local.set({ [keys.followChecks(ID)]: [{ ...item(0), attempts: 2 }] });
+    await engine.startFollowCheck(ID);
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(done.mock.calls[0]![1]).toEqual([{ eventId: 'd0', profileId: '500' }]);
+    expect(fake.store.has(keys.followChecks(ID))).toBe(false);
+  });
+
+  it('service worker arrêté en pleine passe : les réponses lues sont appliquées à la passe suivante', async () => {
+    await chrome.storage.local.set({ [keys.followChecks(ID)]: queue(2) });
+    await engine.startFollowCheck(ID);
+    await profile('500', false, { followedBy: true });
+    expect(done).not.toHaveBeenCalled();
+    // Redémarrage : la passe en mémoire est perdue, la réponse est restée en file.
+    fake.tabs.clear();
+    await chrome.storage.local.remove(keys.scanTab);
+    vi.resetModules();
+    engine = await import('./scan-engine');
+    engine.setScanHooks(hooks as never);
+    expect(await engine.startFollowCheck(ID)).toBe('started');
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(done.mock.calls[0]![1]).toEqual([expect.objectContaining({ eventId: 'd0', followedBy: true })]);
+    expect(tabUrl()).toContain('/i/user/501#');
+    expect((fake.store.get(keys.followChecks(ID)) as FollowCheck[]).map((q) => q.eventId)).toEqual(['d1']);
+  });
+
+  it('réponse gardée si son application échoue', async () => {
+    await chrome.storage.local.set({ [keys.followChecks(ID)]: queue(1) });
+    await engine.startFollowCheck(ID);
+    done.mockRejectedValueOnce(new Error('écriture refusée'));
+    await profile('500', true).catch(() => undefined);
+    expect((fake.store.get(keys.followChecks(ID)) as FollowCheck[])[0]).toMatchObject({ eventId: 'd0', result: { following: true } });
   });
 
   it('ignore la réponse d’un autre profil', async () => {

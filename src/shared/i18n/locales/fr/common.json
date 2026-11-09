@@ -36,7 +36,7 @@
   "notifications": {
     "departureOne": "@{{handle}} ne suit plus @{{account}}",
     "departureMany": "{{count}} comptes ne suivent plus @{{account}}",
-    "detectedNow": "Détecté à l’instant par xGhost.",
+    "detected": "Détecté par xGhost.",
     "andOthers_one": "{{list}} et {{count}} autre",
     "andOthers_other": "{{list}} et {{count}} autres",
     "accountAddedTitle": "Nouveau compte suivi",

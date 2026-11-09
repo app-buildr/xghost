@@ -46,7 +46,7 @@ const movedSince = (event: FollowEvent, events: readonly FollowEvent[], type: Fo
   (byProfile(events).get(event.profileId) ?? []).some((e) => e.type === type && e.at > event.at);
 
 /** Le compte n'est pas revenu depuis ce départ (§ 4.3, « part puis revient »). */
-const stillAbsent = (departure: FollowEvent, events: readonly FollowEvent[]) =>
+export const stillAbsent = (departure: FollowEvent, events: readonly FollowEvent[]) =>
   !movedSince(departure, events, 'arrival');
 
 /** Le compte n'est pas reparti depuis cette arrivée. */
@@ -176,4 +176,19 @@ export function newMovements(
 ): string[] {
   const index = byProfile(events);
   return profileIds.filter((id) => index.get(id)?.at(-1)?.type !== type);
+}
+
+/**
+ * Faux départs : départs récents (mis en file depuis `since`) dont le profil dit que le compte suit
+ * toujours l'utilisateur, sans retour enregistré depuis. X cache parfois un abonné de la liste.
+ */
+export function falseDepartures(
+  events: readonly FollowEvent[],
+  results: ReadonlyMap<string, { followedBy?: boolean; detectedAt?: number }>,
+  since: number,
+): FollowEvent[] {
+  return events.filter((e) => {
+    const r = results.get(e.id);
+    return e.type === 'departure' && r?.followedBy === true && (r.detectedAt ?? e.at) >= since && stillAbsent(e, events);
+  });
 }

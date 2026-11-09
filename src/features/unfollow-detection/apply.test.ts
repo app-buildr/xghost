@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { keys } from '@/shared/storage/keys';
-import type { ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
+import type { FollowCheckReading, FollowCheckResult, ScanJob, Snapshot, TrackedAccount } from '@/shared/types';
 import { installFakeChrome, type FakeChrome } from '@/test/fake-chrome';
 import { decodeEvent, encodeEvent } from '@/domain/events/codec';
 import { loadEvents, updateEvents } from '@/features/events/repository';
@@ -65,6 +65,12 @@ function job(ids: readonly string[], over: Partial<ScanJob> = {}): ScanJob {
   };
 }
 
+/** Résultat de la vérification d'un départ en file, avec son contexte de mise en file. */
+async function resultFor(profileId: string, reading: FollowCheckReading = {}): Promise<FollowCheckResult> {
+  const q = (await loadFollowChecks(ID)).find((x) => x.profileId === profileId)!;
+  return { eventId: q.eventId, profileId, detectedAt: q.detectedAt, notified: q.notified, recheck: q.recheck, ...reading };
+}
+
 const account = async () => (fake.store.get(keys.accounts) as Record<string, TrackedAccount>)[ID]!;
 const snapshotIds = () => (fake.store.get(keys.snapshot(ID)) as Snapshot).ids;
 
@@ -112,7 +118,9 @@ describe('applyScan', () => {
     const events = await loadEvents(ID);
     expect(events.find((e) => e.type === 'departure')?.at).toBe(BASE + 5 * 60_000);
     expect((await account()).pending).toBeUndefined();
-    expect(fake.notifications).toHaveLength(1);
+    // Notifié seulement après la vérification du profil.
+    expect(fake.notifications).toHaveLength(0);
+    expect((await loadFollowChecks(ID)).map((q) => q.profileId)).toEqual([id(0)]);
   });
 
   it('scan de bout en bout : le compteur des contrôles légers repart de zéro', async () => {
@@ -412,8 +420,7 @@ describe('vérification du follow back des départs', () => {
     await seed({ account: { mutualsOnly: true }, snapshot: { ids: list(10) } });
     await applyScan(job(list(9)));
     expect(fake.notifications).toHaveLength(0);
-    const [departure] = await loadEvents(ID);
-    await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), following: true }]);
+    await applyFollowChecks(ID, [await resultFor(id(9), { following: true })]);
     expect(fake.notifications).toHaveLength(1);
   });
 
@@ -425,5 +432,178 @@ describe('vérification du follow back des départs', () => {
     await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), following: true }]);
     expect((await loadEvents(ID))[0]?.mutual).toBe(true);
     expect(fake.notifications).toHaveLength(0);
+  });
+
+  it('notification après la vérification du profil : départ confirmé', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    expect(fake.notifications).toHaveLength(0);
+    const [departure] = await loadEvents(ID);
+    await applyFollowChecks(ID, [await resultFor(id(9), { following: false, followedBy: false })]);
+    expect((await loadEvents(ID)).map((e) => e.id)).toEqual([departure!.id]);
+    expect(fake.notifications).toHaveLength(1);
+  });
+
+  it('détecté depuis plus de 24 h (même daté plus tôt) : pas de notification ; daté plus tôt mais détecté maintenant : notifié', async () => {
+    // Départ daté de la première détection du contrôle léger, il y a deux jours : notifié quand même.
+    await seed({ account: { pending: { count: 1, at: Date.now() - 48 * HOUR } }, snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    await applyFollowChecks(ID, [await resultFor(id(9), { followedBy: false })]);
+    expect(fake.notifications).toHaveLength(1);
+    // Vérifié plus de 24 h après sa mise en file : rien.
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    const late = { ...(await resultFor(id(9), { followedBy: false })), detectedAt: Date.now() - 25 * HOUR };
+    await applyFollowChecks(ID, [late]);
+    expect(fake.notifications).toHaveLength(1);
+  });
+
+  it('file d’une version précédente (départ déjà notifié à sa détection) : pas de seconde notification', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    const [departure] = await loadEvents(ID);
+    await applyFollowChecks(ID, [{ eventId: departure!.id, profileId: id(9), followedBy: false }]);
+    expect(fake.notifications).toHaveLength(0);
+  });
+
+  it('revenu avant la vérification : pas de notification', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      await seed({ snapshot: { ids: list(10) } });
+      vi.setSystemTime(BASE + HOUR);
+      await applyScan(job(list(9)));
+      const result = await resultFor(id(9), { followedBy: true });
+      vi.setSystemTime(BASE + 2 * HOUR);
+      await applyScan(job(list(10)));
+      await applyFollowChecks(ID, [result]);
+      expect((await loadEvents(ID)).map((e) => e.type).sort()).toEqual(['arrival', 'departure']);
+      expect(fake.notifications).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('grosse vague de départs : notifiée tout de suite, groupée, sans seconde notification après vérification', async () => {
+    await seed({ snapshot: { ids: list(100) } });
+    await applyScan(job(list(80), { expectedTotal: 80 }));
+    expect(fake.notifications).toHaveLength(1);
+    const queue = await loadFollowChecks(ID);
+    expect(queue).toHaveLength(20);
+    expect(queue.every((q) => q.notified)).toBe(true);
+    await applyFollowChecks(ID, await Promise.all(queue.map((q) => resultFor(q.profileId, { followedBy: false }))));
+    expect(fake.notifications).toHaveLength(1);
+  });
+
+  it('profil sans réponse après plusieurs essais (ou compte suspendu) : départ notifié tel quel', async () => {
+    await seed({ snapshot: { ids: list(10) } });
+    await applyScan(job(list(9)));
+    await applyFollowChecks(ID, [await resultFor(id(9))]);
+    expect(await loadEvents(ID)).toHaveLength(1);
+    expect(fake.notifications).toHaveLength(1);
+  });
+
+  describe('abonné caché par X (le profil dit qu’il me suit toujours)', () => {
+    const hidden = id(200);
+    const rest = list(200);
+    const at = (h: number) => vi.setSystemTime(BASE + h * HOUR);
+    const types = async () => (await loadEvents(ID)).map((e) => e.type);
+    const hiddenIds = () => fake.store.get(keys.hidden(ID)) as string[] | undefined;
+
+    /** Scan où X cache `hidden` (total inchangé), puis vérification de son profil. */
+    async function hideAndCheck(h: number) {
+      at(h);
+      await applyScan(job(rest, { expectedTotal: 201 }));
+      expect((await loadEvents(ID)).some((e) => e.type === 'departure' && e.profileId === hidden)).toBe(true);
+      await applyFollowChecks(ID, [await resultFor(hidden, { following: false, followedBy: true })]);
+      // La passe retire de la file les réponses appliquées.
+      await chrome.storage.local.remove(keys.followChecks(ID));
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('faux départ retiré sans notification, ni recréé, ni compté comme une arrivée à son retour', async () => {
+      await seed({ snapshot: { ids: rest } });
+      at(1);
+      await applyScan(job([hidden, ...rest]));
+      await hideAndCheck(2);
+      expect(await types()).toEqual(['arrival']);
+      expect(hiddenIds()).toEqual([hidden]);
+      expect(fake.notifications).toHaveLength(0);
+
+      // Toujours caché : la réparation de l'historique ne recrée pas le départ.
+      at(3);
+      await applyScan(job(rest, { expectedTotal: 201 }));
+      expect(await types()).toEqual(['arrival']);
+      // De retour dans la liste : pas de nouvelle arrivée, il n'est plus tenu pour caché.
+      at(4);
+      await applyScan(job([hidden, ...rest]));
+      expect(await types()).toEqual(['arrival']);
+      expect(hiddenIds()).toBeUndefined();
+      expect(snapshotIds()).toContain(hidden);
+    });
+
+    it('abonné du scan de référence (aucun mouvement) : pas d’arrivée à son retour', async () => {
+      await seed({ snapshot: { ids: [hidden, ...rest] } });
+      await hideAndCheck(1);
+      expect(await types()).toEqual([]);
+      at(2);
+      await applyScan(job([hidden, ...rest]));
+      expect(await types()).toEqual([]);
+    });
+
+    it('caché puis réaffiché à plusieurs reprises : jamais notifié', async () => {
+      await seed({ snapshot: { ids: [hidden, ...rest] } });
+      await hideAndCheck(1);
+      at(2);
+      await applyScan(job([hidden, ...rest]));
+      await hideAndCheck(3);
+      expect(await types()).toEqual([]);
+      expect(fake.notifications).toHaveLength(0);
+    });
+
+    it('contrôle léger : son retour en tête de liste n’est pas une arrivée', async () => {
+      await seed({ snapshot: { ids: rest, xTotal: 201 } });
+      await chrome.storage.local.set({ [keys.hidden(ID)]: [hidden] });
+      at(1);
+      const out = await applyQuickCheck(job([hidden, ...rest.slice(0, 49)], { kind: 'quick', expectedTotal: 201 }));
+      expect(out).toEqual({ kind: 'clear', arrivals: 0 });
+      expect(await types()).toEqual([]);
+      expect(snapshotIds().slice(0, 2)).toEqual([hidden, rest[0]]);
+      expect(hiddenIds()).toBeUndefined();
+    });
+
+    it('vérifié plus de 24 h après, ou revenu entre-temps : le départ reste', async () => {
+      await seed({ snapshot: { ids: [hidden, ...rest] } });
+      at(1);
+      await applyScan(job(rest, { expectedTotal: 201 }));
+      const result = await resultFor(hidden, { followedBy: true });
+      at(26);
+      await applyFollowChecks(ID, [result]);
+      expect(await types()).toEqual(['departure']);
+      expect(hiddenIds()).toBeUndefined();
+    });
+
+    it('revérifié après chaque scan complet ; s’il ne me suit plus, vrai départ enregistré et notifié', async () => {
+      await seed({ snapshot: { ids: [hidden, ...rest] } });
+      await hideAndCheck(1);
+      at(2);
+      await applyScan(job(rest, { expectedTotal: 200 }));
+      const queue = await loadFollowChecks(ID);
+      expect(queue.map((q) => [q.eventId, q.recheck])).toEqual([[`h:${hidden}`, true]]);
+      // Toujours abonné : rien ne change.
+      await applyFollowChecks(ID, [await resultFor(hidden, { followedBy: true })]);
+      expect(await types()).toEqual([]);
+      expect(hiddenIds()).toEqual([hidden]);
+      // Ne suit plus : départ.
+      await applyFollowChecks(ID, [await resultFor(hidden, { followedBy: false })]);
+      expect(await types()).toEqual(['departure']);
+      expect(hiddenIds()).toBeUndefined();
+      expect(fake.notifications).toHaveLength(1);
+    });
   });
 });

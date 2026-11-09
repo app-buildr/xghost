@@ -1,10 +1,11 @@
 import { followCheckAlarm } from '@/features/scheduler/alarms';
 import { isRateLimited, parseUserLookup, variablesOf, watchedOperation } from '@/features/x-api/parse';
+import { readSession } from '@/features/x-api/session';
 import { SCAN_MARKER, type TabEvent } from '@/shared/messaging/protocol';
 import { isImporting } from '@/shared/storage/import-lock';
 import { keys } from '@/shared/storage/keys';
 import { localKv } from '@/shared/storage/kv';
-import type { FollowCheck, FollowCheckResult, TrackedAccount } from '@/shared/types';
+import type { FollowCheck, FollowCheckReading, FollowCheckResult, TrackedAccount } from '@/shared/types';
 import { HOUR, MINUTE, SECOND } from '@/shared/utils/time';
 import { profileUrl, userIdUrl } from '@/shared/x-urls';
 import { loadFollowChecks, updateFollowChecks } from './repository';
@@ -12,9 +13,11 @@ import { scanHooks, serial } from './scan-context';
 import { getScanTab, isHooked, navigate, registerScanTab, type ScanTab } from './scan-tab';
 
 /**
- * Vérification du follow back des départs : pour chaque départ détecté, la fiche du compte parti
- * est ouverte dans l'onglet de scan, et la réponse que x.com reçoit dit si l'utilisateur le suit
- * (le cache des profils, lu dans la liste des abonnés, peut dater du scan de référence).
+ * Vérification des départs : pour chaque départ détecté, la fiche du compte parti est ouverte dans
+ * l'onglet de scan, et la réponse que x.com reçoit dit si l'utilisateur le suit (le cache des
+ * profils, lu dans la liste des abonnés, peut dater du scan de référence) et si ce compte suit
+ * toujours l'utilisateur (X cache parfois un abonné de la liste : faux départ). Le départ n'est
+ * notifié qu'après cette vérification.
  *
  * Comme pour les scans, xGhost ne fait aucune requête : il lit la réponse du profil chargée par
  * x.com. Les départs passent par petites passes espacées ; ce qui reste attend la passe suivante.
@@ -52,7 +55,6 @@ interface Run {
   /** Départs déjà ouverts dans cette passe. */
   tried: Set<string>;
   silent: number;
-  results: FollowCheckResult[];
   timer?: ReturnType<typeof setTimeout>;
   /** Change à chaque étape : un minuteur d'une étape passée ne fait plus rien. */
   step: number;
@@ -76,7 +78,9 @@ export async function beginFollowCheck(account: TrackedAccount): Promise<'starte
     if (scanTab.purpose !== 'follow-check') return 'busy';
     await discardTab(scanTab);
   }
-  const [first] = await loadFollowChecks(account.id);
+  // Réponses d'une passe interrompue (service worker arrêté) : appliquées avant d'en lire d'autres.
+  await applyStored(account.id);
+  const first = (await loadFollowChecks(account.id)).find((q) => !q.result);
   if (!first) return 'empty';
   const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => undefined);
   const tab = await chrome.tabs.create({ url: checkUrl(first), pinned: true, active: false, windowId: win?.id });
@@ -84,7 +88,7 @@ export async function beginFollowCheck(account: TrackedAccount): Promise<'starte
   await chrome.tabs.update(tab.id, { autoDiscardable: false }).catch(() => undefined);
   await registerScanTab(tab.id, account.id, checkTabOf(first));
   await chrome.alarms.create(followCheckAlarm(account.id), { when: Date.now() + SAFETY_MS });
-  run = { accountId: account.id, tabId: tab.id, current: first, handled: 0, tried: new Set([first.eventId]), silent: 0, results: [], step: 0 };
+  run = { accountId: account.id, tabId: tab.id, current: first, handled: 0, tried: new Set([first.eventId]), silent: 0, step: 0 };
   armTimeout(run);
   return 'started';
 }
@@ -102,18 +106,22 @@ export async function onFollowCheckEvent(event: TabEvent, tabId: number, scanTab
   if (isRateLimited(event.status, event.body)) return end(retryAt(event.rateReset));
   const lookup = parseJson(event.body);
   if (!lookup) return;
-  let result: FollowCheckResult | undefined;
+  let result: FollowCheckReading | undefined;
   if (lookup.profile?.id === current.profileId) {
     const { id: _id, followersCount: _count, ...profile } = lookup.profile;
-    result = { eventId: current.eventId, profileId: current.profileId, following: lookup.following, profile };
+    result = { following: lookup.following, followedBy: lookup.followedBy, profile };
   } else if (lookup.status !== 'active' && event.op === 'UserByRestId' && variablesOf(event.url).userId === current.profileId) {
     // Compte suspendu ou supprimé : rien à lire sur son profil, le départ garde sa valeur.
-    result = { eventId: current.eventId, profileId: current.profileId };
+    result = {};
   }
   if (!result) return;
-  run.results.push(result);
-  run.silent = 0;
-  await settle(run, current, true);
+  // Réponse servie avec la session d'un autre compte (bascule sur x.com) : elle dirait qui suit cet
+  // autre compte et pourrait effacer un vrai départ. La passe s'arrête, le départ sera revérifié.
+  const r = run;
+  if ((await readSession())?.accountId !== r.accountId) return end(Date.now() + RETRY_LATER_MS);
+  if (run !== r || r.current !== current) return;
+  r.silent = 0;
+  await settle(r, current, result);
   // Dernière requête autorisée par X : la suite attendra la levée de la limite.
   if (run && event.rateRemaining === 0) return end(retryAt(event.rateReset));
   if (run) await next(run);
@@ -191,31 +199,60 @@ async function onTimeout(step: number): Promise<void> {
   if (!run || run.step !== step || !run.current) return;
   const current = run.current;
   run.silent += 1;
-  await settle(run, current, false);
+  await settle(run, current);
   if (!run) return;
   if (run.silent >= MAX_SILENT) return end(Date.now() + RETRY_LATER_MS);
   await next(run);
 }
 
-/** Profil traité : retiré de la file s'il a répondu, ou après trop d'essais. */
-async function settle(r: Run, item: FollowCheck, answered: boolean): Promise<void> {
+/**
+ * Profil traité : sa réponse est gardée en file jusqu'à ce qu'elle soit appliquée (fin de passe).
+ * Sans réponse, il est retenté ; après trop d'essais, il est abandonné avec une réponse vide : le
+ * départ est alors notifié tel quel (la notification attend la vérification).
+ */
+async function settle(r: Run, item: FollowCheck, reading?: FollowCheckReading): Promise<void> {
   r.current = undefined;
   r.rehooked = undefined;
   r.handled += 1;
   clearTimeout(r.timer);
   await updateFollowChecks(r.accountId, (queue) =>
-    queue.flatMap((q) => {
-      if (q.eventId !== item.eventId) return [q];
+    queue.map((q) => {
+      if (q.eventId !== item.eventId || q.result) return q;
+      if (reading) return { ...q, result: reading };
       const attempts = (q.attempts ?? 0) + 1;
-      return answered || attempts >= MAX_ATTEMPTS ? [] : [{ ...q, attempts }];
+      return attempts >= MAX_ATTEMPTS ? { ...q, attempts, result: {} } : { ...q, attempts };
     }),
   );
+}
+
+const resultOf = ({ eventId, profileId, detectedAt, notified, recheck, result }: FollowCheck): FollowCheckResult => ({
+  eventId,
+  profileId,
+  ...result,
+  ...(detectedAt === undefined ? {} : { detectedAt }),
+  ...(notified ? { notified } : {}),
+  ...(recheck ? { recheck } : {}),
+});
+
+/**
+ * Applique les réponses gardées en file, puis les retire : si l'application échoue, elles restent
+ * pour la prochaine fois. `nextAt` : passe suivante, s'il reste des profils à ouvrir.
+ */
+async function applyStored(accountId: string, nextAt?: (remaining: number) => number | undefined): Promise<void> {
+  const queue = await loadFollowChecks(accountId);
+  const answered = queue.filter((q) => q.result);
+  const remaining = queue.length - answered.length;
+  if (!answered.length && !nextAt) return;
+  await scanHooks().onFollowCheckDone(accountId, answered.map(resultOf), remaining ? nextAt?.(remaining) : undefined);
+  if (!answered.length) return;
+  const done = new Set(answered.map((q) => q.eventId));
+  await updateFollowChecks(accountId, (items) => items.filter((q) => !(q.result && done.has(q.eventId))));
 }
 
 /** Profil suivant après une courte pause, ou fin de la passe. */
 async function next(r: Run): Promise<void> {
   // Un départ resté sans réponse dans cette passe attend la suivante.
-  const candidate = (await loadFollowChecks(r.accountId)).find((q) => !r.tried.has(q.eventId));
+  const candidate = (await loadFollowChecks(r.accountId)).find((q) => !q.result && !r.tried.has(q.eventId));
   if (!candidate || r.handled >= FOLLOW_CHECKS_PER_PASS) return end();
   const step = ++r.step;
   clearTimeout(r.timer);
@@ -235,7 +272,7 @@ async function open(step: number, item: FollowCheck): Promise<void> {
 /** Fin de la passe : onglet fermé, résultats appliqués, passe suivante programmée s'il reste des départs. */
 async function end(retry?: number): Promise<void> {
   if (!run) return;
-  const { accountId, tabId, results } = run;
+  const { accountId, tabId } = run;
   clearTimeout(run.timer);
   run = undefined;
   const scanTab = await getScanTab();
@@ -243,9 +280,7 @@ async function end(retry?: number): Promise<void> {
   if (tabId !== undefined) await chrome.tabs.remove(tabId).catch(() => undefined);
   // Import d'une sauvegarde en cours : ses données font foi, rien n'est appliqué.
   if (isImporting()) return;
-  const remaining = (await loadFollowChecks(accountId)).length;
-  const nextAt = remaining ? (retry ?? Date.now() + FOLLOW_CHECK_NEXT_PASS_MS) : undefined;
-  await scanHooks().onFollowCheckDone(accountId, results, nextAt);
+  await applyStored(accountId, () => retry ?? Date.now() + FOLLOW_CHECK_NEXT_PASS_MS);
 }
 
 async function discardTab(scanTab: ScanTab): Promise<void> {

@@ -20,6 +20,8 @@ export interface UserLookup {
   profile?: Profile & { followersCount?: number };
   /** « Je le suis », seulement si la réponse le dit (absent : inconnu). */
   following?: boolean;
+  /** « Il me suit », seulement si la réponse le dit (absent : inconnu). */
+  followedBy?: boolean;
 }
 
 const WATCHED_PATH = new RegExp(`^/i/api/graphql/[^/]+/(${WATCHED_OPERATIONS.join('|')})$`);
@@ -40,6 +42,17 @@ export function watchedOperation(url: string): WatchedOperation | undefined {
  */
 function readFollowing(r: Json): boolean | undefined {
   const value: unknown = r.relationship_perspectives?.following ?? r.legacy?.following;
+  if (typeof value === 'boolean') return value;
+  return r.relationship_perspectives && typeof r.relationship_perspectives === 'object' ? false : undefined;
+}
+
+/**
+ * « Il me suit » (badge « Vous suit » du profil) selon la réponse de X, ou `undefined` si elle ne
+ * le dit pas. Même lecture que `following` : un bloc `relationship_perspectives` sans le champ (ni
+ * dans `legacy`) vaut non.
+ */
+function readFollowedBy(r: Json): boolean | undefined {
+  const value: unknown = r.relationship_perspectives?.followed_by ?? r.legacy?.followed_by;
   if (typeof value === 'boolean') return value;
   return r.relationship_perspectives && typeof r.relationship_perspectives === 'object' ? false : undefined;
 }
@@ -108,7 +121,7 @@ export function parseUserLookup(data: Json): UserLookup {
     return { status: /suspend/i.test(String(r.reason ?? r.unavailable_message?.text ?? '')) ? 'suspended' : 'gone' };
   }
   const profile = parseUser(r);
-  return profile ? { status: 'active', profile, following: readFollowing(r) } : { status: 'gone' };
+  return profile ? { status: 'active', profile, following: readFollowing(r), followedBy: readFollowedBy(r) } : { status: 'gone' };
 }
 
 /** Réponse de X signalant la limite de requêtes (HTTP 429, ou erreur 88 « Rate limit exceeded »). */

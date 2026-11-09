@@ -76,6 +76,17 @@ describe('parseUserLookup', () => {
     expect(lookup({ relationship_perspectives: { followed_by: true } }).following).toBe(false);
     expect(lookup({}).following).toBeUndefined();
   });
+
+  it('dit s’il me suit, seulement quand la réponse le précise', () => {
+    const lookup = (extra: object) =>
+      parseUserLookup({ data: { user: { result: { __typename: 'User', rest_id: '1', core: { screen_name: 'a' }, ...extra } } } });
+    expect(lookup({ relationship_perspectives: { followed_by: true, following: false } }).followedBy).toBe(true);
+    expect(lookup({ relationship_perspectives: { followed_by: false } }).followedBy).toBe(false);
+    expect(lookup({ legacy: { followed_by: true } }).followedBy).toBe(true);
+    expect(lookup({ relationship_perspectives: { following: true } }).followedBy).toBe(false);
+    expect(lookup({ relationship_perspectives: { following: false }, legacy: { followed_by: true } }).followedBy).toBe(true);
+    expect(lookup({}).followedBy).toBeUndefined();
+  });
 });
 
 describe('lecture des réponses de x.com', () => {

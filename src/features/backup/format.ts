@@ -179,6 +179,7 @@ const ACCOUNT_KEYS: Record<BackupSuffix, (v: unknown) => unknown> = {
   suspicious: (v) => (count(v) <= 100 ? v : fail()),
   totals: (v) => list(v, (p) => (Array.isArray(p) && p.length === 2 ? [finite(p[0]), count(p[1])] : fail()), MAX_TOTALS),
   visit: finite,
+  hidden: (v) => list(v, id, MAX_FOLLOWERS),
 };
 
 /**

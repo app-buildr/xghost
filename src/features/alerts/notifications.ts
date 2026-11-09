@@ -20,7 +20,7 @@ export async function notifyDepartures(accountHandle: string, departures: Follow
       ? t('common.notifications.departureOne', { handle: first.handle, account: accountHandle })
       : t('common.notifications.departureMany', { count: departures.length, account: accountHandle }),
     message: single
-      ? t('common.notifications.detectedNow')
+      ? t('common.notifications.detected')
       : rest > 0
         ? t('common.notifications.andOthers', { list: shown.join(t('format.listSeparator')), count: rest })
         : formatList(shown),

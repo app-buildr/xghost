@@ -28,6 +28,11 @@ const ACCOUNT_KEYS = {
   totals: { suffix: 'totals', backup: true, display: true },
   /** Départs dont le follow back reste à vérifier sur leur profil (file d'attente). */
   followChecks: { suffix: 'verify', backup: false, display: false },
+  /**
+   * Abonnés que X ne montre pas dans la liste alors que leur profil dit qu'ils suivent toujours
+   * l'utilisateur (compte restreint ou filtré) : tenus pour présents jusqu'à leur retour dans la liste.
+   */
+  hidden: { suffix: 'hidden', backup: true, display: false },
 } as const;
 
 type AccountKeySpec = (typeof ACCOUNT_KEYS)[keyof typeof ACCOUNT_KEYS];
@@ -60,6 +65,7 @@ export const keys = {
   repaired: keyOf(ACCOUNT_KEYS.repaired.suffix),
   totals: keyOf(ACCOUNT_KEYS.totals.suffix),
   followChecks: keyOf(ACCOUNT_KEYS.followChecks.suffix),
+  hidden: keyOf(ACCOUNT_KEYS.hidden.suffix),
 } as const;
 
 const ACCOUNT_KEY = new RegExp(`^acc:(${ID_PATTERN}):([a-z]+)$`);

@@ -83,14 +83,36 @@ export function updateFollowChecks(accountId: string, mutate: (items: FollowChec
   });
 }
 
-/** Ajoute des départs à vérifier (un seul par compte parti : le plus récent). */
-export const enqueueFollowChecks = (accountId: string, items: readonly FollowCheck[]) =>
+/**
+ * Ajoute des départs à vérifier (un seul par compte parti : le plus récent). Une réponse déjà lue et
+ * pas encore appliquée reste en file. `onlyNew` : les comptes déjà en file ne sont pas repris.
+ */
+export const enqueueFollowChecks = (accountId: string, items: readonly FollowCheck[], { onlyNew = false } = {}) =>
   items.length === 0
     ? Promise.resolve([])
     : updateFollowChecks(accountId, (queue) => {
-        const fresh = new Set(items.map((i) => i.profileId));
-        return [...queue.filter((q) => !fresh.has(q.profileId)), ...items];
+        const queued = new Set(queue.map((q) => q.profileId));
+        const added = onlyNew ? items.filter((i) => !queued.has(i.profileId)) : items;
+        const fresh = new Set(added.map((i) => i.profileId));
+        return [...queue.filter((q) => q.result || !fresh.has(q.profileId)), ...added];
       });
+
+/** Abonnés cachés par X dans la liste mais qui suivent toujours l'utilisateur (voir `keys.hidden`). */
+export const loadHidden = async (accountId: string): Promise<Set<string>> =>
+  new Set((await localKv.get<string[]>(keys.hidden(accountId))) ?? []);
+
+const hiddenWrites = createSerialQueue();
+/** Ajoute (`add`) ou retire (`drop`) des abonnés cachés ; rien n'est écrit sans changement. */
+export function updateHidden(accountId: string, { add = [], drop = [] }: { add?: readonly string[]; drop?: Iterable<string> }) {
+  return hiddenWrites.run(async () => {
+    const current = await loadHidden(accountId);
+    const next = new Set([...current, ...add]);
+    for (const id of drop) next.delete(id);
+    if (next.size === current.size && [...next].every((id) => current.has(id))) return;
+    if (next.size) await localKv.set({ [keys.hidden(accountId)]: [...next] });
+    else await localKv.remove(keys.hidden(accountId));
+  });
+}
 
 /** Efface toutes les données d'un compte. */
 export const deleteAccountData = (accountId: string) => localKv.remove(accountKeysOf(accountId));

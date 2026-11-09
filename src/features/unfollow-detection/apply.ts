@@ -1,17 +1,20 @@
 import { loadAccounts, loadIgnored, patchAccount } from '@/features/accounts/repository';
 import { notifyDepartures } from '@/features/alerts/notifications';
 import { eventId } from '@/domain/events/codec';
+import { refreshBadge } from '@/features/alerts/badge';
 import { loadEvents, loadRemoved, updateEvents } from '@/features/events/repository';
-import { isVisible, missingMovements, newMovements, wasRemoved } from '@/domain/events/selectors';
+import { falseDepartures, isVisible, missingMovements, newMovements, stillAbsent, wasRemoved } from '@/domain/events/selectors';
 import {
   enqueueFollowChecks,
   recordTotal,
   clearPartial,
+  loadHidden,
   loadProfiles,
   loadSnapshot,
   savePartial,
   saveProfiles,
   saveSnapshot,
+  updateHidden,
 } from '@/features/followers-sync/repository';
 import { localKv } from '@/shared/storage/kv';
 import { keys } from '@/shared/storage/keys';
@@ -44,8 +47,9 @@ import { HOUR, MINUTE } from '@/shared/utils/time';
 /**
  * Exploitation des scans (§ 4.1, 4.2, 4.7) : référence, comparaison, garde-fous,
  * événements, instantané et notifications.
- * Chaque départ est ensuite mis en file pour vérifier son follow back sur son profil
- * (voir follow-check) : le cache des profils peut dater du scan de référence.
+ * Chaque départ est ensuite mis en file pour être vérifié sur son profil (voir follow-check) :
+ * faux départ d'un abonné que X cache dans la liste, follow back (le cache des profils peut dater
+ * du scan de référence). La notification des départs attend cette vérification.
  */
 
 const SUSPICIOUS_RETRY_MS = 30 * MINUTE;
@@ -129,13 +133,38 @@ async function notifyVisible(account: TrackedAccount, departures: FollowEvent[],
   await notifyDepartures(account.handle, departures.filter((d) => isVisible(d, ctx)));
 }
 
-/** Départs à vérifier sur leur profil (follow back) ; les comptes ignorés ne sont pas ouverts. */
-const queueFollowChecks = (accountId: string, departures: readonly FollowEvent[], ignored: ReadonlySet<string>) =>
+/**
+ * Au-delà de ce nombre de départs d'un coup (plus qu'une passe de vérification, voir follow-check),
+ * ils sont notifiés dès leur détection, groupés : attendre leurs vérifications donnerait une
+ * notification par passe, étalées sur des heures.
+ */
+const NOTIFY_AT_ONCE_ABOVE = 15;
+
+/**
+ * Départs à vérifier sur leur profil (faux départ, follow back) ; les comptes ignorés ne sont pas
+ * ouverts. La notification attend le résultat de cette vérification (`applyFollowChecks`), sauf
+ * pour une grosse vague de départs, notifiée tout de suite.
+ */
+async function queueFollowChecks(account: TrackedAccount, departures: readonly FollowEvent[], ignored: ReadonlySet<string>) {
+  const checked = departures.filter((d) => !ignored.has(d.profileId));
+  const wave = checked.length > NOTIFY_AT_ONCE_ABOVE;
+  const detectedAt = Date.now();
+  await enqueueFollowChecks(
+    account.id,
+    checked.map((d): FollowCheck => ({ eventId: d.id, profileId: d.profileId, handle: d.handle, detectedAt, ...(wave ? { notified: true } : {}) })),
+  );
+  if (wave) await notifyVisible(account, checked, ignored);
+}
+
+/**
+ * Abonnés cachés revérifiés après chaque scan complet : un abonné caché qui part vraiment ne
+ * réapparaît jamais dans la liste, seul son profil peut le dire.
+ */
+const queueHiddenRechecks = (accountId: string, hidden: ReadonlySet<string>, profiles: ProfileCache) =>
   enqueueFollowChecks(
     accountId,
-    departures
-      .filter((d) => !ignored.has(d.profileId))
-      .map((d): FollowCheck => ({ eventId: d.id, profileId: d.profileId, handle: d.handle })),
+    [...hidden].map((id): FollowCheck => ({ eventId: `h:${id}`, profileId: id, handle: profiles[id]?.handle ?? id, recheck: true })),
+    { onlyNew: true },
   );
 
 /** Dernière vérification (la liste d'abonnés enregistrée est à jour jusque-là). */
@@ -143,11 +172,13 @@ const lastCheck = (account: TrackedAccount) => account.lastScanAt ?? 0;
 
 /**
  * Réparation : ajoute les mouvements manquants quand l'historique contredit la liste
- * d'abonnés (ex. un départ perdu). Renvoie les départs ajoutés (pour la notification).
+ * d'abonnés (ex. un départ perdu). Les abonnés cachés par X comptent comme présents.
+ * Renvoie les départs ajoutés (à vérifier).
  */
 async function repairHistory(
   accountId: string,
   followers: readonly string[],
+  hidden: ReadonlySet<string>,
   before: number,
   ignored: ReadonlySet<string>,
   profiles: ProfileCache,
@@ -155,7 +186,8 @@ async function repairHistory(
 ): Promise<FollowEvent[]> {
   if (!before) return [];
   const removed = await loadRemoved(accountId);
-  const fixes = missingMovements(await loadEvents(accountId), new Set(followers), before).filter((m) => !wasRemoved(m, removed));
+  const present = new Set([...followers, ...hidden]);
+  const fixes = missingMovements(await loadEvents(accountId), present, before).filter((m) => !wasRemoved(m, removed));
   const byId = new Map(fixes.map((m) => [m.profileId, m.from]));
   const added = (['departure', 'arrival'] as const).flatMap((type) =>
     makeEvents(
@@ -167,6 +199,14 @@ async function repairHistory(
     ),
   );
   return departuresOf(await addEvents(accountId, added, ignored));
+}
+
+/** Abonnés cachés revus dans la liste (`back`) : plus tenus pour présents. Renvoie les autres. */
+async function dropReturned(accountId: string, hidden: ReadonlySet<string>, back: readonly string[]): Promise<Set<string>> {
+  const returned = back.filter((id) => hidden.has(id));
+  if (returned.length) await updateHidden(accountId, { drop: returned });
+  const gone = new Set(returned);
+  return new Set([...hidden].filter((id) => !gone.has(id)));
 }
 
 // ---------------------------------------------------------------------------
@@ -243,10 +283,11 @@ function scanList(job: ScanJob, previous: Snapshot | undefined) {
 export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   const now = Date.now();
   const accountId = job.accountId;
-  const [previous, cachedProfiles, accounts] = await Promise.all([
+  const [previous, cachedProfiles, accounts, hidden] = await Promise.all([
     loadSnapshot(accountId),
     loadProfiles(accountId),
     loadAccounts(),
+    loadHidden(accountId),
   ]);
   const account = accounts[accountId];
   const { early, read, tailFilled, ids } = scanList(job, previous);
@@ -295,6 +336,10 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   }
 
   const diff = diffFollowers(previous.ids, ids);
+  // Abonné caché par X de nouveau affiché : il n'était jamais parti, ce n'est pas une arrivée
+  // (le total X le comptait déjà).
+  const returned = diff.arrivals.filter((id) => hidden.has(id));
+  if (returned.length) diff.arrivals = diff.arrivals.filter((id) => !hidden.has(id));
   // Départs que la baisse du total X n'explique pas : la liste lue est coupée, rien n'est comparé.
   // Le total de l'instantané a déjà baissé de l'écart en attente repéré par le contrôle léger.
   const explained = departuresExplained({
@@ -340,11 +385,12 @@ export async function applyScan(job: ScanJob): Promise<ApplyOutcome> {
   ], ignored);
   const departures = departuresOf(added);
   await saveAll();
-  const repaired = await repairHistory(accountId, ids, lastCheck(account), ignored, profiles, now);
+  const stillHidden = await dropReturned(accountId, hidden, returned);
+  const repaired = await repairHistory(accountId, ids, stillHidden, lastCheck(account), ignored, profiles, now);
   await updateAccountAfterScan(accountId, now, followersCount, false);
 
-  await queueFollowChecks(accountId, [...departures, ...repaired], ignored);
-  await notifyVisible(account, [...departures, ...repaired], ignored);
+  await queueFollowChecks(account, [...departures, ...repaired], ignored);
+  await queueHiddenRechecks(accountId, stillHidden, profiles);
   // Après la notification : un échec ici n'a pas à remettre en cause le scan.
   await cleanFalseMovements(accountId).catch((err) => console.error(err));
   return { kind: 'compared', departures: departures.length, arrivals: added.length - departures.length };
@@ -402,11 +448,12 @@ function isLagging(quick: QuickAssessment, last: TrackedAccount['lastQuick'], cu
 export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   const now = Date.now();
   const accountId = job.accountId;
-  const [previous, cachedProfiles, accounts, ignored] = await Promise.all([
+  const [previous, cachedProfiles, accounts, ignored, hidden] = await Promise.all([
     loadSnapshot(accountId),
     loadProfiles(accountId),
     loadAccounts(),
     loadIgnored(accountId),
+    loadHidden(accountId),
   ]);
   const account = accounts[accountId];
   // Première page dans l'ordre de x.com (les clés de `collected` ne gardent pas l'ordre).
@@ -417,7 +464,8 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
   const quick = assessQuick({
     previousTotal,
     currentTotal: job.expectedTotal,
-    knownIds: new Set(previous.ids),
+    // Abonnés cachés par X : connus, leur retour en tête de liste n'est pas une arrivée.
+    knownIds: new Set([...previous.ids, ...hidden]),
     pageIds,
     previousTop: previous.top ?? (previous.ordered ? previous.ids.slice(0, SNAPSHOT_TOP_SIZE) : undefined),
   });
@@ -426,9 +474,12 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
 
   // --- Instantané : arrivées en tête, départs identifiés retirés (ordre de x.com conservé) ---
   const departedSet = new Set(quick.departed);
-  const remaining = previous.ids.filter((id) => !departedSet.has(id));
   const pageSet = new Set(pageIds);
-  const ids = [...quick.arrivals, ...remaining];
+  // Arrivées et abonnés cachés revenus, dans l'ordre de la page, puis le reste de la liste.
+  const known = new Set(previous.ids);
+  const head = pageIds.filter((id) => !known.has(id));
+  const remaining = previous.ids.filter((id) => !departedSet.has(id));
+  const ids = [...head, ...remaining];
 
   // Compteur X en retard sur la liste : on revérifie plus tard au lieu de lancer un scan complet.
   // Le total attendu devient la référence ; si X ne le rattrape pas après quelques contrôles,
@@ -488,10 +539,10 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
     sameSnapshot(previous, snapshot) ? undefined : saveSnapshot(accountId, snapshot),
     profilesChanged(cachedProfiles, job.collected) ? saveProfiles(accountId, profiles) : undefined,
   ]);
-  const repaired = await repairHistory(accountId, ids, lastCheck(account), ignored, profiles, now);
+  const stillHidden = await dropReturned(accountId, hidden, head);
+  const repaired = await repairHistory(accountId, ids, stillHidden, lastCheck(account), ignored, profiles, now);
 
-  await queueFollowChecks(accountId, [...departures, ...repaired], ignored);
-  await notifyVisible(account, [...departures, ...repaired], ignored);
+  await queueFollowChecks(account, [...departures, ...repaired], ignored);
 
   if (lagging) return { kind: 'recheck', at: now + STALE_RECHECK_MS };
   if (!found) return { kind: 'clear', arrivals: quick.arrivals.length };
@@ -500,56 +551,88 @@ export async function applyQuickCheck(job: ScanJob): Promise<QuickOutcome> {
 }
 
 // ---------------------------------------------------------------------------
-// Vérification du follow back des départs
+// Vérification des départs sur leur profil
 // ---------------------------------------------------------------------------
 
 /**
  * Départ vérifié trop longtemps après sa détection (file chargée, reports) : il est mis à jour sans
- * notification, qui arriverait hors de propos.
+ * notification, qui arriverait hors de propos. Un compte qui suit de nouveau l'utilisateur si
+ * longtemps après peut aussi être revenu entre-temps : le départ n'est alors pas tenu pour faux.
  */
-const FOLLOW_CHECK_NOTIFY_MAX_AGE_MS = 24 * HOUR;
+const FOLLOW_CHECK_MAX_AGE_MS = 24 * HOUR;
+
+/** « Je le suis » lu sur le profil, s'il diffère de celui du départ. */
+const followingChange = (e: FollowEvent, r: FollowCheckResult | undefined) =>
+  e.type === 'departure' && r?.following !== undefined && r.following !== e.mutual ? r.following : undefined;
 
 /**
- * Résultats d'une passe de vérification : « je le suis » mis à jour sur chaque départ (état lu
- * sur son profil), et dans le cache des profils. Avec « Uniquement les follow back », un départ
- * récent qui s'avère suivi et n'a pas encore été vu est notifié maintenant (il avait été filtré).
+ * Résultats d'une passe de vérification.
+ *
+ * - Faux départ (le profil dit que le compte suit toujours l'utilisateur, voir `falseDepartures`) :
+ *   X cache parfois un abonné de la liste (compte restreint ou filtré). Le départ est retiré de
+ *   l'historique sans notification, puis le compte est noté comme caché (`keys.hidden`) : les scans
+ *   le tiennent pour présent jusqu'à son retour dans la liste. Retiré avant d'être noté : un arrêt
+ *   entre les deux laisse au pire la réparation recréer le départ, qui sera revérifié.
+ * - Sinon (départ confirmé, compte suspendu, profil muet après plusieurs essais) : « je le suis »
+ *   est mis à jour, et le départ est notifié s'il a été détecté depuis moins de 24 h, n'a pas été
+ *   notifié à sa détection (grosse vague, version précédente), n'est pas vu et pas suivi d'un retour.
+ * - Abonné caché revérifié (`recheck`) : s'il ne suit plus l'utilisateur, il est vraiment parti,
+ *   départ enregistré et notifié maintenant.
  */
 export async function applyFollowChecks(accountId: string, results: readonly FollowCheckResult[]): Promise<void> {
   if (results.length === 0) return;
-  const known = new Map(results.flatMap((r) => (r.following === undefined ? [] : [[r.eventId, r.following] as const])));
-  const nowFollowed: FollowEvent[] = [];
-  if (known.size) {
-    await updateEvents(accountId, (events) =>
-      events.map((e) => {
-        const following = known.get(e.id);
-        if (following === undefined || following === e.mutual || e.type !== 'departure') return e;
-        const updated = { ...e, mutual: following };
-        if (following) nowFollowed.push(updated);
-        return updated;
-      }),
-    );
-  }
+  const now = Date.now();
+  const since = now - FOLLOW_CHECK_MAX_AGE_MS;
+  const byEvent = new Map(results.filter((r) => !r.recheck).map((r) => [r.eventId, r]));
+  const left = results.filter((r) => r.recheck && r.followedBy === false);
+  const [account, ignored] = await Promise.all([loadAccounts().then((all) => all[accountId]), loadIgnored(accountId)]);
 
+  // --- Départs vérifiés : faux départs retirés, « je le suis » mis à jour ---
+  let events = await loadEvents(accountId);
+  const wrong = falseDepartures(events, byEvent, since);
+  // Historique réécrit seulement s'il change (il peut faire plusieurs Mo).
+  const changed = wrong.length > 0 || events.some((e) => followingChange(e, byEvent.get(e.id)) !== undefined);
+  if (changed) {
+    events = await updateEvents(accountId, (current) => {
+      const removed = new Set(falseDepartures(current, byEvent, since).map((e) => e.id));
+      return current.flatMap((e) => {
+        if (removed.has(e.id)) return [];
+        const following = followingChange(e, byEvent.get(e.id));
+        return [following === undefined ? e : { ...e, mutual: following }];
+      });
+    });
+  }
+  if (wrong.length) await updateHidden(accountId, { add: wrong.map((e) => e.profileId) });
+  const fresh = (r: FollowCheckResult) => !r.notified && r.detectedAt !== undefined && r.detectedAt >= since;
+  const notify = events.filter((e) => {
+    const r = byEvent.get(e.id);
+    return e.type === 'departure' && !e.seen && !!r && fresh(r) && stillAbsent(e, events);
+  });
+
+  // --- Profils lus : cache mis à jour (avant d'enregistrer les vrais départs des abonnés cachés) ---
   const read = results.filter((r) => r.profile);
-  if (read.length) {
-    const profiles = await loadProfiles(accountId);
-    for (const r of read) {
-      const cached = profiles[r.profileId];
-      const fresh = r.profile!;
-      profiles[r.profileId] = {
-        ...cached,
-        ...fresh,
-        avatar: fresh.avatar ?? cached?.avatar,
-        following: r.following ?? cached?.following ?? false,
-      };
-    }
-    await saveProfiles(accountId, profiles);
+  const profiles = read.length || left.length ? await loadProfiles(accountId) : {};
+  for (const r of read) {
+    const cached = profiles[r.profileId];
+    const latest = r.profile!;
+    profiles[r.profileId] = {
+      ...cached,
+      ...latest,
+      avatar: latest.avatar ?? cached?.avatar,
+      following: r.following ?? cached?.following ?? false,
+    };
+  }
+  if (read.length) await saveProfiles(accountId, profiles);
+
+  // --- Abonnés cachés qui ne suivent plus l'utilisateur : vrais départs ---
+  if (left.length) {
+    const ids = left.map((r) => r.profileId);
+    const added = await addEvents(accountId, makeEvents('departure', ids, now, profiles), ignored);
+    await updateHidden(accountId, { drop: ids });
+    notify.push(...departuresOf(added));
   }
 
-  const account = (await loadAccounts())[accountId];
-  if (account?.mutualsOnly && nowFollowed.length) {
-    const since = Date.now() - FOLLOW_CHECK_NOTIFY_MAX_AGE_MS;
-    const recent = nowFollowed.filter((e) => !e.seen && e.at >= since);
-    if (recent.length) await notifyVisible(account, recent, await loadIgnored(accountId));
-  }
+  // Départ retiré ou ajouté, « je le suis » changé : le nombre de départs non vus a pu changer.
+  if (changed || left.length) await refreshBadge().catch((err) => console.error(err));
+  if (account && notify.length) await notifyVisible(account, notify, ignored);
 }

@@ -69,6 +69,28 @@ export const clearJob = (accountId: string) =>
 /** Départs à vérifier au plus : au-delà (vague énorme), les plus anciens sont laissés de côté. */
 const MAX_FOLLOW_CHECKS = 500;
 
+/**
+ * File ramenée à `MAX_FOLLOW_CHECKS` : les revérifications de la mise à jour (`audit`) pas encore lues
+ * partent d'abord, en commençant par les dernières mises en file (les départs les plus anciens, voir
+ * `auditDepartures`), puis les plus anciennes entrées. Un départ récent n'est jamais évincé par elles.
+ */
+function capFollowChecks(items: FollowCheck[]): FollowCheck[] {
+  const excess = items.length - MAX_FOLLOW_CHECKS;
+  if (excess <= 0) return items;
+  const evictable = items.flatMap((q, i) => (q.audit && !q.result ? [i] : []));
+  const evicted = new Set(evictable.slice(-excess));
+  return items.filter((_, i) => !evicted.has(i)).slice(-MAX_FOLLOW_CHECKS);
+}
+
+/**
+ * Prochain profil à ouvrir : les départs à vérifier passent avant les revérifications de la mise à
+ * jour (`audit`), qui ne doivent pas retarder la notification d'un vrai départ.
+ */
+export function nextFollowCheck(items: readonly FollowCheck[], skip?: ReadonlySet<string>): FollowCheck | undefined {
+  const pending = items.filter((q) => !q.result && !skip?.has(q.eventId));
+  return pending.find((q) => !q.audit) ?? pending[0];
+}
+
 export const loadFollowChecks = async (accountId: string): Promise<FollowCheck[]> =>
   (await localKv.get<FollowCheck[]>(keys.followChecks(accountId))) ?? [];
 
@@ -76,7 +98,7 @@ export const loadFollowChecks = async (accountId: string): Promise<FollowCheck[]
 const followCheckWrites = createSerialQueue();
 export function updateFollowChecks(accountId: string, mutate: (items: FollowCheck[]) => FollowCheck[]): Promise<FollowCheck[]> {
   return followCheckWrites.run(async () => {
-    const next = mutate(await loadFollowChecks(accountId)).slice(-MAX_FOLLOW_CHECKS);
+    const next = capFollowChecks(mutate(await loadFollowChecks(accountId)));
     if (next.length) await localKv.set({ [keys.followChecks(accountId)]: next });
     else await localKv.remove(keys.followChecks(accountId));
     return next;
@@ -95,6 +117,25 @@ export const enqueueFollowChecks = (accountId: string, items: readonly FollowChe
         const added = onlyNew ? items.filter((i) => !queued.has(i.profileId)) : items;
         const fresh = new Set(added.map((i) => i.profileId));
         return [...queue.filter((q) => q.result || !fresh.has(q.profileId)), ...added];
+      });
+
+/**
+ * Revérifications de la mise à jour (voir `auditDepartures`), dans l'ordre donné (le plus récent
+ * d'abord). Un départ déjà en file et trop ancien pour la règle des 24 h (`staleBefore`) devient lui
+ * aussi une revérification : il ne pourrait plus être notifié, et sans cela un faux départ y resterait.
+ * Un départ plus récent garde sa vérification normale (et sa priorité).
+ */
+export const enqueueAudits = (accountId: string, items: readonly FollowCheck[], staleBefore: number) =>
+  items.length === 0
+    ? Promise.resolve([])
+    : updateFollowChecks(accountId, (queue) => {
+        const audited = new Set(items.map((i) => i.profileId));
+        const queued = new Set(queue.map((q) => q.profileId));
+        const stale = (q: FollowCheck) => !q.recheck && (q.detectedAt === undefined || q.detectedAt < staleBefore);
+        return [
+          ...queue.map((q) => (audited.has(q.profileId) && stale(q) ? { ...q, audit: true } : q)),
+          ...items.filter((i) => !queued.has(i.profileId)),
+        ];
       });
 
 /** Abonnés cachés par X dans la liste mais qui suivent toujours l'utilisateur (voir `keys.hidden`). */

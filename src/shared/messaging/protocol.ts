@@ -22,6 +22,9 @@ export interface Requests {
   'events:mark-seen': { req: { accountId: string; eventIds: string[] }; res: void };
   'events:delete': { req: { accountId: string; eventId: string }; res: { removed?: FollowEvent } };
   'events:restore': { req: { accountId: string; event: FollowEvent }; res: void };
+  /** Départ signalé comme faux (le compte suit toujours l'utilisateur, X le cache de la liste). */
+  'events:falseDeparture': { req: { accountId: string; eventId: string }; res: { removed?: FollowEvent } };
+  'events:restoreFalseDeparture': { req: { accountId: string; event: FollowEvent }; res: void };
   'profile:ignore': { req: { accountId: string; profileId: string; ignored: boolean }; res: void };
   /** Affiche l'onglet de scan (quand Chrome le met en pause parce qu'il est caché). */
   'scan:focus': { req: { accountId: string }; res: void };
@@ -57,6 +60,8 @@ export const REQUEST_POLICY = {
   'events:mark-seen': 'write',
   'events:delete': 'write',
   'events:restore': 'write',
+  'events:falseDeparture': 'write',
+  'events:restoreFalseDeparture': 'write',
   'profile:ignore': 'write',
   'settings:update': 'write',
   'account:update': 'write',

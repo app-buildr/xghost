@@ -70,6 +70,8 @@
     "ignored": "@{{handle}} est ignoré",
     "unignored": "@{{handle}} n’est plus ignoré",
     "removed": "Supprimé de l’historique",
+    "falseDeparture": "@{{handle}} retiré des départs",
+    "falseDepartureRefused": "@{{handle}} te suit de nouveau : la liste va se mettre à jour",
     "undo": "Annuler",
     "close": "Fermer",
     "cancel": "Annuler",

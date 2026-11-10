@@ -332,11 +332,14 @@
   position: relative;
 }
 .xg-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
+  /* Rendu dans body, placé par ActionMenu (coordonnées de la fenêtre). */
+  position: fixed;
+  top: 0;
+  left: 0;
   z-index: var(--xg-z-menu);
   min-width: 280px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   padding: 6px;
   background: var(--xg-surface);
   border: 1px solid var(--xg-border);
@@ -382,8 +385,6 @@
   background: var(--xg-border);
 }
 .xg-menu--start {
-  right: auto;
-  left: 0;
   min-width: 220px;
 }
 .xg-menu__item[aria-checked='true'] {

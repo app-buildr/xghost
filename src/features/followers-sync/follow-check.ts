@@ -8,7 +8,7 @@ import { localKv } from '@/shared/storage/kv';
 import type { FollowCheck, FollowCheckReading, FollowCheckResult, TrackedAccount } from '@/shared/types';
 import { HOUR, MINUTE, SECOND } from '@/shared/utils/time';
 import { profileUrl, userIdUrl } from '@/shared/x-urls';
-import { loadFollowChecks, updateFollowChecks } from './repository';
+import { loadFollowChecks, nextFollowCheck, updateFollowChecks } from './repository';
 import { scanHooks, serial } from './scan-context';
 import { getScanTab, isHooked, navigate, registerScanTab, type ScanTab } from './scan-tab';
 
@@ -80,7 +80,7 @@ export async function beginFollowCheck(account: TrackedAccount): Promise<'starte
   }
   // Réponses d'une passe interrompue (service worker arrêté) : appliquées avant d'en lire d'autres.
   await applyStored(account.id);
-  const first = (await loadFollowChecks(account.id)).find((q) => !q.result);
+  const first = nextFollowCheck(await loadFollowChecks(account.id));
   if (!first) return 'empty';
   const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => undefined);
   const tab = await chrome.tabs.create({ url: checkUrl(first), pinned: true, active: false, windowId: win?.id });
@@ -112,7 +112,7 @@ export async function onFollowCheckEvent(event: TabEvent, tabId: number, scanTab
     result = { following: lookup.following, followedBy: lookup.followedBy, profile };
   } else if (lookup.status !== 'active' && event.op === 'UserByRestId' && variablesOf(event.url).userId === current.profileId) {
     // Compte suspendu ou supprimé : rien à lire sur son profil, le départ garde sa valeur.
-    result = {};
+    result = { unavailable: true };
   }
   if (!result) return;
   // Réponse servie avec la session d'un autre compte (bascule sur x.com) : elle dirait qui suit cet
@@ -225,13 +225,14 @@ async function settle(r: Run, item: FollowCheck, reading?: FollowCheckReading): 
   );
 }
 
-const resultOf = ({ eventId, profileId, detectedAt, notified, recheck, result }: FollowCheck): FollowCheckResult => ({
+const resultOf = ({ eventId, profileId, detectedAt, notified, recheck, audit, result }: FollowCheck): FollowCheckResult => ({
   eventId,
   profileId,
   ...result,
   ...(detectedAt === undefined ? {} : { detectedAt }),
   ...(notified ? { notified } : {}),
   ...(recheck ? { recheck } : {}),
+  ...(audit ? { audit } : {}),
 });
 
 /**
@@ -252,7 +253,7 @@ async function applyStored(accountId: string, nextAt?: (remaining: number) => nu
 /** Profil suivant après une courte pause, ou fin de la passe. */
 async function next(r: Run): Promise<void> {
   // Un départ resté sans réponse dans cette passe attend la suivante.
-  const candidate = (await loadFollowChecks(r.accountId)).find((q) => !q.result && !r.tried.has(q.eventId));
+  const candidate = nextFollowCheck(await loadFollowChecks(r.accountId), r.tried);
   if (!candidate || r.handled >= FOLLOW_CHECKS_PER_PASS) return end();
   const step = ++r.step;
   clearTimeout(r.timer);

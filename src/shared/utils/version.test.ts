@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isNewer, parseVersion } from './version';
+import { isNewer, isOlder, parseVersion } from './version';
 
 describe('parseVersion', () => {
   it('accepte « v1.2.3 » et « 1.2.3 »', () => {
@@ -23,5 +23,15 @@ describe('isNewer', () => {
     expect(isNewer('1.0.0', '1.2.0')).toBe(false); // version de développement en avance
     expect(isNewer(null, '1.0.0')).toBe(false);
     expect(isNewer('n/a', '1.0.0')).toBe(false);
+  });
+});
+
+describe('isOlder', () => {
+  it('vraie seulement pour une version antérieure lisible', () => {
+    expect(isOlder('1.0.4', '1.0.5')).toBe(true);
+    expect(isOlder('1.0.5', '1.0.5')).toBe(false);
+    expect(isOlder('1.0.6', '1.0.5')).toBe(false);
+    expect(isOlder(undefined, '1.0.5')).toBe(false);
+    expect(isOlder('dev', '1.0.5')).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { refreshBadge } from '@/features/alerts/badge';
 import { loadEvents, loadRemoved, updateEvents } from '@/features/events/repository';
 import { falseDepartures, isVisible, missingMovements, newMovements, stillAbsent, wasRemoved } from '@/domain/events/selectors';
 import {
+  enqueueAudits,
   enqueueFollowChecks,
   recordTotal,
   clearPartial,
@@ -42,7 +43,7 @@ import {
 } from '@/domain/followers/diff';
 import { cleanFalseMovements } from './cleanup';
 import { SNAPSHOT_TOP_SIZE, STALE_RECHECK_MS } from '@/features/followers-sync/model';
-import { HOUR, MINUTE } from '@/shared/utils/time';
+import { DAY, HOUR, MINUTE } from '@/shared/utils/time';
 
 /**
  * Exploitation des scans (§ 4.1, 4.2, 4.7) : référence, comparaison, garde-fous,
@@ -166,6 +167,34 @@ const queueHiddenRechecks = (accountId: string, hidden: ReadonlySet<string>, pro
     [...hidden].map((id): FollowCheck => ({ eventId: `h:${id}`, profileId: id, handle: profiles[id]?.handle ?? id, recheck: true })),
     { onlyNew: true },
   );
+
+/** Départs revérifiés à la mise à jour : détectés depuis au plus… */
+const AUDIT_WINDOW_MS = 30 * DAY;
+/** …et pas plus que ce nombre (les plus récents). */
+const AUDIT_MAX = 100;
+
+/**
+ * Revérification unique, au passage à la 1.0.5 (voir background) : les départs détectés avant la
+ * lecture de « suit toujours l'utilisateur » (1.0.4) n'ont jamais été confrontés à un abonné caché
+ * par X. Les départs récents toujours affichés sont revus sur leur profil ; un faux départ est retiré
+ * même détecté il y a plus de 24 h. La fenêtre est courte : plus un départ est ancien, plus un compte
+ * qui suit de nouveau l'utilisateur a pu vraiment partir puis revenir. Rien n'est notifié (ces départs
+ * l'ont déjà été), et ces profils passent après les départs à vérifier (`nextFollowCheck`).
+ * Les comptes ignorés ne sont pas ouverts. Renvoie le nombre de départs mis en file.
+ */
+export async function auditDepartures(accountId: string, now = Date.now()): Promise<number> {
+  const [events, ignored] = await Promise.all([loadEvents(accountId), loadIgnored(accountId)]);
+  const absent = events
+    .filter((e) => e.type === 'departure' && e.at >= now - AUDIT_WINDOW_MS && !ignored.has(e.profileId) && stillAbsent(e, events))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, AUDIT_MAX);
+  await enqueueAudits(
+    accountId,
+    absent.map((d): FollowCheck => ({ eventId: d.id, profileId: d.profileId, handle: d.handle, notified: true, audit: true })),
+    now - FOLLOW_CHECK_MAX_AGE_MS,
+  );
+  return absent.length;
+}
 
 /** Dernière vérification (la liste d'abonnés enregistrée est à jour jusque-là). */
 const lastCheck = (account: TrackedAccount) => account.lastScanAt ?? 0;
@@ -577,15 +606,22 @@ const followingChange = (e: FollowEvent, r: FollowCheckResult | undefined) =>
  *   est mis à jour, et le départ est notifié s'il a été détecté depuis moins de 24 h, n'a pas été
  *   notifié à sa détection (grosse vague, version précédente), n'est pas vu et pas suivi d'un retour.
  * - Abonné caché revérifié (`recheck`) : s'il ne suit plus l'utilisateur, il est vraiment parti,
- *   départ enregistré et notifié maintenant.
+ *   départ enregistré et notifié maintenant. Compte suspendu ou supprimé : départ enregistré sans
+ *   notification, il n'est plus tenu pour caché (sinon son profil serait rouvert à chaque scan).
  */
 export async function applyFollowChecks(accountId: string, results: readonly FollowCheckResult[]): Promise<void> {
   if (results.length === 0) return;
   const now = Date.now();
   const since = now - FOLLOW_CHECK_MAX_AGE_MS;
   const byEvent = new Map(results.filter((r) => !r.recheck).map((r) => [r.eventId, r]));
-  const left = results.filter((r) => r.recheck && r.followedBy === false);
-  const [account, ignored] = await Promise.all([loadAccounts().then((all) => all[accountId]), loadIgnored(accountId)]);
+  const [account, ignored, hidden] = await Promise.all([
+    loadAccounts().then((all) => all[accountId]),
+    loadIgnored(accountId),
+    loadHidden(accountId),
+  ]);
+  // Abonné caché qui ne suit plus l'utilisateur, ou dont le compte est suspendu ou supprimé (il ne
+  // reviendra pas dans la liste) ; seulement s'il est toujours tenu pour caché (« Faux départ » annulé).
+  const left = results.filter((r) => r.recheck && hidden.has(r.profileId) && (r.followedBy === false || r.unavailable));
 
   // --- Départs vérifiés : faux départs retirés, « je le suis » mis à jour ---
   let events = await loadEvents(accountId);
@@ -625,11 +661,13 @@ export async function applyFollowChecks(accountId: string, results: readonly Fol
   if (read.length) await saveProfiles(accountId, profiles);
 
   // --- Abonnés cachés qui ne suivent plus l'utilisateur : vrais départs ---
+  // (notifiés ; un compte suspendu ou supprimé est seulement enregistré)
   if (left.length) {
     const ids = left.map((r) => r.profileId);
     const added = await addEvents(accountId, makeEvents('departure', ids, now, profiles), ignored);
     await updateHidden(accountId, { drop: ids });
-    notify.push(...departuresOf(added));
+    const unfollowed = new Set(left.filter((r) => r.followedBy === false).map((r) => r.profileId));
+    notify.push(...departuresOf(added).filter((e) => unfollowed.has(e.profileId)));
   }
 
   // Départ retiré ou ajouté, « je le suis » changé : le nombre de départs non vus a pu changer.

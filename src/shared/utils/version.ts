@@ -10,7 +10,7 @@ export function parseVersion(tag: unknown): string | null {
  * La version `latest` (celle d'une sauvegarde) est plus récente que la version installée
  * `current`. Une version illisible ne déclenche rien.
  */
-export function isNewer(latest: string | null | undefined, current: string): boolean {
+export function isNewer(latest: string | null | undefined, current: string | null | undefined): boolean {
   const a = parseVersion(latest)?.split('.').map(Number);
   const b = parseVersion(current)?.split('.').map(Number);
   if (!a || !b) return false;
@@ -19,6 +19,9 @@ export function isNewer(latest: string | null | undefined, current: string): boo
   }
   return false;
 }
+
+/** `previous` est antérieure à `version` (mise à jour qui la franchit). Une version illisible : non. */
+export const isOlder = (previous: string | null | undefined, version: string) => isNewer(version, previous);
 
 /** Version de l'extension installée. */
 export const installedVersion = () => chrome.runtime.getManifest().version;

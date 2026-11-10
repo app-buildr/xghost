@@ -242,8 +242,14 @@ défilement (`onProfile`), et aussi d'après le dernier total connu au lancement
    faux départ est alors retiré de l'historique sans notification, et le compte est tenu pour
    présent (`acc:<id>:hidden`) jusqu'à son retour dans la liste, qui ne compte pas comme une
    arrivée. Ces abonnés cachés sont revérifiés après chaque scan complet : s'ils ne suivent plus
-   l'utilisateur, le départ est enregistré. Passes de 15 profils au plus, espacées de 15 min ; un
-   scan est prioritaire. Les réponses lues restent en file jusqu'à leur application (arrêt du
+   l'utilisateur, le départ est enregistré et notifié ; un compte devenu suspendu ou supprimé est
+   enregistré comme départ sans notification. L'action « Faux départ » du menu d'une ligne de
+   départ fait la même chose à la main (annulable) : départ retiré, compte tenu pour caché, et sa
+   vérification en file devient une revérification. Au passage à la 1.0.5, les départs des
+   30 derniers jours encore affichés (100 au plus) sont revérifiés une fois, sans notification :
+   ceux détectés avant la 1.0.4 n'ont jamais été confrontés à un abonné caché. Passes de 15 profils
+   au plus, espacées de 15 min ; un scan est prioritaire, et les départs à vérifier passent avant
+   ces revérifications. Les réponses lues restent en file jusqu'à leur application (arrêt du
    service worker), et une réponse servie par la session d'un autre compte est écartée. Le statut
    des comptes partis (suspendu, supprimé) n'est pas enregistré.
 7. Chiffres sur 7 jours : bilan par compte (un départ suivi d'un retour ne compte pas).

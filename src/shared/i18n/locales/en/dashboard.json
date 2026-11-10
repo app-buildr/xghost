@@ -95,6 +95,8 @@
     "copyUsername": "Copy @username",
     "ignore": "Ignore this account",
     "ignoreHint": "Stop reporting their unfollows",
+    "falseDeparture": "Not an unfollow",
+    "falseDepartureHint": "Still follows me: X hides them from the list",
     "delete": "Remove from history",
     "viewProfile": "View profile",
     "suspended": "account suspended",

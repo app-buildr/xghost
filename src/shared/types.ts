@@ -137,6 +137,11 @@ export interface FollowCheck {
   /** Abonné caché par X (`keys.hidden`) : revérifié pour savoir s'il suit toujours l'utilisateur. */
   recheck?: boolean;
   /**
+   * Départ ancien revérifié à la mise à jour de l'extension (antérieur à la lecture de `followedBy`) :
+   * retiré s'il est faux quel que soit son âge, jamais notifié.
+   */
+  audit?: boolean;
+  /**
    * Réponse lue (vide : profil abandonné après plusieurs essais), gardée en file jusqu'à ce qu'elle
    * soit appliquée : un arrêt du service worker en cours de passe ne la perd pas.
    */
@@ -148,6 +153,8 @@ export interface FollowCheckReading {
   following?: boolean;
   /** Le compte parti suit toujours l'utilisateur (absent : la réponse ne l'a pas dit). */
   followedBy?: boolean;
+  /** Compte suspendu ou supprimé : son profil ne dit rien (≠ profil resté muet après plusieurs essais). */
+  unavailable?: boolean;
   profile?: Omit<Profile, 'id'>;
 }
 
@@ -158,6 +165,7 @@ export interface FollowCheckResult extends FollowCheckReading {
   detectedAt?: number;
   notified?: boolean;
   recheck?: boolean;
+  audit?: boolean;
 }
 
 export interface Profile {

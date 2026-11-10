@@ -95,6 +95,8 @@
     "copyUsername": "Copier le @username",
     "ignore": "Ignorer ce compte",
     "ignoreHint": "Ne plus signaler ses départs",
+    "falseDeparture": "Faux départ",
+    "falseDepartureHint": "Il me suit toujours : X le cache de la liste",
     "delete": "Supprimer de l’historique",
     "viewProfile": "Voir le profil",
     "suspended": "compte suspendu",

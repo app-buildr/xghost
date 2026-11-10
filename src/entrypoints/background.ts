@@ -1,6 +1,6 @@
 import { ID, X_ORIGIN } from '@/shared/x-urls';
 import { t } from '@/shared/i18n';
-import { clearAccountAlarms } from '@/features/scheduler/alarms';
+import { clearAccountAlarms, followCheckAlarm } from '@/features/scheduler/alarms';
 import { importBackup } from '@/features/backup/backup';
 import {
   getSelectedAccountId,
@@ -13,7 +13,14 @@ import {
 } from '@/features/accounts/repository';
 import { refreshBadge } from '@/features/alerts/badge';
 import { onNotificationClick } from '@/features/alerts/notifications';
-import { deleteEvent, forgetSeen, markSeen, restoreEvent } from '@/features/events/commands';
+import {
+  deleteEvent,
+  forgetSeen,
+  markFalseDeparture,
+  markSeen,
+  restoreEvent,
+  restoreFalseDeparture,
+} from '@/features/events/commands';
 import { forgetUnseen, refreshUnseen } from '@/features/events/repository';
 import { deleteAccountData } from '@/features/followers-sync/repository';
 import {
@@ -36,7 +43,8 @@ import {
   triggerCheck,
   updateStatus,
 } from '@/features/scheduler/orchestrator';
-import { saveSettings } from '@/features/settings/repository';
+import { loadSettings, saveSettings } from '@/features/settings/repository';
+import { auditDepartures } from '@/features/unfollow-detection/apply';
 import { cleanAllFalseMovements } from '@/features/unfollow-detection/cleanup';
 import { onSessionCookieChange, readSession } from '@/features/x-api/session';
 import { REQUEST_POLICY, type ReadyReply, type RequestType, type TabEvent } from '@/shared/messaging/protocol';
@@ -44,6 +52,7 @@ import { registerHandlers } from '@/shared/messaging/server';
 import { isImporting } from '@/shared/storage/import-lock';
 import { isProgressKey, keys } from '@/shared/storage/keys';
 import { localKv } from '@/shared/storage/kv';
+import { isOlder } from '@/shared/utils/version';
 
 /** Identifiant de compte X d'une requête : refusé s'il n'a pas la forme attendue (défense en profondeur). */
 const accountIdOf = (id: string): string => {
@@ -54,6 +63,10 @@ const accountIdOf = (id: string): string => {
 /** Écritures refusées pendant l'import d'une sauvegarde (elles viseraient des données remplacées). */
 /** Plusieurs cookies changent d'un coup lors d'une bascule de compte : un seul traitement. */
 const SESSION_DEBOUNCE_MS = 1500;
+/** Délai avant la revérification des départs après une mise à jour (session X détectée d'abord). */
+const AUDIT_DELAY_MS = 60_000;
+/** Version qui revérifie les départs détectés avant la lecture de « suit toujours l'utilisateur ». */
+const AUDIT_VERSION = '1.0.5';
 
 /** Marqueur du stockage de session : le service worker a déjà démarré depuis l'ouverture du navigateur. */
 const AWAKE_KEY = 'awake';
@@ -64,18 +77,41 @@ const refuseDuringImport = (type: RequestType) =>
   isImporting() && REQUEST_POLICY[type] === 'write' ? t('common.errors.importing') : undefined;
 
 export default defineBackground(() => {
-  chrome.runtime.onInstalled.addListener(({ reason }) => void onInstalled(reason).catch(logError));
+  chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => void onInstalled(reason, previousVersion).catch(logError));
   chrome.runtime.onStartup.addListener(() => void setupAlarms().catch(logError));
 
-  async function onInstalled(reason: string) {
+  async function onInstalled(reason: string, previousVersion?: string) {
     await setupAlarms();
     if (reason === 'install') {
       await chrome.tabs.create({ url: chrome.runtime.getURL('/onboarding.html') });
     }
     // Mise à jour : retire de l'historique les faux départs laissés par les versions précédentes.
     if (reason === 'update') await cleanAllFalseMovements().catch((err) => console.error(err));
+    // Passage à la 1.0.5 : les départs récents sont revérifiés (abonnés cachés par X), une seule fois.
+    if (reason === 'update' && isOlder(previousVersion, AUDIT_VERSION)) await auditAllDepartures().catch(logError);
     // Déjà connecté à X avant l'installation : aucun cookie ne change, on détecte ici.
     await handleSessionChange();
+  }
+
+  /**
+   * Met en file la revérification des départs de chaque compte (voir `auditDepartures`), sauf au-delà
+   * de la limite d'abonnés (aucun scan). La passe démarre peu après pour le compte connecté, sauf en
+   * mode manuel (aucune activité programmée) ou si une passe est déjà programmée (attente après une
+   * limite de X, par exemple) ; sinon elle suit le prochain scan, lancé à la main ou programmé.
+   */
+  async function auditAllDepartures() {
+    const [accounts, session, settings] = await Promise.all([loadAccounts(), readSession(), loadSettings()]);
+    for (const account of Object.values(accounts)) {
+      if (account.limit) continue;
+      try {
+        if ((await auditDepartures(account.id)) === 0) continue;
+        if (settings.frequencyHours === 0 || account.id !== session?.accountId) continue;
+        if (await chrome.alarms.get(followCheckAlarm(account.id))) continue;
+        await chrome.alarms.create(followCheckAlarm(account.id), { when: Date.now() + AUDIT_DELAY_MS });
+      } catch (err) {
+        logError(err);
+      }
+    }
   }
 
   chrome.alarms.onAlarm.addListener(({ name }) => {
@@ -191,6 +227,14 @@ export default defineBackground(() => {
     async 'events:restore'({ accountId, event }) {
       accountId = accountIdOf(accountId);
       await restoreEvent(accountId, event);
+    },
+    async 'events:falseDeparture'({ accountId, eventId }) {
+      accountId = accountIdOf(accountId);
+      return { removed: await markFalseDeparture(accountId, eventId) };
+    },
+    async 'events:restoreFalseDeparture'({ accountId, event }) {
+      accountId = accountIdOf(accountId);
+      await restoreFalseDeparture(accountId, event);
     },
     async 'profile:ignore'({ accountId, profileId, ignored }) {
       accountId = accountIdOf(accountId);

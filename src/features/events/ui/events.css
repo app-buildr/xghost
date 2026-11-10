@@ -74,10 +74,6 @@
   padding: 14px 20px;
   border-top: 1px solid var(--xg-surface-muted);
 }
-/* Ligne dont le menu d'actions est ouvert : au-dessus des lignes suivantes. */
-.xg-dep:has(.xg-menu) {
-  z-index: var(--xg-z-raised);
-}
 .xg-dep__date {
   flex: none;
   min-width: 72px;

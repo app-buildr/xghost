@@ -21,9 +21,8 @@ type RenderRow = (event: FollowEvent, rowProps: EventRowProps) => ReactNode;
 /**
  * Liste virtualisée : seules les lignes proches de la zone visible existent dans la page, quelle
  * que soit la longueur de l'historique. Elles restent dans le flux, entre deux espaceurs qui
- * tiennent la place des autres (pas du padding : il passerait outre le `max-height` de la liste) ;
- * sans positionnement absolu, la ligne d'un menu ouvert passe au-dessus des suivantes comme
- * d'habitude. Les hauteurs sont mesurées (elles varient avec la largeur).
+ * tiennent la place des autres (pas du padding : il passerait outre le `max-height` de la liste).
+ * Les hauteurs sont mesurées (elles varient avec la largeur).
  * Une ligne compte comme vue quand elle passe réellement à l'écran.
  */
 function EventRows({ items, renderRow }: { items: readonly FollowEvent[]; renderRow: RenderRow }) {

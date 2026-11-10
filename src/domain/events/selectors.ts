@@ -179,16 +179,18 @@ export function newMovements(
 }
 
 /**
- * Faux départs : départs récents (mis en file depuis `since`) dont le profil dit que le compte suit
- * toujours l'utilisateur, sans retour enregistré depuis. X cache parfois un abonné de la liste.
+ * Faux départs : départs récents (mis en file depuis `since`) ou revérifiés à la mise à jour (`audit`)
+ * dont le profil dit que le compte suit toujours l'utilisateur, sans retour enregistré depuis. X cache
+ * parfois un abonné de la liste.
  */
 export function falseDepartures(
   events: readonly FollowEvent[],
-  results: ReadonlyMap<string, { followedBy?: boolean; detectedAt?: number }>,
+  results: ReadonlyMap<string, { followedBy?: boolean; detectedAt?: number; audit?: boolean }>,
   since: number,
 ): FollowEvent[] {
   return events.filter((e) => {
     const r = results.get(e.id);
-    return e.type === 'departure' && r?.followedBy === true && (r.detectedAt ?? e.at) >= since && stillAbsent(e, events);
+    const recent = r?.audit || (r?.detectedAt ?? e.at) >= since;
+    return e.type === 'departure' && r?.followedBy === true && recent && stillAbsent(e, events);
   });
 }

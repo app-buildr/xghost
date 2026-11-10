@@ -5,7 +5,7 @@ import { currentDepartures, type VisibilityContext } from '@/domain/events/selec
 import { t } from '@/shared/i18n';
 import type { FollowEvent, TrackedAccount } from '@/shared/types';
 import { ActionMenu } from '@/shared/ui/ActionMenu';
-import { Copy, EyeOff, Trash2 } from 'lucide-react';
+import { Copy, EyeOff, Trash2, UserCheck } from 'lucide-react';
 import { formatNumber } from '@/shared/utils/format';
 import { EventListPanel } from './EventListPanel';
 import { ProfileLink } from './EventParts';
@@ -77,6 +77,13 @@ export function DeparturesPanel({
                     hint: t('dashboard.row.ignoreHint'),
                     icon: <EyeOff size={18} />,
                     onSelect: () => void actions.ignore(event.profileId, event.handle),
+                  },
+                  {
+                    key: 'falseDeparture',
+                    label: t('dashboard.row.falseDeparture'),
+                    hint: t('dashboard.row.falseDepartureHint'),
+                    icon: <UserCheck size={18} />,
+                    onSelect: () => void actions.falseDeparture(event),
                   },
                   {
                     key: 'delete',

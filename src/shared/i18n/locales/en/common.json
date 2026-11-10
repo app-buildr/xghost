@@ -70,6 +70,8 @@
     "ignored": "@{{handle}} is now ignored",
     "unignored": "@{{handle}} is no longer ignored",
     "removed": "Removed from history",
+    "falseDeparture": "@{{handle}} removed from unfollows",
+    "falseDepartureRefused": "@{{handle}} already followed you back: the list will refresh",
     "undo": "Undo",
     "close": "Close",
     "cancel": "Cancel",

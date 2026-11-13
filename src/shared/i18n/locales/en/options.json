@@ -16,7 +16,10 @@
     "title": "X accounts",
     "activeSession": "Active session",
     "awaitingCheck": "Waiting for a check",
-    "help": "Log in to another account on x.com, xGhost detects it by itself."
+    "help": "Log in to another account on x.com, xGhost detects it by itself.",
+    "remove": "Delete @{{handle}}",
+    "removeConfirm": "Delete @{{handle}} and all its data (history, baseline, settings)? It will be detected again if you log back in to it on x.com.",
+    "removeAction": "Delete"
   },
   "settings": {
     "check": "Checks",

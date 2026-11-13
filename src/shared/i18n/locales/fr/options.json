@@ -16,7 +16,10 @@
     "title": "Comptes X",
     "activeSession": "Session active",
     "awaitingCheck": "En attente de vérification",
-    "help": "Connecte-toi à un autre compte sur x.com, xGhost le détecte tout seul."
+    "help": "Connecte-toi à un autre compte sur x.com, xGhost le détecte tout seul.",
+    "remove": "Supprimer @{{handle}}",
+    "removeConfirm": "Supprimer @{{handle}} et toutes ses données (historique, référence, réglages) ? Il sera de nouveau détecté si tu te reconnectes à lui sur x.com.",
+    "removeAction": "Supprimer"
   },
   "settings": {
     "check": "Vérification",

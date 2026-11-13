@@ -1,11 +1,10 @@
 import type { AccountData } from '@/features/app-state/useAccountData';
+import { useRemoveAccount } from '@/features/accounts/ui/useRemoveAccount';
 import { useEventActions } from '@/features/events/ui/useEventActions';
 import { t } from '@/shared/i18n';
-import { send } from '@/shared/messaging/client';
 import type { TrackedAccount } from '@/shared/types';
 import { ConfirmAction } from '@/shared/ui/ConfirmAction';
 import { Avatar, Card } from '@/shared/ui/primitives';
-import { useToast } from '@/shared/ui/toast';
 import './settings.css';
 
 /** Réglages propres au compte (§ 4.4) : comptes ignorés (réversible)… */
@@ -45,7 +44,7 @@ export function IgnoredAccounts({ account, data }: { account: TrackedAccount; da
 
 /** …et retrait du compte, placé en dernier (action destructrice). */
 export function RemoveAccount({ account }: { account: TrackedAccount }) {
-  const toast = useToast();
+  const remove = useRemoveAccount();
   return (
     <Card title={t('options.account.removeTitle', { handle: account.handle })}>
       <p className="xg-setting__hint">{t('options.account.removeHint')}</p>
@@ -54,12 +53,7 @@ export function RemoveAccount({ account }: { account: TrackedAccount }) {
         label={t('options.account.remove')}
         confirmLabel={t('options.account.confirmRemove')}
         onConfirm={async () => {
-          try {
-            await send('account:remove', { accountId: account.id });
-            toast.show(t('options.account.removed', { handle: account.handle }));
-          } catch {
-            toast.show(t('common.actions.failed'));
-          }
+          await remove(account);
         }}
       />
     </Card>

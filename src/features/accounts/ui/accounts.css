@@ -6,6 +6,19 @@
   padding: 8px;
   border-radius: var(--xg-radius-block);
 }
+/* Ligne d'un compte : le fond (survol, sélection) couvre aussi la corbeille et la confirmation. */
+.xg-account-row {
+  border-radius: var(--xg-radius-lg);
+}
+.xg-account-row:hover {
+  background: var(--xg-surface-muted);
+}
+.xg-account-row.is-selected {
+  background: var(--xg-primary-tint);
+}
+.xg-account-row__main {
+  position: relative;
+}
 .xg-account {
   display: flex;
   align-items: center;
@@ -18,11 +31,70 @@
   text-align: left;
   cursor: pointer;
 }
-.xg-account:hover {
-  background: var(--xg-surface-muted);
+/* Emplacement fixe à droite : la pastille des non-vus, que la corbeille remplace quand elle s'affiche. */
+.xg-account__end {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 32px;
 }
-.xg-account.is-selected {
-  background: var(--xg-primary-tint);
+/*
+ * Corbeille posée sur cet emplacement : visible au survol de la ligne, au clavier et confirmation
+ * ouverte. Invisible, elle laisse passer le clic vers le compte.
+ */
+.xg-account-row__remove {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--xg-radius-control);
+  background: transparent;
+  color: var(--xg-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+.xg-account-row:is(:hover, :has(:focus-visible), :has([aria-expanded='true'])) .xg-account-row__remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+.xg-account-row:is(:hover, :has(:focus-visible), :has([aria-expanded='true'])) .xg-account__end {
+  visibility: hidden;
+}
+.xg-account-row__remove:hover,
+.xg-account-row__remove[aria-expanded='true'] {
+  background: var(--xg-danger-tint);
+  color: var(--xg-danger-strong);
+}
+/* Écran tactile (pas de survol) : corbeille sur le compte affiché, dont les non-vus restent dans le menu. */
+@media (hover: none) {
+  .xg-account-row.is-selected .xg-account-row__remove {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .xg-account-row.is-selected .xg-account__end {
+    visibility: hidden;
+  }
+}
+.xg-account-row__confirm {
+  padding: 4px 10px 12px;
+  font-size: var(--xg-text-sm);
+  color: var(--xg-text-muted);
+}
+.xg-account-row__confirm p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.xg-account-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .xg-account__text {
   flex: 1;

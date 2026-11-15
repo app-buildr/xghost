@@ -1,5 +1,8 @@
 import { defineConfig } from 'wxt';
 
+// Config lue par Node, sans @types/node dans le projet.
+declare const process: { env: Record<string, string | undefined> };
+
 export default defineConfig({
   srcDir: 'src',
   // Build directement dans dist/, à côté de src/.
@@ -8,7 +11,9 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: ({ mode }) => ({
     // Nom et description traduits par Chrome (public/_locales), anglais par défaut.
-    name: '__MSG_extName__',
+    // Hors release (XGHOST_RELEASE=1, posé par release.sh), « xGhost (dev) » distingue le
+    // build local de la version du Chrome Web Store installée dans le même navigateur.
+    name: process.env.XGHOST_RELEASE === '1' ? '__MSG_extName__' : 'xGhost (dev)',
     description: '__MSG_extDescription__',
     default_locale: 'en',
     // `chrome.runtime.getContexts` (ouverture des pages de l'extension).
